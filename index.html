@@ -1,0 +1,717 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>패턴잇다</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="theme-color" content="#eef0f1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="패턴잇다">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;600&display=swap">
+<style>
+/* Layout: title bar, ribbon, option strip, three-pane workspace, status bar. */
+:root{--mat:#fff;--grid:#eef1f3;--grid2:#d8dfe4;--ink:#1d2428;--draw:#0a6fb0;--seam:#c9259a;--mark:#e4570a;--c1:#1f5fd0;--c2:#d62828;--c3:#c9259a;--c4:#1a9e4b;--c5:#0a9fb5;--c6:#b58900;--chrome:#eef0f1;--panel:#f7f8f8;--line:#d5dade;--dim:#667078;--active:#d6ebf8;--danger:#b3261e;color-scheme:light;--font:"IBM Plex Sans KR","Malgun Gothic",system-ui,sans-serif}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0;background:var(--chrome);color:var(--ink);font:13px/1.35 var(--font);overflow:hidden;overscroll-behavior:none}
+#app{height:100%;display:grid;grid-template-rows:auto auto auto minmax(0,1fr) auto}
+button,label.btn{font:inherit;color:inherit;background:none;border:0;border-radius:5px;cursor:pointer;touch-action:manipulation}
+button:focus-visible,label.btn:focus-within,input:focus-visible,select:focus-visible{outline:2px solid var(--draw);outline-offset:1px}
+button:disabled{opacity:.38;cursor:default}
+svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
+#title{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;padding:calc(4px + env(safe-area-inset-top)) 12px 2px}
+#quick{display:flex;gap:2px}
+#quick button,#quick label.btn{width:30px;height:28px;display:grid;place-items:center}
+#quick svg{width:18px;height:18px}
+#quick button:hover:not(:disabled),#quick label.btn:hover{background:var(--line)}
+#name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46vw}
+#name small{font-weight:400;color:var(--dim);margin-left:6px}
+#tabs{display:flex;gap:2px;padding:0 12px}
+#tabs button{padding:5px 13px;border-bottom:2px solid transparent;border-radius:0}
+#tabs button[aria-selected=true]{font-weight:600;border-bottom-color:var(--draw)}
+#ribbon{background:var(--mat);margin:2px 8px 0;border-radius:8px;display:flex;overflow-x:auto;min-height:88px}
+.tabpane{display:flex}
+.group{display:grid;grid-template-rows:1fr auto;padding:5px 7px 3px;border-right:1px solid var(--line)}
+.group:last-child{border-right:0}
+.tools{display:flex;gap:2px}
+.group>span{text-align:center;color:var(--dim);font-size:11px}
+.tool{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:52px;height:60px;padding:3px 5px;font-size:12px;white-space:nowrap}
+.tool:hover:not(:disabled){background:var(--chrome)}
+.tool[aria-pressed=true]{background:var(--active);box-shadow:inset 0 0 0 1px var(--draw)}
+#options{display:flex;align-items:center;gap:14px;padding:6px 12px;overflow-x:auto;white-space:nowrap}
+#options label{display:inline-flex;align-items:center;gap:5px}
+select{font:inherit;height:26px;background:var(--mat);color:var(--ink);border:1px solid var(--line);border-radius:4px}
+#work{display:grid;grid-template-columns:230px minmax(0,1fr) 210px;gap:6px;padding:0 8px;min-height:0}
+#work.noLeft{grid-template-columns:minmax(0,1fr) 210px}
+#work.noRight{grid-template-columns:230px minmax(0,1fr)}
+#work.noLeft.noRight{grid-template-columns:minmax(0,1fr)}
+#work.noLeft #leftPanel,#work.noRight #rightPanel{display:none}
+aside{background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:auto;min-height:0}
+aside h2{margin:0;padding:7px 10px;font-size:12px;font-weight:600;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel)}
+#layerHead,.layerRow{display:grid;grid-template-columns:38px minmax(0,1fr) 54px 40px;align-items:center;padding:5px 10px;text-align:center}
+#layerHead{color:var(--dim);font-size:11px;border-bottom:1px solid var(--line)}
+.layerRow{border-bottom:1px solid var(--line)}
+.layerRow:nth-child(even){background:var(--mat)}
+.layerRow span:nth-child(2){text-align:left;font-weight:600}
+.layerRow span:nth-child(3){font-variant-numeric:tabular-nums;color:var(--dim)}
+.hint{margin:10px;color:var(--dim);font-size:12px}
+aside h3{margin:0;padding:5px 10px;font-size:12px;font-weight:600;background:var(--chrome)}
+aside label.row{display:flex;align-items:center;gap:8px;padding:5px 12px}
+input[type=checkbox],input[type=radio]{width:15px;height:15px;margin:0;accent-color:var(--draw)}
+main{position:relative;min-width:0;min-height:0;background:var(--mat);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;display:block}
+.float{position:absolute;right:10px;bottom:10px;background:var(--mat);border:1px solid var(--line);border-radius:7px;padding:7px 9px;display:flex;flex-wrap:wrap;gap:7px;align-items:center;box-shadow:0 2px 8px rgba(20,40,50,.12)}
+.float input{width:78px;height:30px;font:inherit;font-variant-numeric:tabular-nums;border:1px solid var(--line);border-radius:4px;padding:0 6px;background:var(--mat);color:var(--ink)}
+.float button{min-height:30px;padding:0 11px;background:var(--active)}
+#notice{position:absolute;left:10px;right:10px;top:8px;background:var(--panel);border:1px solid var(--line);padding:7px 11px;border-radius:6px}
+#notice.warn{color:var(--danger)}
+#status{display:flex;align-items:center;gap:16px;padding:5px 12px calc(5px + env(safe-area-inset-bottom));font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden}
+#readout{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+#status span{color:var(--dim)}
+#status #readout{color:var(--ink)}
+@media (max-width:900px){
+  #work,#work.noLeft,#work.noRight{grid-template-columns:minmax(0,1fr);position:relative}
+  aside{position:absolute;z-index:5;top:0;bottom:0;width:min(250px,80vw);box-shadow:0 3px 14px rgba(20,40,50,.2)}
+  #leftPanel{left:8px}#rightPanel{right:8px}
+  #coord,#count{display:none}
+}
+</style>
+</head>
+<body>
+<div id="app">
+<div>
+  <div id="title">
+    <div id="quick">
+      <button id="new" title="새 패턴" aria-label="새 패턴"><svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></svg></button>
+      <label class="btn" title="열기" aria-label="열기"><svg viewBox="0 0 24 24"><path d="M3 19V5h6l2 2h8v3M3 19l3-9h16l-3 9z"/></svg><input id="file" type="file" accept=".pax,.001,.002,.003,.004,.005" hidden></label>
+      <button id="save" title="저장" aria-label="저장"><svg viewBox="0 0 24 24"><path d="M4 4h13l3 3v13H4zM8 4v6h8V4M8 20v-6h8v6"/></svg></button>
+      <button id="undo" title="되돌리기 (Ctrl+Z)" aria-label="되돌리기" disabled><svg viewBox="0 0 24 24"><path d="M9 7L4 12l5 5M4 12h11a5 5 0 010 10"/></svg></button>
+    </div>
+    <div id="name"></div>
+    <div></div>
+  </div>
+  <div id="tabs" role="tablist">
+    <button role="tab" data-tab="file" aria-selected="false">파일</button>
+    <button role="tab" data-tab="draw" aria-selected="true">그리기</button>
+    <button role="tab" data-tab="view" aria-selected="false">보기</button>
+  </div>
+</div>
+<nav id="ribbon">
+  <div class="tabpane" data-pane="file" hidden>
+    <div class="group"><div class="tools">
+      <button class="tool" data-click="new"><svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></svg>새 패턴</button>
+      <button class="tool" data-click="file"><svg viewBox="0 0 24 24"><path d="M3 19V5h6l2 2h8v3M3 19l3-9h16l-3 9z"/></svg>열기</button>
+      <button class="tool" data-click="save"><svg viewBox="0 0 24 24"><path d="M4 4h13l3 3v13H4zM8 4v6h8V4M8 20v-6h8v6"/></svg>저장</button>
+    </div><span>패턴 파일</span></div>
+  </div>
+  <div class="tabpane" data-pane="draw">
+    <div class="group"><div class="tools">
+      <button class="tool" data-tool="pan" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M5 3l14 9-6 1-3 6z"/></svg>선택</button>
+    </div><span>선택</span></div>
+    <div class="group"><div class="tools">
+      <button class="tool" data-tool="line" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M5 19L19 5"/><circle cx="5" cy="19" r="1.5"/><circle cx="19" cy="5" r="1.5"/></svg>직선</button>
+      <button class="tool" data-tool="curve" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M4 19C8 4 14 20 20 5"/></svg>곡선</button>
+      <button class="tool" data-tool="offset" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M4 18L18 4M8 21L21 8"/></svg>평행선</button>
+    </div><span>그리기</span></div>
+    <div class="group"><div class="tools">
+      <button class="tool" data-tool="edit" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M4 20l4-1L19 8l-3-3L5 16z"/><path d="M14 7l3 3"/></svg>수정</button>
+      <button class="tool" data-tool="seamdel" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M4 7c4-3 12-3 16 0M5 16c4 3 10 3 14 0" stroke-dasharray="2.5 3"/><path d="M8 9l8 6M16 9l-8 6"/></svg>시접 삭제</button>
+      <button class="tool" id="del" disabled><svg viewBox="0 0 24 24"><path d="M5 7h14M9 7V4h6v3M7 7l1 13h8l1-13"/></svg>지우기</button>
+    </div><span>수정</span></div>
+    <div class="group"><div class="tools">
+      <button class="tool" data-tool="measure" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M3 16L16 3l5 5L8 21z"/><path d="M7 12l2 2M10 9l2 2M13 6l2 2"/></svg>재기</button>
+    </div><span>측정</span></div>
+  </div>
+  <div class="tabpane" data-pane="view" hidden>
+    <div class="group"><div class="tools">
+      <button class="tool" id="fitBtn"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>화면 맞춤</button>
+      <button class="tool" id="zoomIn"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21M10.5 7.5v6M7.5 10.5h6"/></svg>확대</button>
+      <button class="tool" id="zoomOut"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21M7.5 10.5h6"/></svg>축소</button>
+    </div><span>화면</span></div>
+    <div class="group"><div class="tools">
+      <button class="tool" id="toggleLeft" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4zM10 5v14"/></svg>레이어 창</button>
+      <button class="tool" id="toggleRight" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4zM14 5v14"/></svg>표시 창</button>
+    </div><span>패널</span></div>
+  </div>
+</nav>
+<div id="options">
+  <label><input id="snapOn" type="checkbox" checked> 끝점 맞춤</label>
+  <label><input id="gridOn" type="checkbox" checked> 격자</label>
+  <label>선 종류
+    <select id="lineKind"><option value="7">일반 선</option><option value="3">연한 선</option></select>
+  </label>
+  <label>곡선 수정
+    <select id="curveMode"><option value="sa">SA 전체 자연스럽게</option><option value="ss">SS 한 점만</option></select>
+  </label>
+</div>
+<div id="work">
+  <aside id="leftPanel">
+    <h2>레이어</h2>
+    <div id="layerHead"><span>보기</span><span style="text-align:left">이름</span><span>요소</span><span>작업</span></div>
+    <div id="layers"></div>
+    <p class="hint">새로 그리는 선은 작업 레이어에 들어갑니다.</p>
+  </aside>
+  <main>
+    <canvas id="c"></canvas>
+    <div id="notice" hidden></div>
+    <div id="editPanel" class="float" hidden>
+      <label for="editLen">길이 cm</label><input id="editLen" type="number" inputmode="decimal" step="0.1" min="0">
+      <button id="editApply">적용</button>
+    </div>
+    <div id="offsetPanel" class="float" hidden>
+      <label for="gap">간격 cm</label><input id="gap" type="number" inputmode="decimal" step="0.1" min="0" value="1">
+      <button id="sideA">이쪽</button><button id="sideB">반대쪽</button>
+    </div>
+    <div id="input" class="float" hidden>
+      <label for="len">길이 cm</label><input id="len" type="number" inputmode="decimal" step="0.1" min="0">
+      <button id="apply">적용</button><button id="done" hidden>완료</button>
+    </div>
+  </main>
+  <aside id="rightPanel">
+    <h2>표시</h2>
+    <h3>선</h3>
+    <label class="row"><input type="checkbox" data-cat="line" checked> 직선</label>
+    <label class="row"><input type="checkbox" data-cat="curve" checked> 곡선</label>
+    <label class="row"><input type="checkbox" data-cat="faint" checked> 연한 선</label>
+    <label class="row"><input type="checkbox" data-cat="seam" checked> 분홍 시접선</label>
+    <h3>기호</h3>
+    <label class="row"><input type="checkbox" data-cat="notch" checked> 너치</label>
+    <label class="row"><input type="checkbox" data-cat="text" checked> 글자</label>
+  </aside>
+</div>
+<footer id="status">
+  <div id="readout"></div>
+  <span id="coord"></span>
+  <span id="count"></span>
+  <span id="zoomText"></span>
+  <span>cm</span>
+</footer>
+</div>
+<script>
+'use strict';
+// Layout learned from sample files. Unknown bytes are always preserved.
+const REC=0x800, RSZ=32, HEAP=0xB0E, TEMPLATE=[[0,"AQABAAYAEwsAACAnAgAAAKDAAACgwAAA/EIAAKhCAQAAAAIAAQABAAAAAAAAAAAAAABUMQAAAAAAAAQQ6gcLAAE="],[250,"ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICC+yDU0ICAgICAgICAgICAgvsg1NCAgICC9ycH2MiAgIFRDMSAgICAgVEMyICAgICA="],[651,"Lf8AAP//AAr1bQCT/QIA/wAAAO+READTLL4AqValALm8QwCgnl8AAP//AJWIagAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AxtC1+SAgICC0z7Xpxt3EoQD//wAA//8AAP//AAD//wAA//8AAP//"],[4096,"AQA3ABAAAQBHAAoCAQBRAgAQAgBRAhgAAgBpAiIAAgCLAiQAAgCvAiAAAgDPAlQAAgDPAlQAAACgwAAAoMAAAPxCAACoQgEAAQAQAIAH5QMBAAIAAAAAAAAAAAAIACYAeAecAw=="],[4236,"6oQMwgIAoMA6IRxDAACoQg=="],[4348,"gLnNPQ=="],[4434,"oEAAAKBA"],[4480,"////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////AQACAAAAAAAAAAAAAAABAAAAAAD4DwAAAQABAAIAAAAAAAAAAAAIACYAeAecAw=="],[4758,"6oQMwgIAoMA6IRxDAACoQg=="],[4870,"gLnNPQ=="],[4956,"oEAAAKBA"],[5002,"////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////AQACAAAAAAAAAAAAAAAB"],[8808,"KwAHAAEAAQ=="],[8844,"AQACAAIAAACAPwAAgD8AAIA/mpmZPw=="],[9354,"EScAAAE="]];
+const TYPE={LINE:2,CURVE:7,ARC:3,NOTCH:0x14,TEXT:0x20};
+
+function blank(){
+  const b=new Uint8Array(28672);
+  for(const [o,s] of TEMPLATE){const r=atob(s);for(let i=0;i<r.length;i++)b[o+i]=r.charCodeAt(i)}
+  return b;
+}
+function recsEnd(v){return v.getUint16(0,true)*0x800+v.getUint16(2,true)-1}
+function heapEnd(v){return v.getUint16(4,true)*4096+v.getUint16(6,true)-5}
+
+// Element numbers kept inside notch (5B) and seam (5C) data.
+function forRefs(v,type,a,len,fn){
+  if(type===0x5B){
+    for(let b=0;b+258<=len;b+=256){
+      const n1=Math.min(v.getUint16(a+b+6,true),20),n2=Math.min(v.getUint16(a+b+48,true),50);
+      for(let i=0;i<n1;i++)fn(a+b+8+i*2);
+      for(let i=0;i<n2;i++)fn(a+b+50+i*2);
+      fn(a+b+152);
+    }
+  }else if(type===0x5C){
+    const n=v.getUint16(a+4,true);
+    if(len===206+94*n)for(const j of [0,1,2,4])for(let i=0;i<n;i++)fn(a+6+(j*n+i)*2);
+  }
+}
+function parse(bytes){  const v=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength), end=recsEnd(v), els=[], refs=new Set();
+  if(bytes.length<0x2000||v.getUint16(10,true)!==10016||end<REC||end>bytes.length) throw new Error('유까 패턴 파일이 아니거나 지원하지 않는 형식입니다.');
+  let a=(end>REC?v.getUint16(REC+12,true):v.getUint16(4,true))*4096+HEAP;
+  const pt=o=>({x:v.getFloat32(o,true),y:v.getFloat32(o+4,true)});
+  for(let o=REC;o<end;o+=RSZ){
+    const type=bytes[o],flag=bytes[o+5],len=v.getUint16(o+16,true),e={rec:o,type,flag,addr:a,len,pts:[],layer:bytes[o+2],color:bytes[o+3],link:bytes[o+7],group:v.getUint16(o+8,true),owner:v.getUint16(o+10,true)};
+    if(a+len>bytes.length) throw new Error('파일 구조를 끝까지 읽지 못했습니다.');
+    if(type===TYPE.LINE&&len>=16) e.pts=[pt(a),pt(a+8)];
+    else if(type===TYPE.CURVE){
+      const n=v.getUint16(a+16,true);
+      if(len===26+n*8){
+        e.n=n;for(let i=0;i<n;i++)e.pts.push(pt(a+18+i*8));
+        const from=v.getFloat32(a+18+n*8,true),to=v.getFloat32(a+22+n*8,true);
+        if(from||to){e.trim=true;e.pts=cutCurve(spline(e.pts),from,to)}
+      }
+    }
+    else if(type===TYPE.ARC&&len===36)e.pts=arcPts(pt(a+16),v.getFloat32(a+24,true),v.getFloat32(a+28,true),v.getFloat32(a+32,true));
+    else if(type===TYPE.NOTCH&&len>=32) e.pts=[pt(a+16),pt(a+24)];
+    else if(type===TYPE.TEXT){
+      e.at=pt(a+16);e.text=readText(bytes,v,a,len);
+      e.size=v.getFloat32(a+24,true)||1;
+    }
+    forRefs(v,type,a,len,p=>{const x=v.getUint16(p,true);if(x)refs.add(x)});
+    if(flag!==0) els.push(e);
+    a+=len;
+  }
+  return {bytes,els,walkEnd:a,refs};
+}
+// The last two floats of a curve give the visible part as distances along it.
+function arcPts(c,r,from,to){ // degrees, counter-clockwise; 0 and 0 mean a full circle
+  let span=to-from;if(!from&&!to)span=360;else if(span<=0)span+=360;
+  const n=Math.max(8,Math.ceil(span/6)),o=[];
+  for(let i=0;i<=n;i++){const t=(from+span*i/n)*Math.PI/180;o.push({x:c.x+r*Math.cos(t),y:c.y+r*Math.sin(t)})}
+  return o;
+}
+function cutCurve(P,from,to){
+  const out=[];let run=0;
+  const at=(a,b,d)=>{const L=Math.hypot(b.x-a.x,b.y-a.y)||1,t=(d-run)/L;return {x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t}};
+  for(let i=1;i<P.length;i++){
+    const a=P[i-1],b=P[i],L=Math.hypot(b.x-a.x,b.y-a.y),end=run+L;
+    if(end>=from&&run<=to){
+      if(!out.length)out.push(run>=from?a:at(a,b,from));
+      out.push(end<=to?b:at(a,b,to));
+    }
+    run=end;if(run>to)break;
+  }
+  return out.length>1?out:P;
+}
+function readText(b,v,a,len){ // length at +60, EUC-KR text at +62, then the font name
+  if(len<62)return '';
+  const n=v.getUint16(a+60,true);
+  if(n<1||a+62+n>a+len)return '';
+  try{return new TextDecoder('euc-kr').decode(b.subarray(a+62,a+62+n))}catch(e){return ''}
+}
+
+// Saving: appends to a copy, so existing bytes keep their meaning.
+function encodeCurve(pts){
+  const n=pts.length,len=26+n*8,b=new DataView(new ArrayBuffer(len));
+  const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y);
+  [Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)].forEach((c,i)=>b.setFloat32(i*4,c,true));
+  b.setUint16(16,n,true);
+  pts.forEach((p,i)=>{b.setFloat32(18+i*8,p.x,true);b.setFloat32(22+i*8,p.y,true)});
+  return new Uint8Array(b.buffer);
+}
+function resample(pts,n,exact){ // Yuka curves hold at most 15 points
+  if(!exact&&pts.length<=n)return pts;
+  const L=lenOf(pts),o=[pts[0]];let i=1,run=0;
+  for(let k=1;k<n-1;k++){
+    const want=L*k/(n-1);
+    while(i<pts.length-1&&run+Math.hypot(pts[i].x-pts[i-1].x,pts[i].y-pts[i-1].y)<want){run+=Math.hypot(pts[i].x-pts[i-1].x,pts[i].y-pts[i-1].y);i++}
+    const d=Math.hypot(pts[i].x-pts[i-1].x,pts[i].y-pts[i-1].y)||1,t=(want-run)/d;
+    o.push({x:pts[i-1].x+(pts[i].x-pts[i-1].x)*t,y:pts[i-1].y+(pts[i].y-pts[i-1].y)*t});
+  }
+  o.push(pts[pts.length-1]);return o;
+}
+// Position bytes depend only on the offset inside the page (checked against every Yuka backup).
+function setPos(out,rec,addr){
+  const off=addr%4096,q=off+142,hi=(q&15)+(off<=0x9A1?-6:off<=0xF71?9:10);
+  out[rec+14]=(q>>4)&255;out[rec+15]=hi&255;
+}
+// The element tables always start at ceil(recordEnd/4096) and coordinates five pages later.
+function fitRecords(bytes,count){
+  const v=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength),end=recsEnd(v),hasRec=end>REC;
+  const cur=(hasRec?v.getUint16(REC+12,true):v.getUint16(4,true))-5;
+  const want=Math.max(1,Math.ceil((end+count*RSZ)/4096)),k=want-cur;
+  if(!k)return bytes;
+  const out=new Uint8Array(bytes.length+k*4096);
+  if(k>0){out.set(bytes.subarray(0,cur*4096));out.set(bytes.subarray(cur*4096),want*4096)}
+  else{out.set(bytes.subarray(0,want*4096));out.set(bytes.subarray(cur*4096),want*4096)}
+  const w=new DataView(out.buffer);
+  for(let o=REC;o<end;o+=RSZ)w.setUint16(o+12,w.getUint16(o+12,true)+k,true);
+  w.setUint16(4,w.getUint16(4,true)+k,true);
+  return out;
+}
+function setRecsEnd(v,e){v.setUint16(0,Math.floor(e/0x800),true);v.setUint16(2,e%0x800+1,true)}
+function setHeapEnd(v,e){v.setUint16(4,Math.floor((e+5)/4096),true);v.setUint16(6,(e+5)%4096,true)}
+// Deleting removes the record and its data, as Yuka does, then renumbers what follows.
+function removeRec(out,rec){
+  const v=new DataView(out.buffer),end=recsEnd(v),idx=(rec-REC)/RSZ+1;
+  let a=v.getUint16(REC+12,true)*4096+HEAP,addr=0;
+  for(let o=REC;o<end;o+=RSZ){if(o===rec)addr=a;a+=v.getUint16(o+16,true)}
+  const walk=a,n=v.getUint16(rec+16,true),hEnd=Math.max(heapEnd(v),walk);
+  out.copyWithin(addr,addr+n,hEnd);out.fill(0,hEnd-n,hEnd);
+  out.copyWithin(rec,rec+RSZ,end);out.fill(0,end-RSZ,end);
+  let p=addr;
+  for(let o=REC;o<end-RSZ;o+=RSZ){
+    for(const f of [10,18]){const x=v.getUint16(o+f,true);if(x>idx)v.setUint16(o+f,x-1,true)}
+    if(v.getUint16(o+10,true)===idx){v.setUint16(o+10,0,true);if(out[o+7]===0x15)out[o+7]=0}
+    if(o>=rec){
+      v.setUint16(o+12,Math.floor(p/4096),true);setPos(out,o,p);
+      p+=v.getUint16(o+16,true);
+    }
+  }
+  let q=v.getUint16(REC+12,true)*4096+HEAP;
+  for(let o=REC;o<end-RSZ;o+=RSZ){
+    const l=v.getUint16(o+16,true);
+    forRefs(v,out[o],q,l,p=>{const x=v.getUint16(p,true);if(x===idx)v.setUint16(p,0,true);else if(x>idx)v.setUint16(p,x-1,true)});
+    q+=l;
+  }
+  setRecsEnd(v,end-RSZ);setHeapEnd(v,hEnd-n);v.setUint16(8,v.getUint16(8,true)-1,true);
+}
+function encodeLine(p){
+  const b=new DataView(new ArrayBuffer(16));
+  p.forEach((q,i)=>{b.setFloat32(i*8,q.x,true);b.setFloat32(i*8+4,q.y,true)});
+  return new Uint8Array(b.buffer);
+}
+function freeRecords(doc){
+  const v=new DataView(doc.bytes.buffer,doc.bytes.byteOffset,doc.bytes.byteLength);
+  let o=recsEnd(v),n=0;
+  while(o+RSZ<=doc.bytes.length&&doc.bytes.subarray(o,o+RSZ).every(x=>x===0)){n++;o+=RSZ}
+  return n;
+}
+function build(doc0,adds,dels,edits=[]){
+  const base=doc0.bytes.slice();
+  for(const e of edits){ // same length, so only the coordinates change
+    if(e.type===TYPE.LINE)base.set(encodeLine(e.pts),e.addr);
+    else{
+      const d=encodeCurve(e.pts);
+      if(d.length!==e.len)throw new Error('곡선 저장 길이가 맞지 않습니다.');
+      base.set(e.baked?d:d.subarray(0,d.length-8),e.addr); // a rebuilt trimmed curve is shown in full
+    }
+  }  for(const r of [...dels].sort((a,b)=>b-a)) removeRec(base,r);
+  let doc=parse(base);
+  adds=adds.map(e=>e.kind==='curve'?{...e,pts:resample(e.pts,15)}:e);
+  const need=adds.reduce((s,e)=>s+(e.kind==='line'?16:26+e.pts.length*8),0);
+  doc=parse(fitRecords(doc.bytes,adds.length));
+  const src=doc.bytes,vs=new DataView(src.buffer,src.byteOffset,src.byteLength);
+  const hEnd=Math.max(heapEnd(vs),doc.walkEnd),tail=hEnd-doc.walkEnd;
+  const size=Math.ceil(Math.max(src.length,hEnd+need)/4096)*4096;
+  const out=new Uint8Array(size);out.set(src);
+  const v=new DataView(out.buffer);
+  if(tail>0) out.copyWithin(doc.walkEnd+need,doc.walkEnd,hEnd);
+  let rec=recsEnd(v),a=doc.walkEnd;
+  for(const e of adds){
+    const data=e.kind==='line'?encodeLine(e.pts):encodeCurve(e.pts);
+    out.set([e.kind==='line'?2:7,2,e.layer||0x2B,e.color||7,1,1,0,0],rec);
+    v.setUint16(rec+12,Math.floor(a/4096),true);
+    setPos(out,rec,a);
+    v.setUint16(rec+16,data.length,true);
+    out.set(data,a);a+=data.length;rec+=RSZ;
+  }
+  setRecsEnd(v,rec);setHeapEnd(v,hEnd+need);
+  v.setUint16(8,v.getUint16(8,true)+adds.length,true);
+  return out;
+}
+
+// App state
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+const S={doc:null,name:'',adds:[],dels:[],hist:[],tool:'pan',draft:[],sel:null,view:{x:0,y:0,s:8},w:0,h:0,hover:null,example:false,hide:new Set(),layer:0x2B,edits:new Set(),grab:null,off:new Set(),coord:null};
+const $=id=>document.getElementById(id);
+
+function say(msg,warn){const n=$('notice');n.textContent=msg||'';n.hidden=!msg;n.classList.toggle('warn',!!warn)}
+function cat(e){
+  if(e.type===TYPE.TEXT)return 'text';
+  if(e.type===TYPE.NOTCH)return 'notch';
+  if(e.color===3)return e.kind?'faint':'seam';
+  return e.kind==='curve'||e.type===TYPE.CURVE||e.type===TYPE.ARC?'curve':'line';
+}
+function allEls(){
+  const dead=new Set(S.dels);
+  return S.doc.els.filter(e=>!dead.has(e.rec)).concat(S.adds).filter(e=>!S.hide.has(e.layer)&&!S.off.has(cat(e)));
+}
+function fit(){
+  const P=[];for(const e of allEls()){P.push(...e.pts);if(e.at)P.push(e.at)}
+  if(!P.length)P.push({x:0,y:0},{x:100,y:70});
+  const xs=P.map(p=>p.x),ys=P.map(p=>p.y),x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys);
+  const s=Math.min(S.w/Math.max(x1-x0,1),S.h/Math.max(y1-y0,1))*.85;
+  S.view={s,x:S.w/2-s*(x0+x1)/2,y:S.h/2+s*(y0+y1)/2};
+}
+const toS=p=>({x:p.x*S.view.s+S.view.x,y:S.view.y-p.y*S.view.s});
+const toW=p=>({x:(p.x-S.view.x)/S.view.s,y:(S.view.y-p.y)/S.view.s});
+function resize(){
+  const r=cv.parentElement.getBoundingClientRect(),d=devicePixelRatio||1;
+  S.w=r.width;S.h=r.height;cv.width=r.width*d;cv.height=r.height*d;ctx.setTransform(d,0,0,d,0,0);draw();
+}
+function css(n){return getComputedStyle(document.documentElement).getPropertyValue(n)}
+function draw(){
+  if(!S.doc)return;
+  $('zoomText').textContent=Math.round(S.view.s*10)+'%';
+  const c=ctx,V=S.view;c.fillStyle=css('--mat');c.fillRect(0,0,S.w,S.h);
+  const step=[1,5,10,50].find(g=>g*V.s>=14)||100,a=toW({x:0,y:S.h}),b=toW({x:S.w,y:0});
+  if($('gridOn').checked)for(const [g,col] of [[step,css('--grid')],[step*10,css('--grid2')]]){
+    c.strokeStyle=col;c.lineWidth=1;c.beginPath();
+    for(let x=Math.floor(a.x/g)*g;x<=b.x;x+=g){const p=toS({x,y:0}).x;c.moveTo(p,0);c.lineTo(p,S.h)}
+    for(let y=Math.floor(a.y/g)*g;y<=b.y;y+=g){const p=toS({x:0,y}).y;c.moveTo(0,p);c.lineTo(S.w,p)}
+    c.stroke();
+  }
+  for(const e of allEls()){
+    const sel=S.sel===e,pen=css('--c'+e.color)||css('--ink');
+    c.strokeStyle=sel?css('--mark'):e.kind?css('--draw'):pen;c.globalAlpha=e.kind&&e.color===3?.5:1;c.lineWidth=sel?2.4:1.3;
+    if(e.pts.length){c.beginPath();shape(e).forEach((p,i)=>{const q=toS(p);i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y)});c.stroke()}
+    if(e.text&&e.size*V.s>=3){const q=toS(e.at);c.fillStyle=pen;c.font=e.size*V.s+'px '+css('--font');c.fillText(e.text,q.x,q.y)}
+    c.globalAlpha=1;
+  }
+  if(S.draft.length){
+    const pts=S.tool==='curve'?spline(S.draft.concat(S.hover?[S.hover]:[])):S.draft.concat(S.hover?[S.hover]:[]);
+    c.strokeStyle=css('--mark');c.lineWidth=1.8;c.setLineDash([6,4]);c.beginPath();
+    pts.forEach((p,i)=>{const q=toS(p);i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y)});c.stroke();c.setLineDash([]);
+    c.fillStyle=css('--mark');for(const p of S.draft){const q=toS(p);c.beginPath();c.arc(q.x,q.y,4,0,7);c.fill()}
+  }
+  if(S.tool==='edit'&&S.sel){c.fillStyle=css('--mark');for(const p of S.sel.pts){const q=toS(p);c.fillRect(q.x-5,q.y-5,10,10)}}
+  if(S.snap){const q=toS(S.snap);c.strokeStyle=css('--mark');c.lineWidth=2;c.strokeRect(q.x-6,q.y-6,12,12)}
+}
+function spline(P){ // Catmull-Rom through the tapped points
+  if(P.length<3)return P;
+  const o=[];
+  for(let i=0;i<P.length-1;i++){
+    const p0=P[i-1]||P[i],p1=P[i],p2=P[i+1],p3=P[i+2]||p2;
+    for(let t=0;t<(i===P.length-2?1.0001:1);t+=.125){
+      const t2=t*t,t3=t2*t,f=k=>.5*(2*p1[k]+(p2[k]-p0[k])*t+(2*p0[k]-5*p1[k]+4*p2[k]-p3[k])*t2+(3*p1[k]-p0[k]-3*p2[k]+p3[k])*t3);
+      o.push({x:f('x'),y:f('y')});
+    }
+  }
+  return o;
+}
+function snapAt(sp,skip){
+  if(!$('snapOn').checked)return null;
+  let best=null,bd=18;
+  for(const e of allEls())if(e!==skip)for(const p of e.pts.length>2?[e.pts[0],e.pts[e.pts.length-1]]:e.pts){
+    const q=toS(p),d=Math.hypot(q.x-sp.x,q.y-sp.y);if(d<bd){bd=d;best=p}
+  }
+  return best;
+}
+function pick(sp){
+  let best=null,bd=16;
+  for(const e of allEls())for(let i=1;i<e.pts.length;i++){
+    const a=toS(e.pts[i-1]),b=toS(e.pts[i]),dx=b.x-a.x,dy=b.y-a.y,t=Math.max(0,Math.min(1,((sp.x-a.x)*dx+(sp.y-a.y)*dy)/(dx*dx+dy*dy||1)));
+    const d=Math.hypot(a.x+t*dx-sp.x,a.y+t*dy-sp.y);if(d<bd){bd=d;best=e}
+  }
+  return best;
+}
+const lenOf=p=>p.reduce((s,q,i)=>i?s+Math.hypot(q.x-p[i-1].x,q.y-p[i-1].y):s,0);
+function readout(t){$('readout').textContent=t||(S.tool==='line'?'시작점을 누르세요':S.tool==='curve'?'곡선이 지날 점을 차례로 누르세요':S.tool==='measure'?'두 점을 누르면 거리가 나옵니다':S.tool==='offset'?'기준 선을 누르세요':S.tool==='seamdel'?'지울 패턴의 분홍 시접선을 누르세요':S.tool==='edit'?'고칠 선을 누르세요':'선을 누르면 길이가 나옵니다')}
+function refresh(){
+  $('name').innerHTML='';$('name').textContent=S.name;
+  const sm=document.createElement('small');sm.textContent=S.adds.length+S.dels.length+S.edits.size?'저장 안 됨':'';$('name').append(sm);
+  $('offsetPanel').hidden=!(S.tool==='offset'&&S.sel);$('editPanel').hidden=!(S.tool==='edit'&&S.sel&&S.sel.pts.length===2);$('undo').disabled=!S.hist.length;$('del').disabled=!S.sel;
+  $('input').hidden=!((S.tool==='line'&&S.draft.length===1)||(S.tool==='curve'&&S.draft.length));
+  $('done').hidden=S.tool!=='curve';$('apply').hidden=S.tool!=='line';$('len').hidden=S.tool!=='line';$('input').querySelector('label').hidden=S.tool!=='line';
+  $('count').textContent='요소 '+allEls().length;
+  draw();
+}
+function commit(el){el.layer=el.layer||S.layer;el.color=el.color||+$('lineKind').value;S.adds.push(el);S.hist.push({a:el});S.draft=[];S.hover=null;refresh()}
+function tap(sp){
+  const sn=snapAt(sp),w=sn||toW(sp);
+  if(S.tool==='seamdel'){
+    const e=pick(sp);if(!e)return;
+    const set=seamSet(e);
+    if(!set.length)return say('이 선은 패턴에 연결된 시접선이 아닙니다.',true);
+    for(const x of set)S.dels.push(x.rec);S.hist.push({ds:set.map(x=>x.rec)});S.sel=null;
+    say('이 패턴의 시접을 '+set.filter(x=>x.pts.length).length+'개 지웠습니다. 되돌리기로 복구할 수 있습니다.');refresh();return;
+  }
+  if(S.tool==='edit'){
+    const e=pick(sp);
+    if(e&&locked(e)){S.sel=null;say('그레이딩이나 다른 요소에 연결된 선은 유까에서 고쳐 주세요.',true)}
+    else{
+      S.sel=e;say('');
+      if(e&&e.trim){e.pts=resample(e.pts,e.n,true);e.trim=false;e.baked=true}
+      if(e&&e.pts.length===2)$('editLen').value=lenOf(e.pts).toFixed(2)}
+    readout(e&&!locked(e)?'점을 끌어 고치세요 · 길이 '+lenOf(e.pts).toFixed(2)+' cm':undefined);refresh();return;
+  }
+  if(S.tool==='pan'||S.tool==='offset'){
+    S.sel=pick(sp);
+    if(S.sel) readout('길이 '+lenOf(S.sel.pts).toFixed(2)+' cm');else readout();
+    refresh();return;
+  }
+  S.draft.push({x:w.x,y:w.y});
+  if(S.tool==='line'&&S.draft.length===2){const p=S.draft;commit({kind:'line',pts:p,flag:1});readout('길이 '+lenOf(p).toFixed(2)+' cm');return}
+  if(S.tool==='measure'&&S.draft.length===2){
+    const p=S.draft;readout('거리 '+lenOf(p).toFixed(2)+' cm · 가로 '+Math.abs(p[1].x-p[0].x).toFixed(2)+' · 세로 '+Math.abs(p[1].y-p[0].y).toFixed(2));S.draft=[];S.hover=null;
+    refresh();return;
+  }
+  refresh();
+}
+function seamSet(e){ // a pattern's seam: its lines on every size layer plus the seam record they point to
+  if(e.kind||e.link!==0x15||!e.group)return [];
+  const same=S.doc.els.filter(x=>x.group===e.group),owners=new Set(same.filter(x=>x.link===0x15).map(x=>x.owner).filter(Boolean));
+  const seams=S.doc.els.filter(x=>x.type===0x5C&&owners.has((x.rec-REC)/RSZ+1));
+  // white pattern lines can carry the seam mark too: they stay and only lose the link
+  const lines=same.filter(x=>(x.type===0x16&&x.link===0x15)||((x.type===TYPE.LINE||x.type===TYPE.CURVE)&&x.color===3&&(x.link===0x15||x.owner)));
+  return seams.length?[...lines,...seams]:[];
+}
+function locked(e){
+  if(e.kind)return false;
+  const v=new DataView(S.doc.bytes.buffer,S.doc.bytes.byteOffset);
+  return !(e.type===TYPE.LINE||e.type===TYPE.CURVE)||e.link!==0||v.getUint16(e.rec+10,true)!==0;
+}
+function remember(e){S.hist.push({m:e,pts:e.pts.map(p=>({...p})),was:S.edits.has(e)})}
+function changed(e){if(!e.kind)S.edits.add(e)}
+function dragPoint(e,i,to,base){ // SS moves one point; SA spreads the move to fixed ends
+  const dx=to.x-base[i].x,dy=to.y-base[i].y,n=base.length-1,whole=$('curveMode').value==='sa'&&base.length>2;
+  e.pts=base.map((p,k)=>{
+    if(k===i)return {x:p.x+dx,y:p.y+dy};
+    if(!whole)return {...p};
+    const s=Math.sin(Math.PI/2*(k<i?k/i:(n-k)/(n-i))),w=s*s;
+    return {x:p.x+dx*w,y:p.y+dy*w};
+  });
+}
+function shape(e){ // curves pass smoothly through their stored points
+  if(e.pts.length<3||e.trim||!(e.kind==='curve'||e.type===TYPE.CURVE))return e.pts;
+  if(e.shapeOf!==e.pts){e.shapeOf=e.pts;e.smooth=spline(e.pts)}
+  return e.smooth;
+}
+function setTool(t){
+  S.tool=t;S.draft=[];S.hover=null;S.sel=null;
+  document.querySelectorAll('nav [data-tool]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.tool===t));
+  readout();refresh();
+}
+// Pointer handling: one finger taps or pans, two fingers pinch.
+const ptrs=new Map();let drag=null;
+cv.addEventListener('pointerdown',e=>{
+  if(S.tool==='edit'&&S.sel){
+    let bi=-1,bd=20;S.sel.pts.forEach((p,i)=>{const q=toS(p),d=Math.hypot(q.x-e.offsetX,q.y-e.offsetY);if(d<bd){bd=d;bi=i}});
+    if(bi>=0){remember(S.sel);S.grab={i:bi,base:S.sel.pts.map(p=>({...p}))}}
+  }
+  try{cv.setPointerCapture(e.pointerId)}catch(err){}ptrs.set(e.pointerId,{x:e.offsetX,y:e.offsetY});drag={x:e.offsetX,y:e.offsetY,moved:false,d:0}});
+cv.addEventListener('pointermove',e=>{
+  const sp={x:e.offsetX,y:e.offsetY},had=ptrs.get(e.pointerId),w=toW(sp);
+  $('coord').textContent='X '+w.x.toFixed(1)+'  Y '+w.y.toFixed(1);
+  if(had&&S.grab&&ptrs.size===1){
+    const q=S.sel;S.snap=snapAt(sp,q);dragPoint(q,S.grab.i,S.snap||toW(sp),S.grab.base);S.grab.moved=true;drag.moved=true;
+    readout('길이 '+lenOf(q.pts).toFixed(2)+' cm');draw();return;
+  }
+  if(had){
+    if(ptrs.size===2){
+      const [a,b]=[...ptrs.values()],d0=Math.hypot(a.x-b.x,a.y-b.y);had.x=sp.x;had.y=sp.y;
+      const [c,f]=[...ptrs.values()],d1=Math.hypot(c.x-f.x,c.y-f.y),mx=(c.x+f.x)/2,my=(c.y+f.y)/2;
+      zoom(d1/(d0||1),mx,my);drag.moved=true;return;
+    }
+    const dx=sp.x-had.x,dy=sp.y-had.y;had.x=sp.x;had.y=sp.y;
+    drag.d+=Math.abs(dx)+Math.abs(dy);
+    if(drag.d>6){drag.moved=true;S.view.x+=dx;S.view.y+=dy;draw()}
+    return;
+  }
+  if(S.tool!=='pan'&&S.tool!=='offset'){S.snap=snapAt(sp);S.hover=S.draft.length?(S.snap||toW(sp)):null;draw()}
+});
+function up(e){
+  if(S.grab){if(S.grab.moved){changed(S.sel);if(S.sel.pts.length===2)$('editLen').value=lenOf(S.sel.pts).toFixed(2)}else S.hist.pop();S.grab=null;S.snap=null;refresh()}
+  const was=ptrs.size,d=drag;ptrs.delete(e.pointerId);if(was===1&&d&&!d.moved)tap({x:e.offsetX,y:e.offsetY})}
+cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',e=>ptrs.delete(e.pointerId));
+function zoom(k,mx,my){const V=S.view,s=Math.max(.3,Math.min(200,V.s*k));k=s/V.s;V.x=mx-(mx-V.x)*k;V.y=my-(my-V.y)*k;V.s=s;draw()}
+cv.addEventListener('wheel',e=>{e.preventDefault();zoom(e.deltaY<0?1.15:.87,e.offsetX,e.offsetY)},{passive:false});
+
+function load(bytes,name,example){
+  S.doc=parse(bytes);S.name=name;S.adds=[];S.dels=[];S.hist=[];S.edits=new Set();S.sel=null;S.draft=[];S.example=example;
+  S.hide=new Set();renderLayers();fit();refresh();
+  document.querySelector('[data-tab=draw]').click();
+}
+function renderLayers(){
+  const count={};for(const e of S.doc.els)count[e.layer]=(count[e.layer]||0)+1;
+  const list=Object.keys(count).map(Number).filter(n=>n<200).sort((a,b)=>a-b),box=$('layers');box.textContent='';
+  if(!list.length)list.push(0x2B);
+  if(!list.includes(S.layer))S.layer=list.includes(0x2B)?0x2B:list[0];
+  for(const n of list){
+    const row=document.createElement('div');row.className='layerRow';
+    const cell=c=>{const s=document.createElement('span');s.append(c);row.append(s);return s};
+    const vis=document.createElement('input');vis.type='checkbox';vis.checked=!S.hide.has(n);vis.setAttribute('aria-label','레이어 '+n+' 보기');
+    vis.onchange=()=>{vis.checked?S.hide.delete(n):S.hide.add(n);S.sel=null;refresh()};
+    const act=document.createElement('input');act.type='radio';act.name='activeLayer';act.checked=n===S.layer;act.setAttribute('aria-label','레이어 '+n+' 작업');
+    act.onchange=()=>{S.layer=n;S.hide.delete(n);renderLayers();refresh()};
+    cell(vis);cell('레이어 '+n);cell(String(count[n]||0));cell(act);box.append(row);
+  }
+}
+function offsetPts(p,d){
+  return p.map((q,i)=>{const a=p[Math.max(0,i-1)],b=p[Math.min(p.length-1,i+1)],L=Math.hypot(b.x-a.x,b.y-a.y)||1;return {x:q.x-(b.y-a.y)/L*d,y:q.y+(b.x-a.x)/L*d}});
+}
+function makeOffset(sign){
+  const e=S.sel,d=parseFloat($('gap').value);
+  if(!e)return;if(!(d>0))return say('간격을 cm로 입력해 주세요.',true);
+  commit({kind:e.pts.length>2?'curve':'line',pts:offsetPts(e.pts,d*sign),flag:1});say('');
+}
+document.querySelectorAll('nav [data-tool]').forEach(b=>b.onclick=()=>setTool(b.dataset.tool));
+$('new').onclick=()=>{load(blank(),'새 패턴');say('')};
+$('file').onchange=async e=>{
+  const f=e.target.files[0];e.target.value='';if(!f)return;
+  try{load(new Uint8Array(await f.arrayBuffer()),f.name.replace(/\.pax(\.\d+)?$|\.\d+$/,''));say('')}
+  catch(err){say(err.message,true)}
+};
+$('apply').onclick=()=>{
+  const L=parseFloat($('len').value),p=S.draft[0],q=S.hover||{x:p.x+1,y:p.y};
+  if(!(L>0))return say('길이를 cm로 입력해 주세요.',true);
+  const d=Math.hypot(q.x-p.x,q.y-p.y)||1;
+  commit({kind:'line',pts:[p,{x:p.x+(q.x-p.x)/d*L,y:p.y+(q.y-p.y)/d*L}],flag:1});say('');
+};
+$('done').onclick=()=>{if(S.draft.length>=2)commit({kind:'curve',pts:resample(spline(S.draft),15),flag:1})};
+$('del').onclick=()=>{
+  const e=S.sel;if(!e)return;
+  if(!e.kind&&(e.link===0x15||S.doc.refs.has((e.rec-REC)/RSZ+1)||![TYPE.LINE,TYPE.CURVE,TYPE.TEXT,TYPE.ARC].includes(e.type)))
+    return say(e.link===0x15?'시접선은 시접 삭제 도구로 지워 주세요.':'너치나 시접에 연결된 요소입니다. 유까에서 지워 주세요.',true);
+  if(e.kind){S.adds.splice(S.adds.indexOf(e),1);S.hist.push({r:e})}else{S.dels.push(e.rec);S.hist.push({d:e.rec})}
+  S.sel=null;refresh();
+};
+$('undo').onclick=()=>{
+  const h=S.hist.pop();if(!h)return;
+  if(h.a)S.adds.splice(S.adds.indexOf(h.a),1);
+  if(h.r)S.adds.push(h.r);
+  if(h.d)S.dels.splice(S.dels.indexOf(h.d),1);
+  if(h.ds)S.dels=S.dels.filter(x=>!h.ds.includes(x));
+  if(h.m){h.m.pts=h.pts;if(!h.was)S.edits.delete(h.m);if(S.sel===h.m&&h.pts.length===2)$('editLen').value=lenOf(h.pts).toFixed(2)}
+  refresh();
+};
+// Phones and tablets: share sheet ("파일에 저장"); PC: normal download.
+const MOBILE=/iPad|iPhone|Android/.test(navigator.userAgent)||(navigator.maxTouchPoints>1&&/Macintosh/.test(navigator.userAgent));
+function download(blob,fname){
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=fname;
+  document.body.append(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+  say('새 파일로 저장했습니다. 원본은 그대로입니다.');
+}
+$('save').onclick=()=>{
+  let out;
+  try{out=build(S.doc,S.adds,S.dels,[...S.edits].filter(e=>!S.dels.includes(e.rec)))}
+  catch(err){return say(err.message,true)}
+  const fname=S.name.replace(/[^\w가-힣-]/g,'_')+'_edit.pax',blob=new Blob([out],{type:'application/octet-stream'});
+  let file=null;try{file=new File([blob],fname,{type:'application/octet-stream'})}catch(e){}
+  if(MOBILE&&file&&navigator.canShare&&navigator.canShare({files:[file]})){
+    navigator.share({files:[file]})
+      .then(()=>say('새 파일로 저장했습니다. 원본은 그대로입니다.'))
+      .catch(err=>{if(err&&err.name==='AbortError')say('저장을 취소했습니다.');else download(blob,fname)});
+  }else download(blob,fname);
+};
+$('editApply').onclick=()=>{
+  const e=S.sel,L=parseFloat($('editLen').value);if(!e||e.pts.length!==2)return;
+  if(!(L>0))return say('길이를 cm로 입력해 주세요.',true);
+  const [a,b]=e.pts,d=Math.hypot(b.x-a.x,b.y-a.y)||1;
+  remember(e);e.pts=[a,{x:a.x+(b.x-a.x)/d*L,y:a.y+(b.y-a.y)/d*L}];changed(e);say('');readout('길이 '+L.toFixed(2)+' cm');refresh();
+};
+$('sideA').onclick=()=>makeOffset(1);$('sideB').onclick=()=>makeOffset(-1);
+document.querySelectorAll('#tabs [data-tab]').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#tabs [data-tab]').forEach(t=>t.setAttribute('aria-selected',t===b));
+  document.querySelectorAll('.tabpane').forEach(p=>p.hidden=p.dataset.pane!==b.dataset.tab);
+});
+document.querySelectorAll('[data-click]').forEach(b=>b.onclick=()=>$(b.dataset.click).click());
+document.querySelectorAll('[data-cat]').forEach(b=>b.onchange=()=>{b.checked?S.off.delete(b.dataset.cat):S.off.add(b.dataset.cat);S.sel=null;refresh()});
+$('snapOn').onchange=()=>{S.snap=null;draw()};$('gridOn').onchange=draw;
+$('fitBtn').onclick=()=>{fit();draw()};
+$('zoomIn').onclick=()=>zoom(1.25,S.w/2,S.h/2);$('zoomOut').onclick=()=>zoom(.8,S.w/2,S.h/2);
+function togglePanel(btn,cls){const w=$('work'),off=w.classList.toggle(cls);btn.setAttribute('aria-pressed',!off);resize()}
+$('toggleLeft').onclick=()=>togglePanel($('toggleLeft'),'noLeft');
+$('toggleRight').onclick=()=>togglePanel($('toggleRight'),'noRight');
+if(innerWidth<=900){$('toggleLeft').click();$('toggleRight').click()}
+let lastKey='',lastAt=0;
+addEventListener('keydown',e=>{
+  if(e.target.matches&&e.target.matches('input,select'))return;
+  const k=e.key.toLowerCase(),now=Date.now(),seq=now-lastAt<1000?lastKey+k:'';lastKey=k;lastAt=now;
+  if(seq==='ss'||seq==='sa'){$('curveMode').value=seq;document.querySelector('[data-tool=edit]').click();readout(seq==='ss'?'SS: 곡선을 누르고 점 하나를 옮기세요':'SA: 곡선을 누르고 점을 끌면 전체가 자연스럽게 따라옵니다');return}
+  if(e.key==='Delete'&&!$('del').disabled)$('del').click();
+  else if(e.key==='Escape'){S.draft=[];S.hover=null;S.sel=null;refresh()}
+  else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();$('undo').click()}
+});
+addEventListener('resize',resize);
+window.__pax={parse,build,blank};
+// iPad/iPhone grey out unknown extensions like .pax in the file picker, so allow any file there;
+// parse() still rejects anything that isn't a Yuka file.
+if(/iPad|iPhone/.test(navigator.userAgent)||(navigator.maxTouchPoints>1&&/Macintosh/.test(navigator.userAgent)))$('file').removeAttribute('accept');
+// Offline + install support. A new version shows a notice; tapping it reloads.
+if('serviceWorker' in navigator&&location.protocol!=='file:'){
+  navigator.serviceWorker.register('sw.js').then(reg=>{
+    const offer=w=>{
+      const n=$('notice');say('새 버전이 있습니다. 여기를 누르면 업데이트합니다.');n.style.cursor='pointer';
+      n.onclick=()=>{n.onclick=null;n.style.cursor='';w.postMessage('skipWaiting')};
+    };
+    if(reg.waiting&&navigator.serviceWorker.controller)offer(reg.waiting);
+    reg.addEventListener('updatefound',()=>{const w=reg.installing;w&&w.addEventListener('statechange',()=>{if(w.state==='installed'&&navigator.serviceWorker.controller)offer(w)})});
+  }).catch(()=>{});
+  let reloaded=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!reloaded){reloaded=true;location.reload()}});
+}
+// Opens on an empty pattern.
+load(blank(),'새 패턴');
+addEventListener('load',()=>{resize();fit();refresh();readout()});
+resize();fit();refresh();readout();
+</script>
+</body>
+</html>
