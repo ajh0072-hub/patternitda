@@ -695,19 +695,16 @@ window.__pax={parse,build,blank};
 // iPad/iPhone grey out unknown extensions like .pax in the file picker, so allow any file there;
 // parse() still rejects anything that isn't a Yuka file.
 if(/iPad|iPhone/.test(navigator.userAgent)||(navigator.maxTouchPoints>1&&/Macintosh/.test(navigator.userAgent)))$('file').removeAttribute('accept');
-// Offline + install support. A new version shows a notice; tapping it reloads.
+// Offline + install support. A new version takes over on its own; then offer a reload
+// (not forced, so unsaved work is never lost).
 if('serviceWorker' in navigator&&location.protocol!=='file:'){
-  navigator.serviceWorker.register('sw.js').then(reg=>{
-    const offer=w=>{
-      const n=$('notice');say('새 버전이 있습니다. 여기를 누르면 업데이트합니다.');n.style.cursor='pointer';
-      n.onclick=()=>{n.onclick=null;n.style.cursor='';w.postMessage('skipWaiting')};
-    };
-    if(reg.waiting&&navigator.serviceWorker.controller)offer(reg.waiting);
-    reg.addEventListener('updatefound',()=>{const w=reg.installing;w&&w.addEventListener('statechange',()=>{if(w.state==='installed'&&navigator.serviceWorker.controller)offer(w)})});
-  }).catch(()=>{});
-  // Reload only when an older version was running (not on the very first install).
-  let reloaded=false;const hadController=!!navigator.serviceWorker.controller;
-  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(hadController&&!reloaded){reloaded=true;location.reload()}});
+  const hadController=!!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{
+    if(!hadController)return; // very first install: nothing to refresh
+    const n=$('notice');say('새 버전이 준비됐습니다. 여기를 누르면 새로고침합니다. (저장 안 한 작업은 먼저 저장하세요)');
+    n.style.cursor='pointer';n.onclick=()=>location.reload();
+  });
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
 // Opens on an empty pattern.
 load(blank(),'새 패턴');
