@@ -1,0 +1,9 @@
+# 실제 패턴 파일은 공개 저장소에 올리지 않는다
+samples/
+*.pax
+*.pax.*
+*.00[0-9]
+
+# 테스트 결과물
+tests/output/
+__pycache__/
