@@ -1,6 +1,6 @@
 // 패턴잇다 서비스워커: 한 번 열면 인터넷 없이도 켜지게 한다.
-// 앱을 고칠 때마다 VERSION 숫자를 올리면 새 버전 알림이 뜬다.
-const VERSION = 'v2';
+// 앱을 고칠 때마다 VERSION 숫자를 올려야 설치된 앱이 새 버전을 받는다.
+const VERSION = 'v3';
 const CACHE = 'patternitda-' + VERSION;
 const CORE = [
   './',
@@ -11,8 +11,9 @@ const CORE = [
   './icons/apple-touch-icon.png'
 ];
 
+// 새 버전은 받자마자 바로 적용한다 (앱이 파일 하나라 섞일 걱정이 없다).
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE)));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE)).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
@@ -21,11 +22,6 @@ self.addEventListener('activate', e => {
       .then(keys => Promise.all(keys.filter(k => k.startsWith('patternitda-') && k !== CACHE).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
-});
-
-// 화면에서 "새 버전" 알림을 누르면 바로 교체
-self.addEventListener('message', e => {
-  if (e.data === 'skipWaiting') self.skipWaiting();
 });
 
 self.addEventListener('fetch', e => {
