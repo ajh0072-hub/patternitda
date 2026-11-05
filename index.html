@@ -156,6 +156,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;displa
       <button class="tool" data-tool="line" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M5 19L19 5"/><circle cx="5" cy="19" r="1.5"/><circle cx="19" cy="5" r="1.5"/></svg>직선</button>
       <button class="tool" data-tool="curve" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M4 19C8 4 14 20 20 5"/></svg>곡선</button>
       <button class="tool" data-tool="offset" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M4 18L18 4M8 21L21 8"/></svg>평행선</button>
+      <button class="tool" data-tool="notch" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M3 15c6-2 12-2 18 0"/><path d="M12 8v10"/></svg>너치</button>
     </div><span>그리기</span></div>
     <div class="group"><div class="tools">
       <button class="tool" data-tool="edit" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M4 20l4-1L19 8l-3-3L5 16z"/><path d="M14 7l3 3"/></svg>수정</button>
@@ -206,6 +207,10 @@ canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;displa
     <div id="offsetPanel" class="float" hidden>
       <label for="gap">간격 cm</label><input id="gap" type="number" inputmode="decimal" step="0.1" min="0" value="1">
       <button id="sideA">이쪽</button><button id="sideB">반대쪽</button>
+    </div>
+    <div id="notchPanel" class="float" hidden>
+      <button id="notchEnd">시작점</button><label for="notchAt">에서 cm</label><input id="notchAt" type="number" inputmode="decimal" step="0.1" min="0">
+      <button id="notchAdd">너치 넣기</button>
     </div>
     <div id="matchPanel" class="float" hidden>
       <button id="matchA" class="on">기준</button><output id="sumA" class="a">0.00 cm</output>
@@ -392,6 +397,14 @@ function encodeLine(p){
   p.forEach((q,i)=>{b.setFloat32(i*8,q.x,true);b.setFloat32(i*8+4,q.y,true)});
   return new Uint8Array(b.buffer);
 }
+// A stand-alone notch, as Yuka writes one: box (tick ends ±0.5), tick ends, point on the line, then fixed values.
+function encodeNotch(e){
+  const b=new DataView(new ArrayBuffer(56)),[a,c]=e.pts,f=(o,x)=>b.setFloat32(o,x,true);
+  f(0,Math.min(a.x,c.x)-.5);f(4,Math.min(a.y,c.y)-.5);f(8,Math.max(a.x,c.x)+.5);f(12,Math.max(a.y,c.y)+.5);
+  f(16,a.x);f(20,a.y);f(24,c.x);f(28,c.y);f(32,e.at.x);f(36,e.at.y);
+  [1,2,1,1].forEach((x,i)=>b.setUint16(44+i*2,x,true));
+  return new Uint8Array(b.buffer);
+}
 function freeRecords(doc){
   const v=new DataView(doc.bytes.buffer,doc.bytes.byteOffset,doc.bytes.byteLength);
   let o=recsEnd(v),n=0;
@@ -410,7 +423,7 @@ function build(doc0,adds,dels,edits=[]){
   }  for(const r of [...dels].sort((a,b)=>b-a)) removeRec(base,r);
   let doc=parse(base);
   adds=adds.map(e=>e.kind==='curve'?{...e,pts:resample(e.pts,15)}:e);
-  const need=adds.reduce((s,e)=>s+(e.kind==='line'?16:26+e.pts.length*8),0);
+  const need=adds.reduce((s,e)=>s+(e.kind==='line'?16:e.kind==='notch'?56:26+e.pts.length*8),0);
   doc=parse(fitRecords(doc.bytes,adds.length));
   const src=doc.bytes,vs=new DataView(src.buffer,src.byteOffset,src.byteLength);
   const hEnd=Math.max(heapEnd(vs),doc.walkEnd),tail=hEnd-doc.walkEnd;
@@ -420,8 +433,9 @@ function build(doc0,adds,dels,edits=[]){
   if(tail>0) out.copyWithin(doc.walkEnd+need,doc.walkEnd,hEnd);
   let rec=recsEnd(v),a=doc.walkEnd;
   for(const e of adds){
-    const data=e.kind==='line'?encodeLine(e.pts):encodeCurve(e.pts);
-    out.set([e.kind==='line'?2:7,2,e.layer||0x2B,e.color||7,1,1,0,0],rec);
+    const data=e.kind==='line'?encodeLine(e.pts):e.kind==='notch'?encodeNotch(e):encodeCurve(e.pts);
+    out.set([e.kind==='line'?2:e.kind==='notch'?TYPE.NOTCH:7,2,e.layer||0x2B,e.color||7,1,1,0,e.kind==='notch'?0x21:0],rec);
+    if(e.kind==='notch')v.setUint16(rec+18,(rec-REC)/RSZ+1,true); // notches carry their own number here
     v.setUint16(rec+12,Math.floor(a/4096),true);
     setPos(out,rec,a);
     v.setUint16(rec+16,data.length,true);
@@ -438,9 +452,10 @@ const S={doc:null,name:'',adds:[],dels:[],hist:[],tool:'pan',draft:[],sel:null,v
 const $=id=>document.getElementById(id);
 
 function say(msg,warn){const n=$('notice');n.textContent=msg||'';n.hidden=!msg;n.classList.toggle('warn',!!warn)}
+const isNotch=e=>e.type===TYPE.NOTCH||e.kind==='notch';
 function cat(e){
   if(e.type===TYPE.TEXT)return 'text';
-  if(e.type===TYPE.NOTCH)return 'notch';
+  if(isNotch(e))return 'notch';
   if(e.color===3)return e.kind?'faint':'seam';
   return e.kind==='curve'||e.type===TYPE.CURVE||e.type===TYPE.ARC?'curve':'line';
 }
@@ -480,6 +495,13 @@ function draw(){
     if(e.text&&e.size*V.s>=3){const q=toS(e.at);c.fillStyle=pen;c.font=e.size*V.s+'px '+css('--font');c.fillText(e.text,q.x,q.y)}
     c.globalAlpha=1;
   }
+  if(S.tool==='notch'&&S.notch){
+    const g=notchGeom(S.notch.e,S.notch.s),A=toS(g.a),B=toS(g.b),C=toS(g.c);
+    c.strokeStyle=css('--mark');c.lineWidth=2.6;c.beginPath();c.moveTo(A.x,A.y);c.lineTo(B.x,B.y);c.stroke();
+    c.fillStyle=css('--mark');c.beginPath();c.arc(C.x,C.y,3.5,0,7);c.fill();
+    const P=shape(S.notch.e),E=toS(S.notch.fromEnd?P[P.length-1]:P[0]); // the end the distance is measured from
+    c.lineWidth=2;c.beginPath();c.arc(E.x,E.y,7,0,7);c.stroke();
+  }
   if(S.draft.length){
     const pts=S.tool==='curve'?spline(S.draft.concat(S.hover?[S.hover]:[])):S.draft.concat(S.hover?[S.hover]:[]);
     c.strokeStyle=css('--mark');c.lineWidth=1.8;c.setLineDash([6,4]);c.beginPath();
@@ -504,7 +526,7 @@ function spline(P){ // Catmull-Rom through the tapped points
 function snapAt(sp,skip){
   if(!$('snapOn').checked)return null;
   let best=null,bd=18;
-  for(const e of allEls())if(e!==skip)for(const p of e.pts.length>2?[e.pts[0],e.pts[e.pts.length-1]]:e.pts){
+  for(const e of allEls())if(e!==skip&&!isNotch(e))for(const p of e.pts.length>2?[e.pts[0],e.pts[e.pts.length-1]]:e.pts){
     const q=toS(p),d=Math.hypot(q.x-sp.x,q.y-sp.y);if(d<bd){bd=d;best=p}
   }
   return best;
@@ -519,10 +541,11 @@ function pick(sp){
 }
 const lenOf=p=>p.reduce((s,q,i)=>i?s+Math.hypot(q.x-p[i-1].x,q.y-p[i-1].y):s,0);
 const elLen=e=>lenOf(shape(e)); // curves are measured along the drawn curve, not between stored points
-function readout(t){$('readout').textContent=t||(S.tool==='line'?'시작점을 누르세요':S.tool==='curve'?'곡선이 지날 점을 차례로 누르세요':S.tool==='measure'?'두 점을 누르면 거리가 나옵니다':S.tool==='offset'?'기준 선을 누르세요':S.tool==='seamdel'?'지울 패턴의 분홍 시접선을 누르세요':S.tool==='edit'?'고칠 선을 누르세요':S.tool==='match'?(S.match.side==='A'?'기준이 될 선을 차례로 누르세요 (다시 누르면 빠짐)':'맞출 쪽 선을 누르세요. 마지막에 누른 선으로 길이를 맞출 수 있어요'):'선을 누르면 길이가 나옵니다')}
+function readout(t){$('readout').textContent=t||(S.tool==='line'?'시작점을 누르세요':S.tool==='curve'?'곡선이 지날 점을 차례로 누르세요':S.tool==='measure'?'두 점을 누르면 거리가 나옵니다':S.tool==='offset'?'기준 선을 누르세요':S.tool==='notch'?'너치를 넣을 선을 누르세요':S.tool==='seamdel'?'지울 패턴의 분홍 시접선을 누르세요':S.tool==='edit'?'고칠 선을 누르세요':S.tool==='match'?(S.match.side==='A'?'기준이 될 선을 차례로 누르세요 (다시 누르면 빠짐)':'맞출 쪽 선을 누르세요. 마지막에 누른 선으로 길이를 맞출 수 있어요'):'선을 누르면 길이가 나옵니다')}
 function refresh(){
   $('name').innerHTML='';$('name').textContent=S.name;
   const sm=document.createElement('small');sm.textContent=S.adds.length+S.dels.length+S.edits.size?'저장 안 됨':'';$('name').append(sm);
+  $('notchPanel').hidden=!(S.tool==='notch'&&S.notch);
   $('offsetPanel').hidden=!(S.tool==='offset'&&S.sel);$('editPanel').hidden=!(S.tool==='edit'&&S.sel&&S.sel.pts.length===2);$('undo').disabled=!S.hist.length;$('del').disabled=!S.sel;
   $('input').hidden=!((S.tool==='line'&&S.draft.length===1)||(S.tool==='curve'&&S.draft.length));
   $('done').hidden=S.tool!=='curve';$('apply').hidden=S.tool!=='line';$('len').hidden=S.tool!=='line';$('input').querySelector('label').hidden=S.tool!=='line';
@@ -540,14 +563,22 @@ function tap(sp){
     for(const x of set)S.dels.push(x.rec);S.hist.push({ds:set.map(x=>x.rec)});S.sel=null;
     say('이 패턴의 시접을 '+set.filter(x=>x.pts.length).length+'개 지웠습니다. 되돌리기로 복구할 수 있습니다.');refresh();return;
   }
+  if(S.tool==='notch'){
+    const e=pick(sp);if(!e||isNotch(e)||e.type===TYPE.TEXT)return;
+    const P=shape(e),w=toW(sp);let best=1e9,s=0,run=0;
+    for(let i=1;i<P.length;i++){const a=P[i-1],b=P[i],dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy),t=Math.max(0,Math.min(1,((w.x-a.x)*dx+(w.y-a.y)*dy)/(d*d||1)));
+      const q=Math.hypot(a.x+t*dx-w.x,a.y+t*dy-w.y);if(q<best){best=q;s=run+t*d}run+=d}
+    S.notch={e,s,fromEnd:s>run/2};showNotch();say('');refresh();return;
+  }
   if(S.tool==='match'){
-    const e=pick(sp);if(!e||e.type===TYPE.TEXT||e.type===TYPE.NOTCH)return;
+    const e=pick(sp);if(!e||e.type===TYPE.TEXT||isNotch(e))return;
     const M=S.match,inA=M.A.indexOf(e),inB=M.B.indexOf(e);
     if(inA>=0)M.A.splice(inA,1);else if(inB>=0)M.B.splice(inB,1);else M[M.side].push(e);
     say('');readout('이 선 '+elLen(e).toFixed(2)+' cm');refresh();return;
   }
   if(S.tool==='edit'){
     const e=pick(sp);
+    if(e&&isNotch(e)){S.sel=null;say('너치는 지우고 다시 넣어 주세요.',true);refresh();return}
     if(e&&locked(e)){S.sel=null;say('그레이딩이나 다른 요소에 연결된 선은 유까에서 고쳐 주세요.',true)}
     else{
       S.sel=e;say('');
@@ -556,7 +587,7 @@ function tap(sp){
     readout(e&&!locked(e)?'점을 끌어 고치세요 · 길이 '+elLen(e).toFixed(2)+' cm':undefined);refresh();return;
   }
   if(S.tool==='pan'||S.tool==='offset'){
-    S.sel=pick(sp);
+    S.sel=pick(sp);if(S.tool==='offset'&&S.sel&&isNotch(S.sel))S.sel=null;
     if(S.sel) readout('길이 '+elLen(S.sel).toFixed(2)+' cm');else readout();
     refresh();return;
   }
@@ -598,7 +629,7 @@ function shape(e){ // curves pass smoothly through their stored points
   return e.smooth;
 }
 function setTool(t){
-  S.tool=t;S.draft=[];S.hover=null;S.sel=null;S.match={A:[],B:[],side:'A'};
+  S.tool=t;S.draft=[];S.hover=null;S.sel=null;S.match={A:[],B:[],side:'A'};S.notch=null;
   document.querySelectorAll('nav [data-tool]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.tool===t));
   readout();refresh();
 }
@@ -638,7 +669,7 @@ function zoom(k,mx,my){const V=S.view,s=Math.max(.3,Math.min(200,V.s*k));k=s/V.s
 cv.addEventListener('wheel',e=>{e.preventDefault();zoom(e.deltaY<0?1.15:.87,e.offsetX,e.offsetY)},{passive:false});
 
 function load(bytes,name,example){
-  S.doc=parse(bytes);S.name=name;S.adds=[];S.dels=[];S.hist=[];S.edits=new Set();S.sel=null;S.draft=[];S.example=example;S.match={A:[],B:[],side:'A'};
+  S.doc=parse(bytes);S.name=name;S.adds=[];S.dels=[];S.hist=[];S.edits=new Set();S.sel=null;S.draft=[];S.example=example;S.match={A:[],B:[],side:'A'};S.notch=null;
   S.hide=new Set();renderLayers();fit();refresh();
   document.querySelector('[data-tab=draw]').click();
 }
@@ -665,6 +696,36 @@ function makeOffset(sign){
   if(!e)return;if(!(d>0))return say('간격을 cm로 입력해 주세요.',true);
   commit({kind:e.pts.length>2?'curve':'line',pts:offsetPts(e.pts,d*sign),flag:1});say('');
 }
+// Notches: a 2 cm tick across the line at a set distance from one of its ends.
+const NOTCH=2;
+function notchGeom(e,s){
+  const P=shape(e);let run=0;
+  for(let i=1;i<P.length;i++){
+    const a=P[i-1],b=P[i],d=Math.hypot(b.x-a.x,b.y-a.y);
+    if(run+d>=s||i===P.length-1){
+      const t=Math.max(0,Math.min(1,(s-run)/(d||1))),c={x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t},nx=-(b.y-a.y)/(d||1)*NOTCH/2,ny=(b.x-a.x)/(d||1)*NOTCH/2;
+      return {a:{x:c.x+nx,y:c.y+ny},b:{x:c.x-nx,y:c.y-ny},c};
+    }
+    run+=d;
+  }
+  return {a:P[0],b:P[0],c:P[0]};
+}
+function showNotch(){
+  const N=S.notch;if(!N)return;const L=elLen(N.e);
+  $('notchEnd').textContent=N.fromEnd?'끝점':'시작점';$('notchAt').value=(N.fromEnd?L-N.s:N.s).toFixed(2);
+  readout('선 길이 '+L.toFixed(2)+' cm · 너치 위치를 확인하고 넣으세요');
+}
+$('notchEnd').onclick=()=>{if(!S.notch)return;S.notch.fromEnd=!S.notch.fromEnd;showNotch();refresh()};
+$('notchAt').oninput=()=>{
+  const N=S.notch,x=parseFloat($('notchAt').value);if(!N||!(x>=0))return;
+  const L=elLen(N.e);if(x>L)return say('선 길이('+L.toFixed(2)+' cm)보다 깁니다.',true);
+  say('');N.s=N.fromEnd?L-x:x;draw();
+};
+$('notchAdd').onclick=()=>{
+  const N=S.notch;if(!N)return;const g=notchGeom(N.e,N.s);
+  commit({kind:'notch',pts:[g.a,g.b],at:g.c,layer:N.e.layer||S.layer,color:7});
+  say('너치를 넣었습니다. 다른 선을 누르면 또 넣을 수 있습니다.');S.notch=null;refresh();
+};
 // Length matching: add up one group of lines (e.g. armhole) and another (e.g. sleeve cap) and compare.
 function matchGroups(){const vis=new Set(allEls());return {A:S.match.A.filter(e=>vis.has(e)),B:S.match.B.filter(e=>vis.has(e))}}
 const sumLen=g=>g.reduce((s,e)=>s+elLen(e),0);
