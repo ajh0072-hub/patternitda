@@ -89,6 +89,27 @@ def main(samples):
         page.click('#undo')
         check('되돌리기', page.text_content('#count') == '요소 1')
 
+        # 길이 맞추기: 10cm 기준, 12cm 직선을 10cm로 맞춘다
+        page.click('#new')
+        page.click('[data-tool=line]')
+        for y, L in ((300, '10'), (400, '12')):
+            page.mouse.click(box['x'] + 300, box['y'] + y)
+            page.mouse.move(box['x'] + 500, box['y'] + y)
+            page.fill('#len', L)
+            page.click('#apply')
+        mids = page.evaluate("S.adds.map(e => toS({x: (e.pts[0].x + e.pts[1].x) / 2, y: (e.pts[0].y + e.pts[1].y) / 2}))")
+        page.click('[data-tool=match]')
+        page.mouse.click(box['x'] + mids[0]['x'], box['y'] + mids[0]['y'])
+        page.click('#matchB')
+        page.mouse.click(box['x'] + mids[1]['x'], box['y'] + mids[1]['y'])
+        before = page.text_content('#matchDiff')
+        page.click('#matchFix')
+        after = page.evaluate("S.adds.map(e => elLen(e).toFixed(2))")
+        check('길이 맞추기', before == '맞출 쪽이 2.00 cm 깁니다' and after == ['10.00', '10.00']
+              and page.text_content('#matchDiff') == '길이가 같습니다', f'{before} → {after}')
+        page.click('#undo')
+        check('길이 맞추기 되돌리기', page.evaluate("elLen(S.adds[1]).toFixed(2)") == '12.00')
+
         ctx.set_offline(True)
         page.reload()
         page.wait_for_timeout(800)
