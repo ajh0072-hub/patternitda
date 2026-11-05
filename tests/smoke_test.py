@@ -158,6 +158,53 @@ def main(samples):
           return [S.doc.els.length, Math.hypot(c.x-l.pts[0].x, c.y-l.pts[0].y).toFixed(2), Math.hypot(n.pts[1].x-n.pts[0].x, n.pts[1].y-n.pts[0].y).toFixed(2)] })()""")
         check('너치 넣기 → 저장 → 다시 열기', r == [2, '3.00', '2.00'], str(r))
 
+        # 너치 여러 개: 위 직선에서 시작점 2cm부터 1cm 간격 3개
+        page.click('[data-tool=notch]')
+        page.mouse.click(box['x'] + mid['x'], box['y'] + mid['y'])
+        if page.text_content('#notchEnd') != '시작점':
+            page.click('#notchEnd')
+        page.fill('#notchAt', '2')
+        page.fill('#notchN', '3')
+        page.fill('#notchGap', '1')
+        page.click('#notchAdd')
+        r = page.evaluate("""(() => { const l = S.doc.els.find(e => e.type === TYPE.LINE);
+          return S.adds.filter(e => e.kind === 'notch').map(n => Math.hypot(n.at.x - l.pts[0].x, n.at.y - l.pts[0].y).toFixed(2)) })()""")
+        page.click('#undo')
+        check('너치 여러 개 넣기·한 번에 되돌리기', r == ['2.00', '3.00', '4.00'] and page.evaluate('S.adds.length') == 0, str(r))
+
+        # 시접 넣기: 20×10 사각형 → 저장 → 다시 열기 → 시접 1cm(밑변 4cm) → 저장 → 다시 열기
+        page.click('#new')
+        page.evaluate("""(() => { const P = [[0,0],[20,0],[20,10],[0,10]].map(([x,y]) => ({x:x+10, y:y+10}));
+          for (let i = 0; i < 4; i++) commit({kind:'line', pts:[P[i], P[(i+1)%4]], flag:1}) })()""")
+        with page.expect_download() as dl:
+            page.click('#save')
+        rect = os.path.join(OUT, 'rect.pax')
+        dl.value.save_as(rect)
+        page.set_input_files('#file', rect)
+        page.wait_for_timeout(300)
+        page.click('[data-tool=seam]')
+        def tap_world(x, y):
+            q = page.evaluate(f'toS({{x:{x}, y:{y}}})')
+            page.mouse.click(box['x'] + q['x'], box['y'] + q['y'])
+        tap_world(20, 20)          # 윗변 → 사각형 한 바퀴
+        tap_world(20, 10)          # 밑변 선택
+        page.fill('#seamW', '4')
+        page.click('#seamAdd')
+        with page.expect_download() as dl:
+            page.click('#save')
+        seamed = os.path.join(OUT, 'rect_seam.pax')
+        dl.value.save_as(seamed)
+        page.set_input_files('#file', seamed)
+        page.wait_for_timeout(300)
+        r = page.evaluate("""(() => { const v = new DataView(S.doc.bytes.buffer, S.doc.bytes.byteOffset);
+          const z = S.doc.els.find(e => e.type === 0x5C); if (!z) return null;
+          const n = v.getUint16(z.addr + 4, true), idx = (z.rec - REC) / RSZ + 1;
+          const seams = S.doc.els.filter(e => e.link === 0x15 && e.owner === idx);
+          const xs = seams.flatMap(e => e.pts.map(p => p.x)), ys = seams.flatMap(e => e.pts.map(p => p.y));
+          const w = Array.from({length:n}, (_, i) => v.getFloat32(z.addr + 6 + 16*n + 4*i, true)).sort();
+          return [n, seams.length, Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys), w.join(','), seamSet(seams[0]).length] })()""")
+        check('시접 넣기 → 저장 → 다시 열기', r == [4, 4, 9, 31, 6, 21, '1,1,1,4', 5], str(r))
+
         ctx.set_offline(True)
         page.reload()
         page.wait_for_timeout(800)
