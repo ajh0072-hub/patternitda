@@ -83,6 +83,42 @@ canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;displa
   #leftPanel{left:8px}#rightPanel{right:8px}
   #coord,#count{display:none}
 }
+/* 손가락 화면(폰·탭): 누르는 곳을 크게 */
+@media (pointer:coarse){
+  #quick button,#quick label.btn{width:42px;height:38px}
+  #quick svg{width:21px;height:21px}
+  .float button{min-height:38px}
+  .float input{height:38px}
+  select{height:32px}
+  input[type=checkbox],input[type=radio]{width:19px;height:19px}
+}
+/* 폰 세로: 도구를 숨기지 않고 두 줄로 접는다 */
+@media (max-width:600px){
+  #ribbon{min-height:0;margin:2px 6px 0}
+  .tabpane{flex-wrap:wrap}
+  .group{padding:3px 3px;border-right:0}
+  .group>span{display:none}
+  .tool{min-width:46px;height:50px;padding:2px 3px;font-size:11px}
+  .tool svg{width:21px;height:21px}
+  #options{flex-wrap:wrap;gap:6px 12px;padding:5px 10px;white-space:normal}
+  #work{padding:0 6px}
+  .float{left:6px;right:6px;bottom:6px;padding:6px;gap:6px}
+}
+/* 폰 가로: 위쪽을 한 줄로 납작하게 해서 패턴 볼 자리를 넓힌다 */
+@media (max-height:500px){
+  #app>div:first-child{display:flex;align-items:center;gap:6px}
+  #title{display:flex;padding:calc(2px + env(safe-area-inset-top)) 8px 0}
+  #name{max-width:24vw}
+  #tabs{padding:0}
+  #tabs button{padding:4px 10px}
+  #ribbon{min-height:0;margin:2px 6px 0}
+  .group{padding:2px 4px}
+  .group>span{display:none}
+  .tool{flex-direction:row;gap:4px;height:36px;min-width:0;padding:2px 7px;font-size:12px}
+  .tool svg{width:19px;height:19px}
+  #options{padding:3px 10px}
+  #status{padding-top:2px;padding-bottom:calc(2px + env(safe-area-inset-bottom))}
+}
 </style>
 </head>
 <body>
@@ -175,7 +211,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;displa
       <button id="matchA" class="on">기준</button><output id="sumA" class="a">0.00 cm</output>
       <button id="matchB">맞출 쪽</button><output id="sumB" class="b">0.00 cm</output>
       <output id="matchDiff"></output>
-      <button id="matchFix" disabled>직선으로 맞추기</button><button id="matchClear">다시</button>
+      <button id="matchFix" disabled>마지막 선으로 맞추기</button><button id="matchClear">다시</button>
     </div>
     <div id="input" class="float" hidden>
       <label for="len">길이 cm</label><input id="len" type="number" inputmode="decimal" step="0.1" min="0">
@@ -483,7 +519,7 @@ function pick(sp){
 }
 const lenOf=p=>p.reduce((s,q,i)=>i?s+Math.hypot(q.x-p[i-1].x,q.y-p[i-1].y):s,0);
 const elLen=e=>lenOf(shape(e)); // curves are measured along the drawn curve, not between stored points
-function readout(t){$('readout').textContent=t||(S.tool==='line'?'시작점을 누르세요':S.tool==='curve'?'곡선이 지날 점을 차례로 누르세요':S.tool==='measure'?'두 점을 누르면 거리가 나옵니다':S.tool==='offset'?'기준 선을 누르세요':S.tool==='seamdel'?'지울 패턴의 분홍 시접선을 누르세요':S.tool==='edit'?'고칠 선을 누르세요':S.tool==='match'?(S.match.side==='A'?'기준이 될 선을 차례로 누르세요 (다시 누르면 빠짐)':'맞출 쪽 선을 누르세요. 마지막에 누른 직선으로 길이를 맞출 수 있어요'):'선을 누르면 길이가 나옵니다')}
+function readout(t){$('readout').textContent=t||(S.tool==='line'?'시작점을 누르세요':S.tool==='curve'?'곡선이 지날 점을 차례로 누르세요':S.tool==='measure'?'두 점을 누르면 거리가 나옵니다':S.tool==='offset'?'기준 선을 누르세요':S.tool==='seamdel'?'지울 패턴의 분홍 시접선을 누르세요':S.tool==='edit'?'고칠 선을 누르세요':S.tool==='match'?(S.match.side==='A'?'기준이 될 선을 차례로 누르세요 (다시 누르면 빠짐)':'맞출 쪽 선을 누르세요. 마지막에 누른 선으로 길이를 맞출 수 있어요'):'선을 누르면 길이가 나옵니다')}
 function refresh(){
   $('name').innerHTML='';$('name').textContent=S.name;
   const sm=document.createElement('small');sm.textContent=S.adds.length+S.dels.length+S.edits.size?'저장 안 됨':'';$('name').append(sm);
@@ -632,9 +668,32 @@ function makeOffset(sign){
 // Length matching: add up one group of lines (e.g. armhole) and another (e.g. sleeve cap) and compare.
 function matchGroups(){const vis=new Set(allEls());return {A:S.match.A.filter(e=>vis.has(e)),B:S.match.B.filter(e=>vis.has(e))}}
 const sumLen=g=>g.reduce((s,e)=>s+elLen(e),0);
-function matchLine(){ // the straight line that "직선으로 맞추기" would change: the last one tapped on the 맞출 쪽 side
-  const {A,B}=matchGroups(),e=B[B.length-1];
-  return A.length&&e&&e.pts.length===2&&!locked(e)?e:null;
+function matchLine(){ // the line that "마지막 선으로 맞추기" changes: the last one tapped on the 맞출 쪽 side
+  const {A,B}=matchGroups(),e=B[B.length-1],curve=e&&e.pts.length>2&&(e.kind==='curve'||e.type===TYPE.CURVE);
+  return A.length&&e&&(e.pts.length===2||curve)&&!locked(e)?e:null;
+}
+// Stretch a curve from one end along its own direction; the move spreads SA-style so the far end stays put.
+function stretchCurve(base,i,L){
+  const n=base.length-1,o=i?n-1:1,tx=base[i].x-base[o].x,ty=base[i].y-base[o].y,tl=Math.hypot(tx,ty)||1;
+  const at=t=>base.map((p,k)=>{const s=Math.sin(Math.PI/2*(i?k/n:(n-k)/n)),w=s*s;return {x:p.x+tx/tl*t*w,y:p.y+ty/tl*t*w}});
+  const f=t=>lenOf(spline(at(t)))-L;
+  let t0=0,f0=f(0),t1=-f0,f1=f(t1);
+  for(let k=0;k<30&&Math.abs(f1)>1e-4&&f1!==f0;k++){const t2=t1-f1*(t1-t0)/(f1-f0);t0=t1;f0=f1;t1=t2;f1=f(t1)}
+  return Math.abs(f1)<0.005?at(t1):null;
+}
+// Shorten a curve by cutting it along its drawn shape, keeping the same number of stored points.
+function trimCurve(base,i,L){
+  const P=i?base:base.slice().reverse(),dense=spline(P),n=P.length;
+  const cut=c=>{const o=[dense[0]];let run=0;
+    for(let k=1;k<dense.length;k++){const a=dense[k-1],b=dense[k],d=Math.hypot(b.x-a.x,b.y-a.y);
+      if(run+d>=c){const t=(c-run)/(d||1);o.push({x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t});break}
+      run+=d;o.push(b)}
+    const r=resample(o,n,true);r[0]=P[0];return r};
+  const f=c=>lenOf(spline(cut(c)))-L;
+  let c0=L,f0=f(c0),c1=L-f0,f1=f(c1);
+  for(let k=0;k<30&&Math.abs(f1)>1e-4&&f1!==f0;k++){const c2=c1-f1*(c1-c0)/(f1-f0);c0=c1;f0=f1;c1=c2;f1=f(c1)}
+  if(Math.abs(f1)>=0.005)return null;
+  const r=cut(c1);return i?r:r.reverse();
 }
 function showMatch(){
   const on=S.tool==='match';$('matchPanel').hidden=!on;if(!on)return;
@@ -645,11 +704,18 @@ function showMatch(){
   $('matchFix').disabled=!matchLine();
 }
 function fixMatch(){
-  const e=matchLine();if(!e)return say('맞출 쪽에서 마지막에 누른 선이 고칠 수 있는 직선이어야 합니다.',true);
+  const e=matchLine();if(!e)return say('맞출 쪽에서 마지막에 누른 선이 고칠 수 있는 직선이나 곡선이어야 합니다.',true);
   const {A,B}=matchGroups(),L=elLen(e)+sumLen(A)-sumLen(B);
-  if(!(L>0.01))return say('이 직선만으로는 맞출 수 없습니다. 차이가 직선 길이보다 큽니다.',true);
+  if(!(L>0.01))return say('이 선만으로는 맞출 수 없습니다. 차이가 선 길이보다 큽니다.',true);
   // keep the end that touches another line of the group, move the free end
   const near=p=>B.some(x=>x!==e&&x.pts.length&&[x.pts[0],x.pts[x.pts.length-1]].some(q=>Math.hypot(q.x-p.x,q.y-p.y)<0.05));
+  if(e.pts.length>2){
+    if(e.trim){e.pts=resample(e.pts,e.n,true);e.trim=false;e.baked=true}
+    const n=e.pts.length-1,i=near(e.pts[n])&&!near(e.pts[0])?0:n,cut=L<elLen(e),pts=cut?trimCurve(e.pts,i,L):stretchCurve(e.pts,i,L);
+    if(!pts)return say('곡선을 이 길이로 맞추지 못했습니다. 수정 도구로 직접 고쳐 주세요.',true);
+    remember(e);e.pts=pts;changed(e);
+    say('곡선을 '+(cut?'잘라 ':'늘여 ')+L.toFixed(2)+' cm로 맞췄습니다. 되돌리기로 돌아갈 수 있습니다.');return refresh();
+  }
   const flip=near(e.pts[1])&&!near(e.pts[0]),a=flip?e.pts[1]:e.pts[0],b=flip?e.pts[0]:e.pts[1],d=Math.hypot(b.x-a.x,b.y-a.y)||1;
   const moved={x:a.x+(b.x-a.x)/d*L,y:a.y+(b.y-a.y)/d*L};
   remember(e);e.pts=flip?[moved,a]:[a,moved];changed(e);
