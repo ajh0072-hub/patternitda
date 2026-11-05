@@ -110,6 +110,29 @@ def main(samples):
         page.click('#undo')
         check('길이 맞추기 되돌리기', page.evaluate("elLen(S.adds[1]).toFixed(2)") == '12.00')
 
+        # 곡선으로 길이 맞추기: 늘이기와 줄이기
+        page.click('[data-tool=curve]')
+        for x, y in ((300, 150), (380, 100), (460, 160), (540, 120)):
+            page.mouse.click(box['x'] + x, box['y'] + y)
+        page.click('#done')
+        curve_ok = []
+        for target, y in (('14', 230), ('6', 280)):
+            page.click('[data-tool=line]')
+            page.mouse.click(box['x'] + 650, box['y'] + y)
+            page.mouse.move(box['x'] + 850, box['y'] + y)
+            page.fill('#len', target)
+            page.click('#apply')
+            line_mid, curve_pt = page.evaluate(
+                "[toS({x:(S.adds.at(-1).pts[0].x+S.adds.at(-1).pts[1].x)/2, y:S.adds.at(-1).pts[0].y}), toS(S.adds[2].pts[7])]")
+            page.click('[data-tool=match]')
+            page.mouse.click(box['x'] + line_mid['x'], box['y'] + line_mid['y'])
+            page.click('#matchB')
+            page.mouse.click(box['x'] + curve_pt['x'], box['y'] + curve_pt['y'])
+            page.click('#matchFix')
+            curve_ok.append(page.evaluate(f"[elLen(S.adds[2]).toFixed(2), S.adds[2].pts.length]"))
+            page.click('#undo')
+        check('곡선 길이 맞추기', curve_ok == [['14.00', 15], ['6.00', 15]], str(curve_ok))
+
         ctx.set_offline(True)
         page.reload()
         page.wait_for_timeout(800)
