@@ -133,6 +133,31 @@ def main(samples):
             page.click('#undo')
         check('곡선 길이 맞추기', curve_ok == [['14.00', 15], ['6.00', 15]], str(curve_ok))
 
+        # 너치: 10cm 직선의 시작점에서 3cm에 넣고 저장 → 다시 열기
+        page.click('#new')
+        page.click('[data-tool=line]')
+        page.mouse.click(box['x'] + 300, box['y'] + 300)
+        page.mouse.move(box['x'] + 500, box['y'] + 300)
+        page.fill('#len', '10')
+        page.click('#apply')
+        mid = page.evaluate("toS({x:(S.adds[0].pts[0].x+S.adds[0].pts[1].x)/2, y:S.adds[0].pts[0].y})")
+        page.click('[data-tool=notch]')
+        page.mouse.click(box['x'] + mid['x'], box['y'] + mid['y'])
+        if page.text_content('#notchEnd') != '시작점':
+            page.click('#notchEnd')
+        page.fill('#notchAt', '3')
+        page.click('#notchAdd')
+        with page.expect_download() as dl:
+            page.click('#save')
+        saved = os.path.join(OUT, 'notch.pax')
+        dl.value.save_as(saved)
+        page.set_input_files('#file', saved)
+        page.wait_for_timeout(300)
+        r = page.evaluate("""(() => { const n = S.doc.els.find(e => e.type === TYPE.NOTCH), l = S.doc.els.find(e => e.type === TYPE.LINE);
+          if (!n || !l) return null; const c = {x:(n.pts[0].x+n.pts[1].x)/2, y:(n.pts[0].y+n.pts[1].y)/2};
+          return [S.doc.els.length, Math.hypot(c.x-l.pts[0].x, c.y-l.pts[0].y).toFixed(2), Math.hypot(n.pts[1].x-n.pts[0].x, n.pts[1].y-n.pts[0].y).toFixed(2)] })()""")
+        check('너치 넣기 → 저장 → 다시 열기', r == [2, '3.00', '2.00'], str(r))
+
         ctx.set_offline(True)
         page.reload()
         page.wait_for_timeout(800)
