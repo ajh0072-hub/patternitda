@@ -68,6 +68,9 @@ canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;displa
 .float{position:absolute;right:10px;bottom:10px;background:var(--mat);border:1px solid var(--line);border-radius:7px;padding:7px 9px;display:flex;flex-wrap:wrap;gap:7px;align-items:center;box-shadow:0 2px 8px rgba(20,40,50,.12)}
 .float input{width:78px;height:30px;font:inherit;font-variant-numeric:tabular-nums;border:1px solid var(--line);border-radius:4px;padding:0 6px;background:var(--mat);color:var(--ink)}
 .float button{min-height:30px;padding:0 11px;background:var(--active)}
+.float button.on{box-shadow:inset 0 0 0 2px var(--draw);font-weight:600}
+.float output{font-variant-numeric:tabular-nums;white-space:nowrap}
+#matchPanel .a{color:var(--c4);font-weight:600}#matchPanel .b{color:var(--mark);font-weight:600}
 #notice{position:absolute;left:10px;right:10px;top:8px;background:var(--panel);border:1px solid var(--line);padding:7px 11px;border-radius:6px}
 #notice.warn{color:var(--danger)}
 #status{display:flex;align-items:center;gap:16px;padding:5px 12px calc(5px + env(safe-area-inset-bottom));font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden}
@@ -125,6 +128,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;displa
     </div><span>수정</span></div>
     <div class="group"><div class="tools">
       <button class="tool" data-tool="measure" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M3 16L16 3l5 5L8 21z"/><path d="M7 12l2 2M10 9l2 2M13 6l2 2"/></svg>재기</button>
+      <button class="tool" data-tool="match" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M3 8h12M3 16h18"/><path d="M15 5v6M21 13v6"/></svg>길이 맞추기</button>
     </div><span>측정</span></div>
   </div>
   <div class="tabpane" data-pane="view" hidden>
@@ -166,6 +170,12 @@ canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;displa
     <div id="offsetPanel" class="float" hidden>
       <label for="gap">간격 cm</label><input id="gap" type="number" inputmode="decimal" step="0.1" min="0" value="1">
       <button id="sideA">이쪽</button><button id="sideB">반대쪽</button>
+    </div>
+    <div id="matchPanel" class="float" hidden>
+      <button id="matchA" class="on">기준</button><output id="sumA" class="a">0.00 cm</output>
+      <button id="matchB">맞출 쪽</button><output id="sumB" class="b">0.00 cm</output>
+      <output id="matchDiff"></output>
+      <button id="matchFix" disabled>직선으로 맞추기</button><button id="matchClear">다시</button>
     </div>
     <div id="input" class="float" hidden>
       <label for="len">길이 cm</label><input id="len" type="number" inputmode="decimal" step="0.1" min="0">
@@ -388,7 +398,7 @@ function build(doc0,adds,dels,edits=[]){
 
 // App state
 const cv=document.getElementById('c'),ctx=cv.getContext('2d');
-const S={doc:null,name:'',adds:[],dels:[],hist:[],tool:'pan',draft:[],sel:null,view:{x:0,y:0,s:8},w:0,h:0,hover:null,example:false,hide:new Set(),layer:0x2B,edits:new Set(),grab:null,off:new Set(),coord:null};
+const S={doc:null,name:'',adds:[],dels:[],hist:[],tool:'pan',draft:[],sel:null,view:{x:0,y:0,s:8},w:0,h:0,hover:null,example:false,hide:new Set(),layer:0x2B,edits:new Set(),grab:null,off:new Set(),coord:null,match:{A:[],B:[],side:'A'}};
 const $=id=>document.getElementById(id);
 
 function say(msg,warn){const n=$('notice');n.textContent=msg||'';n.hidden=!msg;n.classList.toggle('warn',!!warn)}
@@ -428,8 +438,8 @@ function draw(){
     c.stroke();
   }
   for(const e of allEls()){
-    const sel=S.sel===e,pen=css('--c'+e.color)||css('--ink');
-    c.strokeStyle=sel?css('--mark'):e.kind?css('--draw'):pen;c.globalAlpha=e.kind&&e.color===3?.5:1;c.lineWidth=sel?2.4:1.3;
+    const sel=S.sel===e,pen=css('--c'+e.color)||css('--ink'),g=S.tool==='match'?(S.match.A.includes(e)?'--c4':S.match.B.includes(e)?'--mark':''):'';
+    c.strokeStyle=g?css(g):sel?css('--mark'):e.kind?css('--draw'):pen;c.globalAlpha=e.kind&&e.color===3?.5:1;c.lineWidth=g?2.8:sel?2.4:1.3;
     if(e.pts.length){c.beginPath();shape(e).forEach((p,i)=>{const q=toS(p);i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y)});c.stroke()}
     if(e.text&&e.size*V.s>=3){const q=toS(e.at);c.fillStyle=pen;c.font=e.size*V.s+'px '+css('--font');c.fillText(e.text,q.x,q.y)}
     c.globalAlpha=1;
@@ -472,7 +482,8 @@ function pick(sp){
   return best;
 }
 const lenOf=p=>p.reduce((s,q,i)=>i?s+Math.hypot(q.x-p[i-1].x,q.y-p[i-1].y):s,0);
-function readout(t){$('readout').textContent=t||(S.tool==='line'?'시작점을 누르세요':S.tool==='curve'?'곡선이 지날 점을 차례로 누르세요':S.tool==='measure'?'두 점을 누르면 거리가 나옵니다':S.tool==='offset'?'기준 선을 누르세요':S.tool==='seamdel'?'지울 패턴의 분홍 시접선을 누르세요':S.tool==='edit'?'고칠 선을 누르세요':'선을 누르면 길이가 나옵니다')}
+const elLen=e=>lenOf(shape(e)); // curves are measured along the drawn curve, not between stored points
+function readout(t){$('readout').textContent=t||(S.tool==='line'?'시작점을 누르세요':S.tool==='curve'?'곡선이 지날 점을 차례로 누르세요':S.tool==='measure'?'두 점을 누르면 거리가 나옵니다':S.tool==='offset'?'기준 선을 누르세요':S.tool==='seamdel'?'지울 패턴의 분홍 시접선을 누르세요':S.tool==='edit'?'고칠 선을 누르세요':S.tool==='match'?(S.match.side==='A'?'기준이 될 선을 차례로 누르세요 (다시 누르면 빠짐)':'맞출 쪽 선을 누르세요. 마지막에 누른 직선으로 길이를 맞출 수 있어요'):'선을 누르면 길이가 나옵니다')}
 function refresh(){
   $('name').innerHTML='';$('name').textContent=S.name;
   const sm=document.createElement('small');sm.textContent=S.adds.length+S.dels.length+S.edits.size?'저장 안 됨':'';$('name').append(sm);
@@ -480,6 +491,7 @@ function refresh(){
   $('input').hidden=!((S.tool==='line'&&S.draft.length===1)||(S.tool==='curve'&&S.draft.length));
   $('done').hidden=S.tool!=='curve';$('apply').hidden=S.tool!=='line';$('len').hidden=S.tool!=='line';$('input').querySelector('label').hidden=S.tool!=='line';
   $('count').textContent='요소 '+allEls().length;
+  showMatch();
   draw();
 }
 function commit(el){el.layer=el.layer||S.layer;el.color=el.color||+$('lineKind').value;S.adds.push(el);S.hist.push({a:el});S.draft=[];S.hover=null;refresh()}
@@ -492,6 +504,12 @@ function tap(sp){
     for(const x of set)S.dels.push(x.rec);S.hist.push({ds:set.map(x=>x.rec)});S.sel=null;
     say('이 패턴의 시접을 '+set.filter(x=>x.pts.length).length+'개 지웠습니다. 되돌리기로 복구할 수 있습니다.');refresh();return;
   }
+  if(S.tool==='match'){
+    const e=pick(sp);if(!e||e.type===TYPE.TEXT||e.type===TYPE.NOTCH)return;
+    const M=S.match,inA=M.A.indexOf(e),inB=M.B.indexOf(e);
+    if(inA>=0)M.A.splice(inA,1);else if(inB>=0)M.B.splice(inB,1);else M[M.side].push(e);
+    say('');readout('이 선 '+elLen(e).toFixed(2)+' cm');refresh();return;
+  }
   if(S.tool==='edit'){
     const e=pick(sp);
     if(e&&locked(e)){S.sel=null;say('그레이딩이나 다른 요소에 연결된 선은 유까에서 고쳐 주세요.',true)}
@@ -499,11 +517,11 @@ function tap(sp){
       S.sel=e;say('');
       if(e&&e.trim){e.pts=resample(e.pts,e.n,true);e.trim=false;e.baked=true}
       if(e&&e.pts.length===2)$('editLen').value=lenOf(e.pts).toFixed(2)}
-    readout(e&&!locked(e)?'점을 끌어 고치세요 · 길이 '+lenOf(e.pts).toFixed(2)+' cm':undefined);refresh();return;
+    readout(e&&!locked(e)?'점을 끌어 고치세요 · 길이 '+elLen(e).toFixed(2)+' cm':undefined);refresh();return;
   }
   if(S.tool==='pan'||S.tool==='offset'){
     S.sel=pick(sp);
-    if(S.sel) readout('길이 '+lenOf(S.sel.pts).toFixed(2)+' cm');else readout();
+    if(S.sel) readout('길이 '+elLen(S.sel).toFixed(2)+' cm');else readout();
     refresh();return;
   }
   S.draft.push({x:w.x,y:w.y});
@@ -544,7 +562,7 @@ function shape(e){ // curves pass smoothly through their stored points
   return e.smooth;
 }
 function setTool(t){
-  S.tool=t;S.draft=[];S.hover=null;S.sel=null;
+  S.tool=t;S.draft=[];S.hover=null;S.sel=null;S.match={A:[],B:[],side:'A'};
   document.querySelectorAll('nav [data-tool]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.tool===t));
   readout();refresh();
 }
@@ -561,7 +579,7 @@ cv.addEventListener('pointermove',e=>{
   $('coord').textContent='X '+w.x.toFixed(1)+'  Y '+w.y.toFixed(1);
   if(had&&S.grab&&ptrs.size===1){
     const q=S.sel;S.snap=snapAt(sp,q);dragPoint(q,S.grab.i,S.snap||toW(sp),S.grab.base);S.grab.moved=true;drag.moved=true;
-    readout('길이 '+lenOf(q.pts).toFixed(2)+' cm');draw();return;
+    readout('길이 '+elLen(q).toFixed(2)+' cm');draw();return;
   }
   if(had){
     if(ptrs.size===2){
@@ -574,7 +592,7 @@ cv.addEventListener('pointermove',e=>{
     if(drag.d>6){drag.moved=true;S.view.x+=dx;S.view.y+=dy;draw()}
     return;
   }
-  if(S.tool!=='pan'&&S.tool!=='offset'){S.snap=snapAt(sp);S.hover=S.draft.length?(S.snap||toW(sp)):null;draw()}
+  if(S.tool!=='pan'&&S.tool!=='offset'&&S.tool!=='match'){S.snap=snapAt(sp);S.hover=S.draft.length?(S.snap||toW(sp)):null;draw()}
 });
 function up(e){
   if(S.grab){if(S.grab.moved){changed(S.sel);if(S.sel.pts.length===2)$('editLen').value=lenOf(S.sel.pts).toFixed(2)}else S.hist.pop();S.grab=null;S.snap=null;refresh()}
@@ -584,7 +602,7 @@ function zoom(k,mx,my){const V=S.view,s=Math.max(.3,Math.min(200,V.s*k));k=s/V.s
 cv.addEventListener('wheel',e=>{e.preventDefault();zoom(e.deltaY<0?1.15:.87,e.offsetX,e.offsetY)},{passive:false});
 
 function load(bytes,name,example){
-  S.doc=parse(bytes);S.name=name;S.adds=[];S.dels=[];S.hist=[];S.edits=new Set();S.sel=null;S.draft=[];S.example=example;
+  S.doc=parse(bytes);S.name=name;S.adds=[];S.dels=[];S.hist=[];S.edits=new Set();S.sel=null;S.draft=[];S.example=example;S.match={A:[],B:[],side:'A'};
   S.hide=new Set();renderLayers();fit();refresh();
   document.querySelector('[data-tab=draw]').click();
 }
@@ -611,6 +629,36 @@ function makeOffset(sign){
   if(!e)return;if(!(d>0))return say('간격을 cm로 입력해 주세요.',true);
   commit({kind:e.pts.length>2?'curve':'line',pts:offsetPts(e.pts,d*sign),flag:1});say('');
 }
+// Length matching: add up one group of lines (e.g. armhole) and another (e.g. sleeve cap) and compare.
+function matchGroups(){const vis=new Set(allEls());return {A:S.match.A.filter(e=>vis.has(e)),B:S.match.B.filter(e=>vis.has(e))}}
+const sumLen=g=>g.reduce((s,e)=>s+elLen(e),0);
+function matchLine(){ // the straight line that "직선으로 맞추기" would change: the last one tapped on the 맞출 쪽 side
+  const {A,B}=matchGroups(),e=B[B.length-1];
+  return A.length&&e&&e.pts.length===2&&!locked(e)?e:null;
+}
+function showMatch(){
+  const on=S.tool==='match';$('matchPanel').hidden=!on;if(!on)return;
+  const {A,B}=matchGroups(),a=sumLen(A),b=sumLen(B),d=b-a;
+  $('matchA').classList.toggle('on',S.match.side==='A');$('matchB').classList.toggle('on',S.match.side==='B');
+  $('sumA').textContent=a.toFixed(2)+' cm ('+A.length+'개)';$('sumB').textContent=b.toFixed(2)+' cm ('+B.length+'개)';
+  $('matchDiff').textContent=!A.length||!B.length?'':Math.abs(d)<0.005?'길이가 같습니다':'맞출 쪽이 '+Math.abs(d).toFixed(2)+' cm '+(d>0?'깁니다':'짧습니다');
+  $('matchFix').disabled=!matchLine();
+}
+function fixMatch(){
+  const e=matchLine();if(!e)return say('맞출 쪽에서 마지막에 누른 선이 고칠 수 있는 직선이어야 합니다.',true);
+  const {A,B}=matchGroups(),L=elLen(e)+sumLen(A)-sumLen(B);
+  if(!(L>0.01))return say('이 직선만으로는 맞출 수 없습니다. 차이가 직선 길이보다 큽니다.',true);
+  // keep the end that touches another line of the group, move the free end
+  const near=p=>B.some(x=>x!==e&&x.pts.length&&[x.pts[0],x.pts[x.pts.length-1]].some(q=>Math.hypot(q.x-p.x,q.y-p.y)<0.05));
+  const flip=near(e.pts[1])&&!near(e.pts[0]),a=flip?e.pts[1]:e.pts[0],b=flip?e.pts[0]:e.pts[1],d=Math.hypot(b.x-a.x,b.y-a.y)||1;
+  const moved={x:a.x+(b.x-a.x)/d*L,y:a.y+(b.y-a.y)/d*L};
+  remember(e);e.pts=flip?[moved,a]:[a,moved];changed(e);
+  say('직선을 '+L.toFixed(2)+' cm로 바꿔 길이를 맞췄습니다. 되돌리기로 돌아갈 수 있습니다.');refresh();
+}
+$('matchA').onclick=()=>{S.match.side='A';readout();refresh()};
+$('matchB').onclick=()=>{S.match.side='B';readout();refresh()};
+$('matchClear').onclick=()=>{S.match={A:[],B:[],side:'A'};say('');readout();refresh()};
+$('matchFix').onclick=fixMatch;
 document.querySelectorAll('nav [data-tool]').forEach(b=>b.onclick=()=>setTool(b.dataset.tool));
 $('new').onclick=()=>{load(blank(),'새 패턴');say('')};
 $('file').onchange=async e=>{
