@@ -248,6 +248,33 @@ def main(samples):
         page.click('#mvRot')
         check('MVRT (90° 회전)', page.evaluate(bounds) == '0.0,10.0,10.0,30.0', page.evaluate(bounds))
 
+        # SG / AG: 사각형 4변 → 저장 → 다시 열기 → 위·아래 변 SG, 왼쪽 변 AG → 저장 → 다시 열기
+        page.click('#undo')
+        with page.expect_download() as dl:
+            page.click('#save')
+        sq = os.path.join(OUT, 'square.pax')
+        dl.value.save_as(sq)
+        page.set_input_files('#file', sq)
+        page.wait_for_timeout(300)
+        page.click('[data-tool=sg]')
+        tap_world(20, 10)
+        tap_world(20, 20)
+        page.click('#mvNext')
+        page.click('[data-tool=ag]')
+        tap_world(10, 15)
+        page.click('#mvNext')
+        tap_world(20, 20)
+        with page.expect_download() as dl:
+            page.click('#save')
+        sqg = os.path.join(OUT, 'square_group.pax')
+        dl.value.save_as(sqg)
+        page.set_input_files('#file', sqg)
+        page.wait_for_timeout(300)
+        r = page.evaluate("""S.doc.els.map(e => { const m = {x:(e.pts[0].x+e.pts[1].x)/2, y:(e.pts[0].y+e.pts[1].y)/2};
+          return (m.y < 11 ? '아래' : m.y > 19 ? '위' : m.x < 11 ? '왼쪽' : '오른쪽') + ':' + e.group }).sort().join(' ')""")
+        g = page.evaluate('S.doc.els.find(e => e.group).group')
+        check('SG 그룹 만들기 · AG 그룹에 추가 → 저장 → 다시 열기', r == f'아래:{g} 오른쪽:0 왼쪽:{g} 위:{g}' and g > 0, r)
+
         ctx.set_offline(True)
         page.reload()
         page.wait_for_timeout(800)

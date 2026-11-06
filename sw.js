@@ -1,6 +1,6 @@
 // 패턴잇다 서비스워커: 한 번 열면 인터넷 없이도 켜지게 한다.
 // 앱을 고칠 때마다 VERSION 숫자를 올려야 설치된 앱이 새 버전을 받는다.
-const VERSION = 'v8';
+const VERSION = 'v9';
 const CACHE = 'patternitda-' + VERSION;
 const CORE = [
   './',
