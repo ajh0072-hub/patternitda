@@ -166,6 +166,8 @@ canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;displa
       <button class="tool" data-tool="move" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/></svg>무브</button>
       <button class="tool" data-tool="cmove" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M4 4h10v10H4z"/><path d="M10 10h10v10H10z" stroke-dasharray="2.5 2"/></svg>시무브</button>
       <button class="tool" data-tool="mvrt" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-3-6.2"/><path d="M17 3v3h-3"/><path d="M9 12h6M12 9v6"/></svg>MVRT</button>
+      <button class="tool" data-tool="sg" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z" stroke-dasharray="3 2"/><path d="M8 9h8M8 15h8"/></svg>SG</button>
+      <button class="tool" data-tool="ag" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M4 4h12v12H4z" stroke-dasharray="3 2"/><path d="M18 14v8M14 18h8"/></svg>AG</button>
       <button class="tool" id="del" disabled><svg viewBox="0 0 24 24"><path d="M5 7h14M9 7V4h6v3M7 7l1 13h8l1-13"/></svg>지우기</button>
     </div><span>수정</span></div>
     <div class="group"><div class="tools">
@@ -219,7 +221,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;displa
       <button id="boxApply">적용</button>
     </div>
     <div id="movePanel" class="float" hidden>
-      <output id="mvInfo"></output>
+      <output id="mvInfo"></output><label><input id="mvGroup" type="checkbox" checked> 그룹째</label>
       <button id="mvNext">다음</button><button id="mvAll">다시 고르기</button>
       <span id="mvXY"><label for="mvX">X cm</label><input id="mvX" type="number" inputmode="decimal" step="0.1"><label for="mvY">Y cm</label><input id="mvY" type="number" inputmode="decimal" step="0.1"><button id="mvApply">적용</button></span>
       <span id="mvR"><label for="mvAng">각도 °</label><input id="mvAng" type="number" inputmode="decimal" step="1" value="0"><button id="mvRot">적용</button></span>
@@ -437,14 +439,30 @@ function encodeSeam(layer,L0,L1,dir,w){
   u(6+24*n+2,1);
   return new Uint8Array(b.buffer);
 }
+// Yuka keeps a group counter in its saved state (tables page +0x1272, .pax only). Keep it at or above every group used.
+function groupCounterAt(bytes){
+  const v=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength),T=Math.ceil(recsEnd(v)/4096)*4096;
+  return v.getUint16(10,true)===10016&&T+0x1274<=bytes.length?T+0x1272:-1;
+}
+function maxGroup(bytes){
+  const v=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength),end=recsEnd(v);let m=0;
+  for(let o=REC;o<end;o+=RSZ)m=Math.max(m,v.getUint16(o+8,true));
+  return m;
+}
+function bumpGroupCounter(out){
+  const at=groupCounterAt(out);if(at<0)return;
+  const v=new DataView(out.buffer,out.byteOffset),m=maxGroup(out);
+  if(v.getUint16(at,true)<m)v.setUint16(at,m,true);
+}
 function freeRecords(doc){
   const v=new DataView(doc.bytes.buffer,doc.bytes.byteOffset,doc.bytes.byteLength);
   let o=recsEnd(v),n=0;
   while(o+RSZ<=doc.bytes.length&&doc.bytes.subarray(o,o+RSZ).every(x=>x===0)){n++;o+=RSZ}
   return n;
 }
-function build(doc0,adds,dels,edits=[]){
+function build(doc0,adds,dels,edits=[],regroups=[]){
   const base=doc0.bytes.slice();
+  for(const g of regroups)new DataView(base.buffer,base.byteOffset).setUint16(g.rec+8,g.group,true); // SG/AG: group number at +8
   for(const e of edits){ // same length, so only the coordinates change
     if(e.type===TYPE.LINE)base.set(encodeLine(e.pts),e.addr);
     else if(e.type===TYPE.NOTCH)base.set(encodeNotch(e).subarray(0,40),e.addr);
@@ -487,6 +505,7 @@ function build(doc0,adds,dels,edits=[]){
     }
     const data=e.kind==='line'?encodeLine(e.pts):e.kind==='notch'?encodeNotch(e):encodeCurve(e.pts);
     out.set([e.kind==='line'?2:e.kind==='notch'?TYPE.NOTCH:7,2,e.layer||0x2B,e.color||7,1,1,0,e.kind==='notch'?0x21:0],rec);
+    if(e.group)v.setUint16(rec+8,e.group,true);
     if(e.kind==='notch')v.setUint16(rec+18,(rec-REC)/RSZ+1,true); // notches carry their own number here
     v.setUint16(rec+12,Math.floor(a/4096),true);
     setPos(out,rec,a);
@@ -495,6 +514,7 @@ function build(doc0,adds,dels,edits=[]){
   }
   setRecsEnd(v,rec);setHeapEnd(v,hEnd+need);
   v.setUint16(8,v.getUint16(8,true)+recCount,true);
+  if(regroups.length||adds.some(e=>e.group))bumpGroupCounter(out);
   return out;
 }
 
@@ -606,7 +626,7 @@ const elLen=e=>lenOf(shape(e)); // curves are measured along the drawn curve, no
 function readout(t){$('readout').textContent=t||(S.tool==='line'?'시작점을 누르세요':S.tool==='curve'?'곡선이 지날 점을 차례로 누르세요':S.tool==='measure'?'두 점을 누르면 거리가 나옵니다':S.tool==='offset'?'기준 선을 누르세요':S.tool==='box'?(S.box?'반대쪽 꼭짓점을 누르거나 가로·세로를 입력하세요':'사각형의 한 꼭짓점을 누르세요'):MOVES.includes(S.tool)?moveHint():S.tool==='notch'?'너치를 넣을 선을 누르세요':S.tool==='seam'?'시접을 넣을 패턴의 외곽선을 누르세요':S.tool==='seamdel'?'지울 패턴의 분홍 시접선을 누르세요':S.tool==='edit'?'고칠 선을 누르세요':S.tool==='match'?(S.match.side==='A'?'기준이 될 선을 차례로 누르세요 (다시 누르면 빠짐)':'맞출 쪽 선을 누르세요. 마지막에 누른 선으로 길이를 맞출 수 있어요'):'선을 누르면 길이가 나옵니다')}
 function refresh(){
   $('name').innerHTML='';$('name').textContent=S.name;
-  const sm=document.createElement('small');sm.textContent=S.adds.length+S.dels.length+S.edits.size?'저장 안 됨':'';$('name').append(sm);
+  const sm=document.createElement('small');sm.textContent=S.adds.length+S.dels.length+S.edits.size+(S.regroup?S.regroup.size:0)?'저장 안 됨':'';$('name').append(sm);
   $('notchPanel').hidden=!(S.tool==='notch'&&S.notch);
   $('boxPanel').hidden=!(S.tool==='box'&&S.box);
   $('movePanel').hidden=!MOVES.includes(S.tool);if(MOVES.includes(S.tool))showMove();
@@ -669,7 +689,7 @@ function tap(sp){
   }
   if(S.tool==='pan'||S.tool==='offset'){
     S.sel=pick(sp);if(S.tool==='offset'&&S.sel&&isNotch(S.sel))S.sel=null;
-    if(S.sel) readout('길이 '+elLen(S.sel).toFixed(2)+' cm');else readout();
+    if(S.sel) readout('길이 '+elLen(S.sel).toFixed(2)+' cm'+(S.sel.group?' · 그룹 '+S.sel.group:''));else readout();
     refresh();return;
   }
   S.draft.push({x:w.x,y:w.y});
@@ -758,7 +778,7 @@ function zoom(k,mx,my){const V=S.view,s=Math.max(.3,Math.min(200,V.s*k));k=s/V.s
 cv.addEventListener('wheel',e=>{e.preventDefault();zoom(e.deltaY<0?1.15:.87,e.offsetX,e.offsetY)},{passive:false});
 
 function load(bytes,name,example){
-  S.doc=parse(bytes);S.name=name;S.adds=[];S.dels=[];S.hist=[];S.edits=new Set();S.sel=null;S.draft=[];S.example=example;S.match={A:[],B:[],side:'A'};S.notch=null;S.seam=null;S.box=null;S.mv={phase:'pick',sel:new Set()};S.rect=null;
+  S.doc=parse(bytes);S.name=name;S.regroup=new Set();S.adds=[];S.dels=[];S.hist=[];S.edits=new Set();S.sel=null;S.draft=[];S.example=example;S.match={A:[],B:[],side:'A'};S.notch=null;S.seam=null;S.box=null;S.mv={phase:'pick',sel:new Set()};S.rect=null;
   S.hide=new Set();renderLayers();fit();refresh();
   document.querySelector('[data-tab=draw]').click();
 }
@@ -799,24 +819,41 @@ $('boxApply').onclick=()=>{
   makeBox(a,{x:a.x+(h.x<a.x?-W:W),y:a.y+(h.y<a.y?-H:H)});
 };
 // 무브 / 시무브 / MVRT: pick lines, a base point, then where it goes (MVRT then turns them).
-const MOVES=['move','cmove','mvrt'];
+const MOVES=['move','cmove','mvrt','sg','ag'];
 const movable=e=>e.kind==='line'||e.kind==='curve'||e.kind==='notch'||[TYPE.LINE,TYPE.CURVE,TYPE.NOTCH,TYPE.TEXT].includes(e.type)||(e.type===TYPE.ARC&&!!e.arc);
 const copyable=e=>e.kind==='line'||e.kind==='curve'||e.kind==='notch'||[TYPE.LINE,TYPE.CURVE,TYPE.NOTCH].includes(e.type);
 function moveHint(){
   const M=S.mv;
+  if(S.tool==='sg'&&M.phase==='pick')return '그룹으로 묶을 선을 고르고 [그룹 만들기]를 누르세요';
+  if(S.tool==='ag'&&M.phase==='pick')return '그룹에 넣을 선을 고르고 [다음]을 누르세요';
+  if(M.phase==='group')return '넣을 그룹의 선을 하나 누르세요';
   return M.phase==='pick'?'옮길 선을 누르거나 손가락으로 끌어 네모로 고르세요 (오른쪽으로 끌면 다 들어간 것, 왼쪽은 걸친 것까지)'
     :M.phase==='base'?'기준점을 누르세요':M.phase==='target'?'옮길 자리를 누르거나 X·Y 거리를 입력하세요':'회전 각도를 입력하세요 (반시계 +)';
 }
 function showMove(){
   const M=S.mv,n=M.sel.size;
   $('mvInfo').textContent=n+'개 고름';
-  $('mvNext').hidden=M.phase!=='pick';$('mvAll').hidden=!n;
+  $('mvNext').hidden=M.phase!=='pick';$('mvNext').textContent=S.tool==='sg'?'그룹 만들기':'다음';$('mvAll').hidden=!n;
   $('mvXY').hidden=M.phase!=='target';$('mvR').hidden=M.phase!=='rot';
 }
 function pickToggle(e){
   if(!e)return;
   if(!movable(e))return say('이 요소는 옮길 수 없습니다.',true);
-  S.mv.sel.has(e)?S.mv.sel.delete(e):S.mv.sel.add(e);say('');
+  const on=!S.mv.sel.has(e),set=$('mvGroup').checked&&e.group&&!e.kind?allEls().filter(x=>x.group===e.group&&x.layer===e.layer&&!x.kind&&movable(x)):[e];
+  for(const x of set)on?S.mv.sel.add(x):S.mv.sel.delete(x);
+  say(set.length>1?'그룹 '+e.group+' ('+set.length+'개)':'');
+}
+// SG / AG: a group is the number at record +8; elements with the same number belong together.
+function setGroup(els,g){
+  const rg=[];
+  for(const e of els){rg.push({e,old:e.group,was:e.kind?null:S.regroup.has(e)});e.group=g;if(!e.kind)S.regroup.add(e)}
+  S.hist.push({rg});
+}
+function newGroupNo(){
+  let m=0;const at=groupCounterAt(S.doc.bytes);
+  if(at>=0)m=new DataView(S.doc.bytes.buffer,S.doc.bytes.byteOffset).getUint16(at,true);
+  for(const e of S.doc.els.concat(S.adds))m=Math.max(m,e.group||0);
+  return m+1;
 }
 function rectSelect(R){
   const a=toW(R.a),b=toW(R.b),x0=Math.min(a.x,b.x),x1=Math.max(a.x,b.x),y0=Math.min(a.y,b.y),y1=Math.max(a.y,b.y),whole=R.b.x>=R.a.x;
@@ -830,6 +867,12 @@ function rectSelect(R){
 function moveTap(sp,w){
   const M=S.mv;
   if(M.phase==='pick'){pickToggle(pick(sp));refresh();return}
+  if(M.phase==='group'){
+    const t=pick(sp);if(!t)return;
+    if(!t.group)return say('그룹이 없는 선입니다. SG로 먼저 그룹을 만들어 주세요.',true);
+    const els=[...M.sel];setGroup(els,t.group);
+    say('그룹 '+t.group+'에 '+els.length+'개를 넣었습니다. 되돌리기로 돌아갈 수 있습니다.');S.mv={phase:'pick',sel:new Set()};readout();refresh();return;
+  }
   if(M.phase==='base'){M.base=w;M.phase='target';$('mvX').value='';$('mvY').value='';readout();refresh();return}
   if(M.phase==='target'){moveTo(w.x-M.base.x,w.y-M.base.y);return}
 }
@@ -885,7 +928,10 @@ function drawMove(c){
   if(M.base){const q=toS(M.base);c.fillStyle=css('--mark');c.beginPath();c.arc(q.x,q.y,4,0,7);c.fill()}
   if(S.rect){const a=S.rect.a,b=S.rect.b;c.strokeStyle=css('--draw');c.lineWidth=1.2;c.setLineDash(b.x>=a.x?[]:[5,4]);c.strokeRect(a.x,a.y,b.x-a.x,b.y-a.y);c.setLineDash([])}
 }
-$('mvNext').onclick=()=>{if(!S.mv.sel.size)return say('먼저 옮길 선을 골라 주세요.',true);S.mv.phase='base';S.mv.base=null;say('');readout();refresh()};
+$('mvNext').onclick=()=>{if(!S.mv.sel.size)return say('먼저 선을 골라 주세요.',true);
+  if(S.tool==='sg'){const g=newGroupNo(),els=[...S.mv.sel];setGroup(els,g);say('그룹 '+g+'으로 '+els.length+'개를 묶었습니다. 되돌리기로 돌아갈 수 있습니다.');S.mv={phase:'pick',sel:new Set()};readout();refresh();return}
+  if(S.tool==='ag'){S.mv.phase='group';say('');readout();refresh();return}
+S.mv.phase='base';S.mv.base=null;say('');readout();refresh()};
 $('mvAll').onclick=()=>{S.mv={phase:'pick',sel:new Set()};say('');readout();refresh()};
 $('mvApply').onclick=()=>{const x=parseFloat($('mvX').value)||0,y=parseFloat($('mvY').value)||0;if(!x&&!y)return say('X·Y 거리를 cm로 입력해 주세요.',true);moveTo(x,y)};
 $('mvAng').oninput=()=>draw();
@@ -1086,6 +1132,7 @@ $('undo').onclick=()=>{
   if(h.a)S.adds.splice(S.adds.indexOf(h.a),1);
   if(h.as)for(const x of h.as)S.adds.splice(S.adds.indexOf(x),1);
   if(h.mv)for(const k of h.mv){Object.assign(k.e,k.snap);if(!k.was)S.edits.delete(k.e)}
+  if(h.rg)for(const k of h.rg){k.e.group=k.old;if(k.was===false)S.regroup.delete(k.e)}
   if(h.r)S.adds.push(h.r);
   if(h.d)S.dels.splice(S.dels.indexOf(h.d),1);
   if(h.ds)S.dels=S.dels.filter(x=>!h.ds.includes(x));
@@ -1102,7 +1149,7 @@ function download(blob,fname){
 }
 $('save').onclick=()=>{
   let out;
-  try{out=build(S.doc,S.adds,S.dels,[...S.edits].filter(e=>!S.dels.includes(e.rec)))}
+  try{out=build(S.doc,S.adds,S.dels,[...S.edits].filter(e=>!S.dels.includes(e.rec)),[...S.regroup].filter(e=>!S.dels.includes(e.rec)).map(e=>({rec:e.rec,group:e.group})))}
   catch(err){return say(err.message,true)}
   const fname=S.name.replace(/[^\w가-힣-]/g,'_')+'_edit.pax',blob=new Blob([out],{type:'application/octet-stream'});
   let file=null;try{file=new File([blob],fname,{type:'application/octet-stream'})}catch(e){}
