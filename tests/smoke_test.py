@@ -304,6 +304,27 @@ def main(samples):
           return [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)].map(v => v.toFixed(1)).join(',') })()""")
         check('시접 직접 고르기 (틈 있는 외곽선)', auto_failed and r == '9.0,31.0,9.0,21.0', f'자동 실패 {auto_failed}, 시접 범위 {r}')
 
+        # 글자: 한글 넣기 → Enter → 저장 → 다시 열기 → 눌러서 고르고 Backspace로 지우기
+        page.click('#new')
+        page.click('[data-tool=text]')
+        tap_world(20, 20)
+        page.fill('#txt', '앞판 55 FREE')
+        page.fill('#txtSize', '2')
+        page.fill('#txtRot', '0')
+        page.press('#txt', 'Enter')
+        with page.expect_download() as dl:
+            page.click('#save')
+        tx = os.path.join(OUT, 'text.pax')
+        dl.value.save_as(tx)
+        page.set_input_files('#file', tx)
+        page.wait_for_timeout(300)
+        r = page.evaluate("(() => { const t = S.doc.els.find(e => e.type === TYPE.TEXT); return t ? [t.text, +t.size.toFixed(2), +t.at.x.toFixed(2), +t.at.y.toFixed(2), +(t.box[1].x - t.box[0].x).toFixed(2)] : null })()")
+        page.click('[data-tool=pan]')
+        tap_world(21, 20)
+        picked = page.evaluate('!!S.sel && S.sel.type === TYPE.TEXT')
+        page.keyboard.press('Backspace')
+        check('글자 넣기(한글) → 저장 → 다시 열기 → 골라서 지우기', r == ['앞판 55 FREE', 2, 20, 20, 20] and picked and page.evaluate('S.dels.length') == 1, f'{r} 고름 {picked}')
+
         # ── 탭·DeX: 키보드, 휠·트랙패드, S펜 손바닥 무시, 마우스 버튼 ──
         page.click('#new')
         page.click('[data-tool=line]')
