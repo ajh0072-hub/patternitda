@@ -162,6 +162,7 @@ canvas.draw{cursor:crosshair}canvas.grab{cursor:grab}canvas.grabbing{cursor:grab
       <button class="tool" data-tool="curve" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M4 19C8 4 14 20 20 5"/></svg>곡선</button>
       <button class="tool" data-tool="offset" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M4 18L18 4M8 21L21 8"/></svg>평행선</button>
       <button class="tool" data-tool="notch" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M3 15c6-2 12-2 18 0"/><path d="M12 8v10"/></svg>너치</button>
+      <button class="tool" data-tool="text" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M5 6V4h14v2M12 4v16M9 20h6"/></svg>글자</button>
       <button class="tool" data-tool="seam" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/><path d="M3 3h18v18H3z" stroke-dasharray="2.5 2.5"/></svg>시접 넣기</button>
     </div><span>그리기</span></div>
     <div class="group"><div class="tools">
@@ -229,6 +230,12 @@ canvas.draw{cursor:crosshair}canvas.grab{cursor:grab}canvas.grabbing{cursor:grab
       <button id="mvNext">다음</button><button id="mvAll">다시 고르기</button>
       <span id="mvXY"><label for="mvX">X cm</label><input id="mvX" type="number" inputmode="decimal" step="0.1"><label for="mvY">Y cm</label><input id="mvY" type="number" inputmode="decimal" step="0.1"><button id="mvApply">적용</button></span>
       <span id="mvR"><label for="mvAng">각도 °</label><input id="mvAng" type="number" inputmode="decimal" step="1" value="0"><button id="mvRot">적용</button></span>
+    </div>
+    <div id="textPanel" class="float" hidden>
+      <input id="txt" type="text" placeholder="글자 (품번·사이즈 등)" style="width:170px">
+      <label for="txtSize">크기 cm</label><input id="txtSize" type="number" inputmode="decimal" step="0.1" min="0.1" value="1" style="width:60px">
+      <label for="txtRot">각도 °</label><input id="txtRot" type="number" inputmode="decimal" step="1" value="0" style="width:60px">
+      <button id="txtAdd">넣기</button>
     </div>
     <div id="seamPickPanel" class="float" hidden>
       <output id="spInfo"></output><button id="spDone">한 바퀴 완성</button><button id="spReset">다시</button>
@@ -323,6 +330,7 @@ function parse(bytes){  const v=new DataView(bytes.buffer,bytes.byteOffset,bytes
     else if(type===TYPE.TEXT){
       e.at=pt(a+16);e.box=[pt(a),pt(a+8)];e.text=readText(bytes,v,a,len);
       e.size=v.getFloat32(a+24,true)||1;
+      if(len>=62){e.cw=v.getFloat32(a+28,true);e.pitch=v.getFloat32(a+32,true);e.lh=v.getFloat32(a+36,true);e.rot=v.getFloat32(a+44,true);e.h=v.getUint16(a+56,true);e.v=v.getUint16(a+58,true)} // +56 left/centre/right, +58 middle/top
     }
     forRefs(v,type,a,len,p=>{const x=v.getUint16(p,true);if(x)refs.add(x)});
     if(flag!==0) els.push(e);
@@ -349,6 +357,35 @@ function cutCurve(P,from,to){
     run=end;if(run>to)break;
   }
   return out.length>1?out:P;
+}
+// Hangul for Yuka: EUC-KR (Windows CP949). Browsers only decode it, so the table is built once by decoding every code.
+let EUCKR=null;
+function eucKr(str){
+  if(!EUCKR){
+    EUCKR=new Map();const d=new TextDecoder('euc-kr'),b=new Uint8Array(2);
+    for(let i=0x81;i<=0xFE;i++)for(let j=0x41;j<=0xFE;j++){b[0]=i;b[1]=j;const ch=d.decode(b);if(ch.length===1&&ch!=='\ufffd'&&!EUCKR.has(ch))EUCKR.set(ch,[i,j])}
+  }
+  const out=[];
+  for(const ch of str){const c=ch.charCodeAt(0);if(c<0x80)out.push(c);else{const k=EUCKR.get(ch);if(!k)return null;out.push(k[0],k[1])}}
+  return new Uint8Array(out);
+}
+// Text as Yuka writes it: box, anchor, size ×3, line spacing, angle at +44, 5 / align / valign, length, EUC-KR (no font name).
+function encodeText(e){
+  const t=eucKr(e.text);if(!t)throw new Error('유카에서 쓸 수 없는 글자가 있습니다: '+e.text);
+  const b=new DataView(new ArrayBuffer(62+t.length)),f=(o,x)=>b.setFloat32(o,x,true),u=(o,x)=>b.setUint16(o,x,true);
+  f(0,e.box[0].x);f(4,e.box[0].y);f(8,e.box[1].x);f(12,e.box[1].y);f(16,e.at.x);f(20,e.at.y);
+  f(24,e.size);f(28,e.size);f(32,e.size);f(36,e.lh||e.size*1.2);f(44,e.rot||0);
+  u(54,5);u(56,e.h||2);u(58,e.v||2);u(60,t.length);
+  const out=new Uint8Array(b.buffer);out.set(t,62);return out;
+}
+// Box of a text the way Yuka stores it: first character cw wide, then one pitch per character (+28, +32), size high,
+// around the anchor, turned by the angle.
+const textWidth=(text,size,cw,pitch)=>(cw||size)+([...text].length+(text.split('&').length-1)-1)*(pitch||size); // Yuka counts '&' as two characters
+function textBox(at,text,size,h,v,rot,cw,pitch){
+  const w=textWidth(text,size,cw,pitch),x0=h===1?0:h===3?-w:-w/2,y1=v===3?0:v===2?size/2:size,y0=y1-size;
+  const r=(rot||0)*Math.PI/180,c=Math.cos(r),s=Math.sin(r),P=[[x0,y0],[x0+w,y0],[x0+w,y1],[x0,y1]].map(([x,y])=>({x:at.x+x*c-y*s,y:at.y+x*s+y*c}));
+  const xs=P.map(p=>p.x),ys=P.map(p=>p.y);
+  return [{x:Math.min(...xs),y:Math.min(...ys)},{x:Math.max(...xs),y:Math.max(...ys)}];
 }
 function readText(b,v,a,len){ // length at +60, EUC-KR text at +62, then the font name
   if(len<62)return '';
@@ -487,8 +524,9 @@ function build(doc0,adds,dels,edits=[],regroups=[]){
   }  for(const r of [...dels].sort((a,b)=>b-a)) removeRec(base,r);
   let doc=parse(base);
   adds=adds.map(e=>e.kind==='curve'?{...e,pts:resample(e.pts,15)}:e);
+  adds=adds.map(e=>e.kind==='text'?{...e,data:encodeText(e)}:e);
   adds=adds.map(e=>e.kind==='seam'?{...e,sides:e.sides.map(sd=>({...sd,data:sd.curve?encodeCurve(sd.pts):encodeLine(sd.pts)}))}:e);
-  const need=adds.reduce((s,e)=>s+(e.kind==='line'?16:e.kind==='notch'?56:e.kind==='seam'?e.sides.reduce((t,sd)=>t+sd.data.length,0)+206+94*e.sides.length:26+e.pts.length*8),0);
+  const need=adds.reduce((s,e)=>s+(e.kind==='text'?e.data.length:e.kind==='line'?16:e.kind==='notch'?56:e.kind==='seam'?e.sides.reduce((t,sd)=>t+sd.data.length,0)+206+94*e.sides.length:26+e.pts.length*8),0);
   const recCount=adds.reduce((s,e)=>s+(e.kind==='seam'?e.sides.length+1:1),0),gone=[...dels];
   for(const e of adds)if(e.kind==='seam'&&e.outline.some(o=>gone.includes(o.rec)))throw new Error('시접을 넣은 패턴의 외곽선이 지워졌습니다. 되돌리기로 시접을 빼 주세요.');
   doc=parse(fitRecords(doc.bytes,recCount));
@@ -510,10 +548,10 @@ function build(doc0,adds,dels,edits=[],regroups=[]){
       out.set([0x5C,2,lay,7,1,1,0,0],rec);v.setUint16(rec+12,Math.floor(a/4096),true);setPos(out,rec,a);v.setUint16(rec+16,data.length,true);
       out.set(data,a);a+=data.length;rec+=RSZ;continue;
     }
-    const data=e.kind==='line'?encodeLine(e.pts):e.kind==='notch'?encodeNotch(e):encodeCurve(e.pts);
-    out.set([e.kind==='line'?2:e.kind==='notch'?TYPE.NOTCH:7,2,e.layer||0x2B,e.color||7,1,1,0,e.kind==='notch'?0x21:0],rec);
+    const data=e.kind==='text'?e.data:e.kind==='line'?encodeLine(e.pts):e.kind==='notch'?encodeNotch(e):encodeCurve(e.pts);
+    out.set([e.kind==='text'?TYPE.TEXT:e.kind==='line'?2:e.kind==='notch'?TYPE.NOTCH:7,2,e.layer||0x2B,e.color||7,1,1,0,e.kind==='notch'?0x21:0],rec);
     if(e.group)v.setUint16(rec+8,e.group,true);
-    if(e.kind==='notch')v.setUint16(rec+18,(rec-REC)/RSZ+1,true); // notches carry their own number here
+    if(e.kind==='notch'||e.kind==='text')v.setUint16(rec+18,(rec-REC)/RSZ+1,true); // notches and texts carry their own number here
     v.setUint16(rec+12,Math.floor(a/4096),true);
     setPos(out,rec,a);
     v.setUint16(rec+16,data.length,true);
@@ -533,7 +571,7 @@ const $=id=>document.getElementById(id);
 function say(msg,warn){const n=$('notice');n.textContent=msg||'';n.hidden=!msg;n.classList.toggle('warn',!!warn)}
 const isNotch=e=>e.type===TYPE.NOTCH||e.kind==='notch';
 function cat(e){
-  if(e.type===TYPE.TEXT)return 'text';
+  if(e.type===TYPE.TEXT||e.kind==='text')return 'text';
   if(isNotch(e))return 'notch';
   if(e.kind==='seam')return 'seam';
   if(e.color===3)return e.kind?'faint':'seam';
@@ -544,7 +582,7 @@ function allEls(){
   return S.doc.els.filter(e=>!dead.has(e.rec)).concat(S.adds).filter(e=>!S.hide.has(e.layer)&&!S.off.has(cat(e)));
 }
 function fit(){
-  const P=[];for(const e of allEls()){P.push(...e.pts);if(e.at)P.push(e.at)}
+  const P=[];for(const e of allEls()){P.push(...e.pts);if(e.at)P.push(e.at);if(e.box)P.push(...e.box)} // text boxes count too
   if(!P.length)P.push({x:0,y:0},{x:100,y:70});
   const xs=P.map(p=>p.x),ys=P.map(p=>p.y),x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys);
   const s=Math.min(S.w/Math.max(x1-x0,1),S.h/Math.max(y1-y0,1))*.85;
@@ -573,12 +611,16 @@ function draw(){
     c.strokeStyle=g?css(g):sel?css('--mark'):e.kind?css('--draw'):pen;c.globalAlpha=e.kind&&e.color===3?.5:1;c.lineWidth=g?2.8:sel?2.4:1.3;
     if(e.pts.length){c.beginPath();shape(e).forEach((p,i)=>{const q=toS(p);i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y)});c.stroke()}
     if(e.kind==='seam'){c.strokeStyle=css('--c3');for(const sd of e.sides){c.beginPath();sd.pts.forEach((p,i)=>{const q=toS(p);i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y)});c.stroke()}}
-    if(e.text&&e.size*V.s>=3){const q=toS(e.at);c.fillStyle=pen;c.font=e.size*V.s+'px '+css('--font');c.fillText(e.text,q.x,q.y)}
+    if(e.text&&e.size*V.s>=3)drawText(c,e,pen);
     c.globalAlpha=1;
   }
   if(S.hl&&S.hl.pts.length){c.save();c.globalAlpha=.35;c.strokeStyle=css('--draw');c.lineWidth=7;c.lineCap='round';c.beginPath();shape(S.hl).forEach((p,i)=>{const q=toS(p);i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y)});c.stroke();c.restore()}
   if(MOVES.includes(S.tool))drawMove(c);
   if(S.tool==='box'&&S.box&&S.hover){const a=toS(S.box),b=toS(S.hover);c.strokeStyle=css('--mark');c.lineWidth=1.8;c.setLineDash([6,4]);c.strokeRect(a.x,a.y,b.x-a.x,b.y-a.y);c.setLineDash([])}
+  if(S.tool==='text'&&S.textAt){ // where the text goes, and a preview
+    const q=toS(S.textAt);c.strokeStyle=css('--mark');c.lineWidth=1.5;c.beginPath();c.moveTo(q.x-8,q.y);c.lineTo(q.x+8,q.y);c.moveTo(q.x,q.y-8);c.lineTo(q.x,q.y+8);c.stroke();
+    const t=$('txt').value,sz=parseFloat($('txtSize').value)||1;if(t)drawText(c,{text:t,at:S.textAt,size:sz,h:2,v:2,rot:parseFloat($('txtRot').value)||0},css('--mark'));
+  }
   if(S.tool==='seam'&&S.seamPick){
     c.strokeStyle=css('--c4');c.lineWidth=2.8;c.fillStyle=css('--c4');c.font='bold 13px '+css('--font');
     S.seamPick.forEach((e,i)=>{const P=shape(e);c.beginPath();P.forEach((p,k)=>{const q=toS(p);k?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y)});c.stroke();const m=toS(P[Math.floor(P.length/2)]);c.fillText(String(i+1),m.x+6,m.y-6)});
@@ -605,6 +647,17 @@ function draw(){
   if(S.tool==='edit'&&S.sel){c.fillStyle=css('--mark');for(const p of S.sel.pts){const q=toS(p);c.fillRect(q.x-5,q.y-5,10,10)}}
   if(S.snap){const q=toS(S.snap);c.strokeStyle=css('--mark');c.lineWidth=2;c.strokeRect(q.x-6,q.y-6,12,12)}
 }
+function drawText(c,e,pen){
+  const V=S.view,px=e.size*V.s,q=toS(e.at),lines=e.text.split(/\r?\n/),lh=(e.lh||e.size*1.2)*V.s,total=lh*(lines.length-1)+px;
+  c.save();c.translate(q.x,q.y);if(e.rot)c.rotate(-e.rot*Math.PI/180);
+  c.fillStyle=S.hl===e?css('--draw'):pen;c.font=px+'px '+css('--font');c.textBaseline='top';
+  const top=e.v===3?0:e.v===2?-total/2:-total;
+  lines.forEach((ln,i)=>{
+    const want=textWidth(ln,e.size,e.cw,e.pitch)*V.s,got=c.measureText(ln).width||1,x=e.h===1?0:e.h===3?-want:-want/2; // Yuka's character width and pitch
+    c.save();c.translate(x,top+i*lh);c.scale(want/got,1);c.fillText(ln,0,0);c.restore();
+  });
+  c.restore();
+}
 function spline(P){ // Catmull-Rom through the tapped points
   if(P.length<3)return P;
   const o=[];
@@ -627,15 +680,18 @@ function snapAt(sp,skip){
 }
 function pick(sp){
   let best=null,bd=16;
-  for(const e of allEls())for(let i=1;i<e.pts.length;i++){
-    const a=toS(e.pts[i-1]),b=toS(e.pts[i]),dx=b.x-a.x,dy=b.y-a.y,t=Math.max(0,Math.min(1,((sp.x-a.x)*dx+(sp.y-a.y)*dy)/(dx*dx+dy*dy||1)));
-    const d=Math.hypot(a.x+t*dx-sp.x,a.y+t*dy-sp.y);if(d<bd){bd=d;best=e}
+  for(const e of allEls()){
+    if(e.text&&e.box){const a=toS(e.box[0]),b=toS(e.box[1]);if(sp.x>=Math.min(a.x,b.x)-4&&sp.x<=Math.max(a.x,b.x)+4&&sp.y>=Math.min(a.y,b.y)-4&&sp.y<=Math.max(a.y,b.y)+4&&8<bd){bd=8;best=e}continue} // inside a text box; lines closer than 8px win
+    for(let i=1;i<e.pts.length;i++){
+      const a=toS(e.pts[i-1]),b=toS(e.pts[i]),dx=b.x-a.x,dy=b.y-a.y,t=Math.max(0,Math.min(1,((sp.x-a.x)*dx+(sp.y-a.y)*dy)/(dx*dx+dy*dy||1)));
+      const d=Math.hypot(a.x+t*dx-sp.x,a.y+t*dy-sp.y);if(d<bd){bd=d;best=e}
+    }
   }
   return best;
 }
 const lenOf=p=>p.reduce((s,q,i)=>i?s+Math.hypot(q.x-p[i-1].x,q.y-p[i-1].y):s,0);
 const elLen=e=>lenOf(shape(e)); // curves are measured along the drawn curve, not between stored points
-function readout(t){$('readout').textContent=t||(S.tool==='line'?'시작점을 누르세요':S.tool==='curve'?'곡선이 지날 점을 차례로 누르세요':S.tool==='measure'?'두 점을 누르면 거리가 나옵니다':S.tool==='offset'?'기준 선을 누르세요':S.tool==='box'?(S.box?'반대쪽 꼭짓점을 누르거나 가로·세로를 입력하세요':'사각형의 한 꼭짓점을 누르세요'):MOVES.includes(S.tool)?moveHint():S.tool==='notch'?'너치를 넣을 선을 누르세요':S.tool==='seam'?(S.seamPick?'외곽선을 한 바퀴 순서대로 누르고 [한 바퀴 완성]을 누르세요 (다시 누르면 빠짐)':'시접을 넣을 패턴의 외곽선을 누르세요'):S.tool==='seamdel'?'지울 패턴의 분홍 시접선을 누르세요':S.tool==='edit'?'고칠 선을 누르세요':S.tool==='match'?(S.match.side==='A'?'기준이 될 선을 차례로 누르세요 (다시 누르면 빠짐)':'맞출 쪽 선을 누르세요. 마지막에 누른 선으로 길이를 맞출 수 있어요'):'선을 누르면 길이가 나옵니다')}
+function readout(t){$('readout').textContent=t||(S.tool==='line'?'시작점을 누르세요':S.tool==='curve'?'곡선이 지날 점을 차례로 누르세요':S.tool==='measure'?'두 점을 누르면 거리가 나옵니다':S.tool==='offset'?'기준 선을 누르세요':S.tool==='box'?(S.box?'반대쪽 꼭짓점을 누르거나 가로·세로를 입력하세요':'사각형의 한 꼭짓점을 누르세요'):MOVES.includes(S.tool)?moveHint():S.tool==='notch'?'너치를 넣을 선을 누르세요':S.tool==='text'?(S.textAt?'글자를 입력하고 [넣기]를 누르세요 (누른 점이 글자 가운데)':'글자를 넣을 자리를 누르세요'):S.tool==='seam'?(S.seamPick?'외곽선을 한 바퀴 순서대로 누르고 [한 바퀴 완성]을 누르세요 (다시 누르면 빠짐)':'시접을 넣을 패턴의 외곽선을 누르세요'):S.tool==='seamdel'?'지울 패턴의 분홍 시접선을 누르세요':S.tool==='edit'?'고칠 선을 누르세요':S.tool==='match'?(S.match.side==='A'?'기준이 될 선을 차례로 누르세요 (다시 누르면 빠짐)':'맞출 쪽 선을 누르세요. 마지막에 누른 선으로 길이를 맞출 수 있어요'):'선을 누르면 길이가 나옵니다')}
 function refresh(){
   $('name').innerHTML='';$('name').textContent=S.name;
   const sm=document.createElement('small');sm.textContent=dirty()?'저장 안 됨':'';$('name').append(sm);
@@ -643,6 +699,7 @@ function refresh(){
   $('boxPanel').hidden=!(S.tool==='box'&&S.box);
   $('movePanel').hidden=!MOVES.includes(S.tool);if(MOVES.includes(S.tool))showMove();
   $('seamPanel').hidden=!(S.tool==='seam'&&S.seam);if(S.seam)showSeam();
+  $('textPanel').hidden=!(S.tool==='text'&&S.textAt);
   $('seamPickPanel').hidden=!(S.tool==='seam'&&S.seamPick);if(S.seamPick)$('spInfo').textContent=S.seamPick.length+'개 고름';
   $('offsetPanel').hidden=!(S.tool==='offset'&&S.sel);$('editPanel').hidden=!(S.tool==='edit'&&S.sel&&S.sel.pts.length===2);$('undo').disabled=!S.hist.length;$('redo').disabled=!(S.redo&&S.redo.length);$('del').disabled=!S.sel;
   $('input').hidden=!((S.tool==='line'&&S.draft.length===1)||(S.tool==='curve'&&S.draft.length));
@@ -666,6 +723,7 @@ function tap(sp){
     makeBox(S.box,w);return;
   }
   if(MOVES.includes(S.tool)){moveTap(sp,w);return}
+  if(S.tool==='text'){S.textAt={x:w.x,y:w.y};readout();refresh();setTimeout(()=>$('txt').focus(),0);return}
   if(S.tool==='seam'){
     const e=pick(sp);if(!e)return;
     if(S.seamPick){
@@ -683,14 +741,14 @@ function tap(sp){
     S.seam={loop,w:loop.map(()=>w),sel:-1};say('');refresh();return;
   }
   if(S.tool==='notch'){
-    const e=pick(sp);if(!e||isNotch(e)||e.type===TYPE.TEXT)return;
+    const e=pick(sp);if(!e||isNotch(e)||e.text)return;
     const P=shape(e),w=toW(sp);let best=1e9,s=0,run=0;
     for(let i=1;i<P.length;i++){const a=P[i-1],b=P[i],dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy),t=Math.max(0,Math.min(1,((w.x-a.x)*dx+(w.y-a.y)*dy)/(d*d||1)));
       const q=Math.hypot(a.x+t*dx-w.x,a.y+t*dy-w.y);if(q<best){best=q;s=run+t*d}run+=d}
     S.notch={e,s,fromEnd:s>run/2};showNotch();say('');refresh();return;
   }
   if(S.tool==='match'){
-    const e=pick(sp);if(!e||e.type===TYPE.TEXT||isNotch(e))return;
+    const e=pick(sp);if(!e||e.text||isNotch(e))return;
     const M=S.match,inA=M.A.indexOf(e),inB=M.B.indexOf(e);
     if(inA>=0)M.A.splice(inA,1);else if(inB>=0)M.B.splice(inB,1);else M[M.side].push(e);
     say('');readout('이 선 '+elLen(e).toFixed(2)+' cm');refresh();return;
@@ -752,7 +810,7 @@ function shape(e){ // curves pass smoothly through their stored points
   return e.smooth;
 }
 function setTool(t){
-  S.tool=t;S.draft=[];S.hover=null;S.sel=null;S.hl=null;if(typeof cursor==='function')cursor();S.match={A:[],B:[],side:'A'};S.notch=null;S.seam=null;S.seamPick=null;S.box=null;S.mv={phase:'pick',sel:new Set()};S.rect=null;
+  S.tool=t;S.draft=[];S.hover=null;S.sel=null;S.hl=null;if(typeof cursor==='function')cursor();S.match={A:[],B:[],side:'A'};S.notch=null;S.seam=null;S.seamPick=null;S.textAt=null;S.box=null;S.mv={phase:'pick',sel:new Set()};S.rect=null;
   document.querySelectorAll('nav [data-tool]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.tool===t));
   readout();refresh();
 }
@@ -824,7 +882,7 @@ cv.addEventListener('wheel',e=>{
 },{passive:false});
 
 function load(bytes,name,example){
-  S.doc=parse(bytes);S.name=name;S.regroup=new Set();S.adds=[];S.dels=[];S.hist=newHist();S.redo=[];S.ver=0;S.savedVer=0;S.hl=null;S.edits=new Set();S.sel=null;S.draft=[];S.example=example;S.match={A:[],B:[],side:'A'};S.notch=null;S.seam=null;S.seamPick=null;S.box=null;S.mv={phase:'pick',sel:new Set()};S.rect=null;
+  S.doc=parse(bytes);S.name=name;S.regroup=new Set();S.adds=[];S.dels=[];S.hist=newHist();S.redo=[];S.ver=0;S.savedVer=0;S.hl=null;S.edits=new Set();S.sel=null;S.draft=[];S.example=example;S.match={A:[],B:[],side:'A'};S.notch=null;S.seam=null;S.seamPick=null;S.textAt=null;S.box=null;S.mv={phase:'pick',sel:new Set()};S.rect=null;
   S.hide=new Set();renderLayers();fit();refresh();
   document.querySelector('[data-tab=draw]').click();
 }
@@ -866,7 +924,7 @@ $('boxApply').onclick=()=>{
 };
 // 무브 / 시무브 / MVRT: pick lines, a base point, then where it goes (MVRT then turns them).
 const MOVES=['move','cmove','mvrt','sg','ag'];
-const movable=e=>e.kind==='line'||e.kind==='curve'||e.kind==='notch'||[TYPE.LINE,TYPE.CURVE,TYPE.NOTCH,TYPE.TEXT].includes(e.type)||(e.type===TYPE.ARC&&!!e.arc);
+const movable=e=>e.kind==='line'||e.kind==='curve'||e.kind==='notch'||e.kind==='text'||[TYPE.LINE,TYPE.CURVE,TYPE.NOTCH,TYPE.TEXT].includes(e.type)||(e.type===TYPE.ARC&&!!e.arc);
 const copyable=e=>e.kind==='line'||e.kind==='curve'||e.kind==='notch'||[TYPE.LINE,TYPE.CURVE,TYPE.NOTCH].includes(e.type);
 function moveHint(){
   const M=S.mv;
@@ -1035,6 +1093,15 @@ $('spDone').onclick=()=>{
   if(loop.some(l=>taken.has(l.e.rec)))return say('이미 시접이 있는 외곽선이 들어 있습니다. 시접 삭제로 지운 뒤 넣어 주세요.',true);
   const w=parseFloat($('seamW').value)>0?parseFloat($('seamW').value):1;
   S.seam={loop,w:loop.map(()=>w),sel:-1};S.seamPick=null;say('');readout();refresh();
+};
+$('txt').oninput=$('txtSize').oninput=$('txtRot').oninput=()=>draw();
+$('txtAdd').onclick=()=>{
+  const text=$('txt').value.trim(),size=parseFloat($('txtSize').value),rot=((parseFloat($('txtRot').value)||0)%360+360)%360;
+  if(!S.textAt)return;if(!text)return say('글자를 입력해 주세요.',true);if(!(size>0))return say('크기를 cm로 입력해 주세요.',true);
+  if(!eucKr(text))return say('유카에서 쓸 수 없는 글자가 들어 있습니다(이모지·특수 기호 등).',true);
+  const at={...S.textAt};
+  commit({kind:'text',text,at,size,h:2,v:2,rot,lh:size*1.2,box:textBox(at,text,size,2,2,rot),pts:[],layer:S.layer,color:7});
+  S.textAt=null;$('txt').value='';say('글자를 넣었습니다. 다른 자리를 누르면 또 넣을 수 있습니다.');readout();refresh();
 };
 $('spReset').onclick=()=>{S.seamPick=[];say('');refresh()};
 $('seamManual').onclick=()=>{S.seam=null;S.seamPick=[];say('');readout();refresh()};
@@ -1254,7 +1321,7 @@ $('toggleRight').onclick=()=>togglePanel($('toggleRight'),'noRight');
 if(innerWidth<=900){$('toggleLeft').click();$('toggleRight').click()}
 let lastKey='',lastAt=0,spaceDown=false;
 // Enter in a box applies it (DeX keyboard).
-const ENTER={len:'apply',editLen:'editApply',gap:'sideA',notchAt:'notchAdd',notchN:'notchAdd',notchGap:'notchAdd',seamW:'seamAdd',boxW:'boxApply',boxH:'boxApply',mvX:'mvApply',mvY:'mvApply',mvAng:'mvRot'};
+const ENTER={len:'apply',editLen:'editApply',gap:'sideA',notchAt:'notchAdd',notchN:'notchAdd',notchGap:'notchAdd',seamW:'seamAdd',txt:'txtAdd',txtSize:'txtAdd',txtRot:'txtAdd',boxW:'boxApply',boxH:'boxApply',mvX:'mvApply',mvY:'mvApply',mvAng:'mvRot'};
 addEventListener('keydown',e=>{
   const typing=e.target.matches&&e.target.matches('input,select,textarea'),ctrl=e.ctrlKey||e.metaKey,k=(e.key||'').toLowerCase();
   if(ctrl&&k==='s'){e.preventDefault();$('save').click();return}
