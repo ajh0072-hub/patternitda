@@ -160,6 +160,8 @@ canvas.draw{cursor:crosshair}canvas.grab{cursor:grab}canvas.grabbing{cursor:grab
       <button class="tool" data-tool="line" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M5 19L19 5"/><circle cx="5" cy="19" r="1.5"/><circle cx="19" cy="5" r="1.5"/></svg>직선</button>
       <button class="tool" data-tool="box" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M5 6h14v12H5z"/></svg>박스</button>
       <button class="tool" data-tool="curve" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M4 19C8 4 14 20 20 5"/></svg>곡선</button>
+      <button class="tool" data-tool="circle" aria-pressed="false"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 12h8"/></svg>원</button>
+      <button class="tool" data-tool="arc3" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M4 18A9 9 0 0 1 20 18"/><circle cx="4" cy="18" r="1.5"/><circle cx="12" cy="9" r="1.5"/><circle cx="20" cy="18" r="1.5"/></svg>원호</button>
       <button class="tool" data-tool="offset" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M4 18L18 4M8 21L21 8"/></svg>평행선</button>
       <button class="tool" data-tool="notch" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M3 15c6-2 12-2 18 0"/><path d="M12 8v10"/></svg>너치</button>
       <button class="tool" data-tool="text" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M5 6V4h14v2M12 4v16M9 20h6"/></svg>글자</button>
@@ -230,6 +232,10 @@ canvas.draw{cursor:crosshair}canvas.grab{cursor:grab}canvas.grabbing{cursor:grab
       <button id="mvNext">다음</button><button id="mvAll">다시 고르기</button>
       <span id="mvXY"><label for="mvX">X cm</label><input id="mvX" type="number" inputmode="decimal" step="0.1"><label for="mvY">Y cm</label><input id="mvY" type="number" inputmode="decimal" step="0.1"><button id="mvApply">적용</button></span>
       <span id="mvR"><label for="mvAng">각도 °</label><input id="mvAng" type="number" inputmode="decimal" step="1" value="0"><button id="mvRot">적용</button></span>
+    </div>
+    <div id="circlePanel" class="float" hidden>
+      <label for="circleR">반지름 cm</label><input id="circleR" type="number" inputmode="decimal" step="0.1" min="0">
+      <button id="circleApply">적용</button>
     </div>
     <div id="textPanel" class="float" hidden>
       <input id="txt" type="text" placeholder="글자 (품번·사이즈 등)" style="width:170px">
@@ -344,6 +350,28 @@ function arcPts(c,r,from,to){ // degrees, counter-clockwise; 0 and 0 mean a full
   const n=Math.max(8,Math.ceil(span/6)),o=[];
   for(let i=0;i<=n;i++){const t=(from+span*i/n)*Math.PI/180;o.push({x:c.x+r*Math.cos(t),y:c.y+r*Math.sin(t)})}
   return o;
+}
+// Arc as Yuka writes it: box of the arc (angles counter-clockwise in degrees, 0 and 0 = whole circle), centre, radius, angles.
+function arcBox(a){
+  const full=!a.from&&!a.to,A=full?[0,360]:[a.from,a.to<=a.from?a.to+360:a.to],angs=[A[0],A[1]];
+  for(let k=0;k<=720;k+=90)if(k>A[0]&&k<A[1])angs.push(k);
+  const xs=angs.map(g=>a.c.x+a.r*Math.cos(g*Math.PI/180)),ys=angs.map(g=>a.c.y+a.r*Math.sin(g*Math.PI/180));
+  return [Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)];
+}
+function encodeArc(a){
+  const b=new DataView(new ArrayBuffer(36)),f=(o,x)=>b.setFloat32(o,x,true);
+  arcBox(a).forEach((x,i)=>f(i*4,x));f(16,a.c.x);f(20,a.c.y);f(24,a.r);f(28,a.from);f(32,a.to);
+  return new Uint8Array(b.buffer);
+}
+// The circle through three points; the arc runs counter-clockwise like Yuka's, from start to end through the middle.
+const normAng=a=>{a=((a%360)+360)%360;return a>360-1e-6?0:a}; // Yuka keeps angles in 0…360
+function arcThrough(p1,p2,p3){
+  const d=2*(p1.x*(p2.y-p3.y)+p2.x*(p3.y-p1.y)+p3.x*(p1.y-p2.y));if(Math.abs(d)<1e-9)return null;
+  const s1=p1.x*p1.x+p1.y*p1.y,s2=p2.x*p2.x+p2.y*p2.y,s3=p3.x*p3.x+p3.y*p3.y;
+  const c={x:(s1*(p2.y-p3.y)+s2*(p3.y-p1.y)+s3*(p1.y-p2.y))/d,y:(s1*(p3.x-p2.x)+s2*(p1.x-p3.x)+s3*(p2.x-p1.x))/d},r=Math.hypot(p1.x-c.x,p1.y-c.y);
+  const ang=p=>normAng(Math.atan2(p.y-c.y,p.x-c.x)*180/Math.PI),ccw=(p2.x-p1.x)*(p3.y-p1.y)-(p2.y-p1.y)*(p3.x-p1.x)>0;
+  let from=ccw?ang(p1):ang(p3),to=ccw?ang(p3):ang(p1);if(!from&&!to)to=1e-4;
+  return {c,r,from,to};
 }
 function cutCurve(P,from,to){
   const out=[];let run=0;
@@ -512,8 +540,8 @@ function build(doc0,adds,dels,edits=[],regroups=[]){
     else if(e.type===TYPE.NOTCH)base.set(encodeNotch(e).subarray(0,40),e.addr);
     else if(e.type===TYPE.ARC||e.type===TYPE.TEXT){
       const w=new DataView(base.buffer,base.byteOffset),f=(o,x)=>w.setFloat32(e.addr+o,x,true);
-      if(e.type===TYPE.ARC){const P=e.pts,xs=P.map(q=>q.x),ys=P.map(q=>q.y);
-        f(0,Math.min(...xs));f(4,Math.min(...ys));f(8,Math.max(...xs));f(12,Math.max(...ys));f(16,e.arc.c.x);f(20,e.arc.c.y);f(28,e.arc.from);f(32,e.arc.to)}
+      if(e.type===TYPE.ARC){const B=arcBox(e.arc);
+        f(0,B[0]);f(4,B[1]);f(8,B[2]);f(12,B[3]);f(16,e.arc.c.x);f(20,e.arc.c.y);f(28,e.arc.from);f(32,e.arc.to)}
       else{f(0,e.box[0].x);f(4,e.box[0].y);f(8,e.box[1].x);f(12,e.box[1].y);f(16,e.at.x);f(20,e.at.y)}
     }
     else{
@@ -524,9 +552,9 @@ function build(doc0,adds,dels,edits=[],regroups=[]){
   }  for(const r of [...dels].sort((a,b)=>b-a)) removeRec(base,r);
   let doc=parse(base);
   adds=adds.map(e=>e.kind==='curve'?{...e,pts:resample(e.pts,15)}:e);
-  adds=adds.map(e=>e.kind==='text'?{...e,data:encodeText(e)}:e);
+  adds=adds.map(e=>e.kind==='text'?{...e,data:encodeText(e)}:e.kind==='arc'?{...e,data:encodeArc(e.arc)}:e);
   adds=adds.map(e=>e.kind==='seam'?{...e,sides:e.sides.map(sd=>({...sd,data:sd.curve?encodeCurve(sd.pts):encodeLine(sd.pts)}))}:e);
-  const need=adds.reduce((s,e)=>s+(e.kind==='text'?e.data.length:e.kind==='line'?16:e.kind==='notch'?56:e.kind==='seam'?e.sides.reduce((t,sd)=>t+sd.data.length,0)+206+94*e.sides.length:26+e.pts.length*8),0);
+  const need=adds.reduce((s,e)=>s+(e.kind==='text'||e.kind==='arc'?e.data.length:e.kind==='line'?16:e.kind==='notch'?56:e.kind==='seam'?e.sides.reduce((t,sd)=>t+sd.data.length,0)+206+94*e.sides.length:26+e.pts.length*8),0);
   const recCount=adds.reduce((s,e)=>s+(e.kind==='seam'?e.sides.length+1:1),0),gone=[...dels];
   for(const e of adds)if(e.kind==='seam'&&e.outline.some(o=>gone.includes(o.rec)))throw new Error('시접을 넣은 패턴의 외곽선이 지워졌습니다. 되돌리기로 시접을 빼 주세요.');
   doc=parse(fitRecords(doc.bytes,recCount));
@@ -548,10 +576,10 @@ function build(doc0,adds,dels,edits=[],regroups=[]){
       out.set([0x5C,2,lay,7,1,1,0,0],rec);v.setUint16(rec+12,Math.floor(a/4096),true);setPos(out,rec,a);v.setUint16(rec+16,data.length,true);
       out.set(data,a);a+=data.length;rec+=RSZ;continue;
     }
-    const data=e.kind==='text'?e.data:e.kind==='line'?encodeLine(e.pts):e.kind==='notch'?encodeNotch(e):encodeCurve(e.pts);
-    out.set([e.kind==='text'?TYPE.TEXT:e.kind==='line'?2:e.kind==='notch'?TYPE.NOTCH:7,2,e.layer||0x2B,e.color||7,1,1,0,e.kind==='notch'?0x21:0],rec);
+    const data=e.kind==='text'||e.kind==='arc'?e.data:e.kind==='line'?encodeLine(e.pts):e.kind==='notch'?encodeNotch(e):encodeCurve(e.pts);
+    out.set([e.kind==='text'?TYPE.TEXT:e.kind==='arc'?TYPE.ARC:e.kind==='line'?2:e.kind==='notch'?TYPE.NOTCH:7,2,e.layer||0x2B,e.color||7,1,1,0,e.kind==='notch'?0x21:0],rec);
     if(e.group)v.setUint16(rec+8,e.group,true);
-    if(e.kind==='notch'||e.kind==='text')v.setUint16(rec+18,(rec-REC)/RSZ+1,true); // notches and texts carry their own number here
+    if(e.kind==='notch'||e.kind==='text'||e.kind==='arc')v.setUint16(rec+18,(rec-REC)/RSZ+1,true); // notches and texts carry their own number here
     v.setUint16(rec+12,Math.floor(a/4096),true);
     setPos(out,rec,a);
     v.setUint16(rec+16,data.length,true);
@@ -617,6 +645,12 @@ function draw(){
   if(S.hl&&S.hl.pts.length){c.save();c.globalAlpha=.35;c.strokeStyle=css('--draw');c.lineWidth=7;c.lineCap='round';c.beginPath();shape(S.hl).forEach((p,i)=>{const q=toS(p);i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y)});c.stroke();c.restore()}
   if(MOVES.includes(S.tool))drawMove(c);
   if(S.tool==='box'&&S.box&&S.hover){const a=toS(S.box),b=toS(S.hover);c.strokeStyle=css('--mark');c.lineWidth=1.8;c.setLineDash([6,4]);c.strokeRect(a.x,a.y,b.x-a.x,b.y-a.y);c.setLineDash([])}
+  if((S.tool==='circle'||S.tool==='arc3')&&S.draft.length&&S.hover){ // preview
+    const D=S.draft,h=S.hover,a=S.tool==='circle'?{c:D[0],r:Math.hypot(h.x-D[0].x,h.y-D[0].y),from:0,to:0}:D.length===2?arcThrough(D[0],D[1],h):null;
+    c.strokeStyle=css('--mark');c.lineWidth=1.8;c.setLineDash([6,4]);c.beginPath();
+    (a&&a.r>0?arcPts(a.c,a.r,a.from,a.to):[D[D.length-1],h]).forEach((p,i)=>{const q=toS(p);i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y)});c.stroke();c.setLineDash([]);
+    c.fillStyle=css('--mark');for(const p of D){const q=toS(p);c.beginPath();c.arc(q.x,q.y,4,0,7);c.fill()}
+  }
   if(S.tool==='text'&&S.textAt){ // where the text goes, and a preview
     const q=toS(S.textAt);c.strokeStyle=css('--mark');c.lineWidth=1.5;c.beginPath();c.moveTo(q.x-8,q.y);c.lineTo(q.x+8,q.y);c.moveTo(q.x,q.y-8);c.lineTo(q.x,q.y+8);c.stroke();
     const t=$('txt').value,sz=parseFloat($('txtSize').value)||1;if(t)drawText(c,{text:t,at:S.textAt,size:sz,h:2,v:2,rot:parseFloat($('txtRot').value)||0},css('--mark'));
@@ -691,7 +725,7 @@ function pick(sp){
 }
 const lenOf=p=>p.reduce((s,q,i)=>i?s+Math.hypot(q.x-p[i-1].x,q.y-p[i-1].y):s,0);
 const elLen=e=>lenOf(shape(e)); // curves are measured along the drawn curve, not between stored points
-function readout(t){$('readout').textContent=t||(S.tool==='line'?'시작점을 누르세요':S.tool==='curve'?'곡선이 지날 점을 차례로 누르세요':S.tool==='measure'?'두 점을 누르면 거리가 나옵니다':S.tool==='offset'?'기준 선을 누르세요':S.tool==='box'?(S.box?'반대쪽 꼭짓점을 누르거나 가로·세로를 입력하세요':'사각형의 한 꼭짓점을 누르세요'):MOVES.includes(S.tool)?moveHint():S.tool==='notch'?'너치를 넣을 선을 누르세요':S.tool==='text'?(S.textAt?'글자를 입력하고 [넣기]를 누르세요 (누른 점이 글자 가운데)':'글자를 넣을 자리를 누르세요'):S.tool==='seam'?(S.seamPick?'외곽선을 한 바퀴 순서대로 누르고 [한 바퀴 완성]을 누르세요 (다시 누르면 빠짐)':'시접을 넣을 패턴의 외곽선을 누르세요'):S.tool==='seamdel'?'지울 패턴의 분홍 시접선을 누르세요':S.tool==='edit'?'고칠 선을 누르세요':S.tool==='match'?(S.match.side==='A'?'기준이 될 선을 차례로 누르세요 (다시 누르면 빠짐)':'맞출 쪽 선을 누르세요. 마지막에 누른 선으로 길이를 맞출 수 있어요'):'선을 누르면 길이가 나옵니다')}
+function readout(t){$('readout').textContent=t||(S.tool==='line'?'시작점을 누르세요':S.tool==='curve'?'곡선이 지날 점을 차례로 누르세요':S.tool==='measure'?'두 점을 누르면 거리가 나옵니다':S.tool==='offset'?'기준 선을 누르세요':S.tool==='box'?(S.box?'반대쪽 꼭짓점을 누르거나 가로·세로를 입력하세요':'사각형의 한 꼭짓점을 누르세요'):MOVES.includes(S.tool)?moveHint():S.tool==='notch'?'너치를 넣을 선을 누르세요':S.tool==='circle'?(S.draft.length?'둘레의 한 점을 누르거나 반지름을 입력하세요':'원의 중심을 누르세요'):S.tool==='arc3'?['원호의 시작점을 누르세요','원호가 지나는 점을 누르세요','원호의 끝점을 누르세요'][S.draft.length]:S.tool==='text'?(S.textAt?'글자를 입력하고 [넣기]를 누르세요 (누른 점이 글자 가운데)':'글자를 넣을 자리를 누르세요'):S.tool==='seam'?(S.seamPick?'외곽선을 한 바퀴 순서대로 누르고 [한 바퀴 완성]을 누르세요 (다시 누르면 빠짐)':'시접을 넣을 패턴의 외곽선을 누르세요'):S.tool==='seamdel'?'지울 패턴의 분홍 시접선을 누르세요':S.tool==='edit'?'고칠 선을 누르세요':S.tool==='match'?(S.match.side==='A'?'기준이 될 선을 차례로 누르세요 (다시 누르면 빠짐)':'맞출 쪽 선을 누르세요. 마지막에 누른 선으로 길이를 맞출 수 있어요'):'선을 누르면 길이가 나옵니다')}
 function refresh(){
   $('name').innerHTML='';$('name').textContent=S.name;
   const sm=document.createElement('small');sm.textContent=dirty()?'저장 안 됨':'';$('name').append(sm);
@@ -699,6 +733,7 @@ function refresh(){
   $('boxPanel').hidden=!(S.tool==='box'&&S.box);
   $('movePanel').hidden=!MOVES.includes(S.tool);if(MOVES.includes(S.tool))showMove();
   $('seamPanel').hidden=!(S.tool==='seam'&&S.seam);if(S.seam)showSeam();
+  $('circlePanel').hidden=!(S.tool==='circle'&&S.draft.length===1);
   $('textPanel').hidden=!(S.tool==='text'&&S.textAt);
   $('seamPickPanel').hidden=!(S.tool==='seam'&&S.seamPick);if(S.seamPick)$('spInfo').textContent=S.seamPick.length+'개 고름';
   $('offsetPanel').hidden=!(S.tool==='offset'&&S.sel);$('editPanel').hidden=!(S.tool==='edit'&&S.sel&&S.sel.pts.length===2);$('undo').disabled=!S.hist.length;$('redo').disabled=!(S.redo&&S.redo.length);$('del').disabled=!S.sel;
@@ -723,6 +758,16 @@ function tap(sp){
     makeBox(S.box,w);return;
   }
   if(MOVES.includes(S.tool)){moveTap(sp,w);return}
+  if(S.tool==='circle'){
+    if(!S.draft.length){S.draft=[{x:w.x,y:w.y}];$('circleR').value='';readout();refresh();return}
+    makeArc({c:S.draft[0],r:Math.hypot(w.x-S.draft[0].x,w.y-S.draft[0].y),from:0,to:0});return;
+  }
+  if(S.tool==='arc3'){
+    S.draft.push({x:w.x,y:w.y});
+    if(S.draft.length<3){readout();refresh();return}
+    const a=arcThrough(...S.draft);if(!a){S.draft.pop();return say('세 점이 한 줄 위에 있어서 원호를 만들 수 없습니다.',true)}
+    makeArc(a);return;
+  }
   if(S.tool==='text'){S.textAt={x:w.x,y:w.y};readout();refresh();setTimeout(()=>$('txt').focus(),0);return}
   if(S.tool==='seam'){
     const e=pick(sp);if(!e)return;
@@ -756,6 +801,7 @@ function tap(sp){
   if(S.tool==='edit'){
     const e=pick(sp);
     if(e&&isNotch(e)){S.sel=null;say('너치는 지우고 다시 넣어 주세요.',true);refresh();return}
+    if(e&&e.arc){S.sel=null;say('원·원호는 무브로 옮기거나, 지우고 다시 그려 주세요.',true);refresh();return}
     if(e&&locked(e)){S.sel=null;say('그레이딩이나 다른 요소에 연결된 선은 유까에서 고쳐 주세요.',true)}
     else{
       S.sel=e;say('');
@@ -850,7 +896,7 @@ cv.addEventListener('pointermove',e=>{
     return;
   }
   if(e.pointerType!=='touch'){const nh=hoverPicks()?pick(sp):null;if(nh!==S.hl){S.hl=nh;draw()}}
-  if(S.tool==='box'||(MOVES.includes(S.tool)&&S.mv.phase!=='pick')){S.snap=snapAt(sp);S.hover=S.snap||toW(sp);draw();return}
+  if(S.tool==='box'||S.tool==='circle'||S.tool==='arc3'||(MOVES.includes(S.tool)&&S.mv.phase!=='pick')){S.snap=snapAt(sp);S.hover=S.snap||toW(sp);draw();return}
   if(S.tool!=='pan'&&S.tool!=='offset'&&S.tool!=='match'){S.snap=snapAt(sp);S.hover=S.draft.length?(S.snap||toW(sp)):null;draw()}
 });
 function up(e){
@@ -924,8 +970,8 @@ $('boxApply').onclick=()=>{
 };
 // 무브 / 시무브 / MVRT: pick lines, a base point, then where it goes (MVRT then turns them).
 const MOVES=['move','cmove','mvrt','sg','ag'];
-const movable=e=>e.kind==='line'||e.kind==='curve'||e.kind==='notch'||e.kind==='text'||[TYPE.LINE,TYPE.CURVE,TYPE.NOTCH,TYPE.TEXT].includes(e.type)||(e.type===TYPE.ARC&&!!e.arc);
-const copyable=e=>e.kind==='line'||e.kind==='curve'||e.kind==='notch'||[TYPE.LINE,TYPE.CURVE,TYPE.NOTCH].includes(e.type);
+const movable=e=>e.kind==='line'||e.kind==='curve'||e.kind==='notch'||e.kind==='text'||e.kind==='arc'||[TYPE.LINE,TYPE.CURVE,TYPE.NOTCH,TYPE.TEXT].includes(e.type)||(e.type===TYPE.ARC&&!!e.arc);
+const copyable=e=>e.kind==='line'||e.kind==='curve'||e.kind==='notch'||e.kind==='arc'||[TYPE.LINE,TYPE.CURVE,TYPE.NOTCH].includes(e.type)||(e.type===TYPE.ARC&&!!e.arc);
 function moveHint(){
   const M=S.mv;
   if(S.tool==='sg'&&M.phase==='pick')return '그룹으로 묶을 선을 고르고 [그룹 만들기]를 누르세요';
@@ -992,7 +1038,7 @@ const xform=(M,deg)=>{ // move by (dx,dy), then turn around the new base point
 function moved(e,T,deg){ // the element's new shape, without touching the original
   const o={pts:e.pts.map(T)};
   if(e.at)o.at=T(e.at);
-  if(e.arc){const f=(e.arc.from||e.arc.to)?deg:0;o.arc={c:T(e.arc.c),r:e.arc.r,from:(e.arc.from+f+360)%360,to:(e.arc.to+f+360)%360};o.pts=arcPts(o.arc.c,o.arc.r,o.arc.from,o.arc.to)}
+  if(e.arc){const f=(e.arc.from||e.arc.to)?deg:0;o.arc={c:T(e.arc.c),r:e.arc.r,from:f?normAng(e.arc.from+f):e.arc.from,to:f?normAng(e.arc.to+f):e.arc.to};o.pts=arcPts(o.arc.c,o.arc.r,o.arc.from,o.arc.to)}
   if(e.box){const d={x:o.at.x-e.at.x,y:o.at.y-e.at.y};o.box=e.box.map(p=>({x:p.x+d.x,y:p.y+d.y}))} // text keeps its direction
   return o;
 }
@@ -1002,8 +1048,8 @@ function applyMove(deg){
     const made=[];
     for(const e of sel){
       if(!copyable(e)){skip++;continue}
-      const o=moved(e,T,deg),kind=e.kind||(e.type===TYPE.NOTCH?'notch':e.type===TYPE.LINE?'line':'curve');
-      commit({kind,pts:kind==='curve'&&o.pts.length>15?resample(o.pts,15,true):o.pts,at:o.at,layer:e.layer,color:e.color,flag:1});made.push(S.hist.pop().a);
+      const o=moved(e,T,deg),kind=e.kind||(e.type===TYPE.NOTCH?'notch':e.type===TYPE.LINE?'line':e.type===TYPE.ARC?'arc':'curve');
+      commit({kind,pts:kind==='curve'&&o.pts.length>15?resample(o.pts,15,true):o.pts,at:o.at,arc:o.arc,layer:e.layer,color:e.color,flag:1});made.push(S.hist.pop().a);
     }
     S.hist.push({as:made});
   }else{
@@ -1094,6 +1140,12 @@ $('spDone').onclick=()=>{
   const w=parseFloat($('seamW').value)>0?parseFloat($('seamW').value):1;
   S.seam={loop,w:loop.map(()=>w),sel:-1};S.seamPick=null;say('');readout();refresh();
 };
+function makeArc(a){
+  if(!(a.r>0.01))return say('반지름이 너무 작습니다.',true);
+  commit({kind:'arc',arc:a,pts:arcPts(a.c,a.r,a.from,a.to),flag:1});
+  say('');readout((!a.from&&!a.to?'원':'원호')+' 반지름 '+a.r.toFixed(2)+' cm');
+}
+$('circleApply').onclick=()=>{const r=parseFloat($('circleR').value);if(!S.draft.length)return;if(!(r>0))return say('반지름을 cm로 입력해 주세요.',true);makeArc({c:S.draft[0],r,from:0,to:0})};
 $('txt').oninput=$('txtSize').oninput=$('txtRot').oninput=()=>draw();
 $('txtAdd').onclick=()=>{
   const text=$('txt').value.trim(),size=parseFloat($('txtSize').value),rot=((parseFloat($('txtRot').value)||0)%360+360)%360;
@@ -1321,7 +1373,7 @@ $('toggleRight').onclick=()=>togglePanel($('toggleRight'),'noRight');
 if(innerWidth<=900){$('toggleLeft').click();$('toggleRight').click()}
 let lastKey='',lastAt=0,spaceDown=false;
 // Enter in a box applies it (DeX keyboard).
-const ENTER={len:'apply',editLen:'editApply',gap:'sideA',notchAt:'notchAdd',notchN:'notchAdd',notchGap:'notchAdd',seamW:'seamAdd',txt:'txtAdd',txtSize:'txtAdd',txtRot:'txtAdd',boxW:'boxApply',boxH:'boxApply',mvX:'mvApply',mvY:'mvApply',mvAng:'mvRot'};
+const ENTER={len:'apply',editLen:'editApply',gap:'sideA',notchAt:'notchAdd',notchN:'notchAdd',notchGap:'notchAdd',seamW:'seamAdd',txt:'txtAdd',circleR:'circleApply',txtSize:'txtAdd',txtRot:'txtAdd',boxW:'boxApply',boxH:'boxApply',mvX:'mvApply',mvY:'mvApply',mvAng:'mvRot'};
 addEventListener('keydown',e=>{
   const typing=e.target.matches&&e.target.matches('input,select,textarea'),ctrl=e.ctrlKey||e.metaKey,k=(e.key||'').toLowerCase();
   if(ctrl&&k==='s'){e.preventDefault();$('save').click();return}

@@ -325,6 +325,29 @@ def main(samples):
         page.keyboard.press('Backspace')
         check('글자 넣기(한글) → 저장 → 다시 열기 → 골라서 지우기', r == ['앞판 55 FREE', 2, 20, 20, 20] and picked and page.evaluate('S.dels.length') == 1, f'{r} 고름 {picked}')
 
+        # 원(반지름 입력) · 원호(세 점) · 시무브로 원 복사 → 저장 → 다시 열기
+        page.click('#new')
+        page.click('[data-tool=circle]')
+        tap_world(20, 20)
+        page.fill('#circleR', '5')
+        page.press('#circleR', 'Enter')
+        page.click('[data-tool=arc3]')
+        for x, y in ((40, 20), (45, 25), (50, 20)):
+            tap_world(x, y)
+        page.click('[data-tool=cmove]')
+        tap_world(25, 20)
+        page.click('#mvNext')
+        tap_world(20, 20)
+        tap_world(20, 40)
+        with page.expect_download() as dl:
+            page.click('#save')
+        ar = os.path.join(OUT, 'arcs.pax')
+        dl.value.save_as(ar)
+        page.set_input_files('#file', ar)
+        page.wait_for_timeout(300)
+        r = page.evaluate("S.doc.els.filter(e => e.type === TYPE.ARC).map(e => [e.arc.c.x, e.arc.c.y, e.arc.r, e.arc.from, e.arc.to].map(v => +v.toFixed(2)).join(',')).sort().join(' | ')")
+        check('원 · 원호 · 원 복사 → 저장 → 다시 열기', r == '20,20,5,0,0 | 20,40,5,0,0 | 45,20,5,0,180', r)
+
         # ── 탭·DeX: 키보드, 휠·트랙패드, S펜 손바닥 무시, 마우스 버튼 ──
         page.click('#new')
         page.click('[data-tool=line]')
