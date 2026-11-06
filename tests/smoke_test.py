@@ -275,6 +275,69 @@ def main(samples):
         g = page.evaluate('S.doc.els.find(e => e.group).group')
         check('SG 그룹 만들기 · AG 그룹에 추가 → 저장 → 다시 열기', r == f'아래:{g} 오른쪽:0 왼쪽:{g} 위:{g}' and g > 0, r)
 
+        # ── 탭·DeX: 키보드, 휠·트랙패드, S펜 손바닥 무시, 마우스 버튼 ──
+        page.click('#new')
+        page.click('[data-tool=line]')
+        page.mouse.click(box['x'] + 300, box['y'] + 300)
+        page.mouse.move(box['x'] + 500, box['y'] + 300)
+        page.fill('#len', '10')
+        page.press('#len', 'Enter')
+        n1 = page.evaluate('S.adds.length')
+        page.click('[data-tool=pan]')
+        page.keyboard.press('Control+z')
+        n2 = page.evaluate('S.adds.length')
+        page.keyboard.press('Control+y')
+        n3 = page.evaluate('S.adds.length')
+        page.keyboard.press('Control+z')
+        page.keyboard.press('Control+Shift+z')
+        n4 = page.evaluate('S.adds.length')
+        check('Enter로 적용 · Ctrl+Z 되돌리기 · Ctrl+Y / Ctrl+Shift+Z 다시 실행', [n1, n2, n3, n4] == [1, 0, 1, 1], str([n1, n2, n3, n4]))
+
+        mid = page.evaluate("toS({x:(S.adds[0].pts[0].x+S.adds[0].pts[1].x)/2, y:S.adds[0].pts[0].y})")
+        page.mouse.click(box['x'] + mid['x'], box['y'] + mid['y'])
+        page.keyboard.press('Backspace')
+        n5 = page.evaluate('S.adds.length')
+        page.keyboard.press('Control+z')
+        check('Backspace로 지우기', n5 == 0 and page.evaluate('S.adds.length') == 1, str(n5))
+
+        dirty1 = page.evaluate('dirty()')
+        with page.expect_download():
+            page.keyboard.press('Control+s')
+        dirty2 = page.evaluate('dirty()')
+        check('Ctrl+S 저장 · 저장하면 "저장 안 됨" 풀림', dirty1 and not dirty2 and page.text_content('#name small') == '', f'{dirty1} {dirty2}')
+
+        v0 = page.evaluate('({...S.view})')
+        page.mouse.move(box['x'] + 400, box['y'] + 300)
+        page.mouse.wheel(0, -100)
+        v1 = page.evaluate('({...S.view})')
+        page.evaluate("cv.dispatchEvent(new WheelEvent('wheel', {deltaX: 12.5, deltaY: 30.25, clientX: 400, clientY: 300, bubbles: true, cancelable: true}))")
+        v2 = page.evaluate('({...S.view})')
+        page.evaluate("cv.dispatchEvent(new WheelEvent('wheel', {deltaY: -8.5, ctrlKey: true, clientX: 400, clientY: 300, bubbles: true, cancelable: true}))")
+        v3 = page.evaluate('({...S.view})')
+        check('마우스 휠 = 확대, 트랙패드 두 손가락 = 이동, Ctrl/핀치 = 확대',
+              v1['s'] > v0['s'] and v2['s'] == v1['s'] and v2['x'] != v1['x'] and v3['s'] > v2['s'], f"{v0['s']:.2f}→{v1['s']:.2f}→{v2['s']:.2f}→{v3['s']:.2f}")
+
+        page.mouse.move(box['x'] + 400, box['y'] + 400)
+        page.mouse.down(button='middle')
+        page.mouse.move(box['x'] + 460, box['y'] + 430, steps=3)
+        page.mouse.up(button='middle')
+        v4 = page.evaluate('({...S.view})')
+        check('휠 클릭으로 끌어 화면 이동', abs(v4['x'] - v3['x'] - 60) < 1 and abs(v4['y'] - v3['y'] - 30) < 1, f"{v4['x']-v3['x']:.0f},{v4['y']-v3['y']:.0f}")
+
+        page.click('[data-tool=line]')
+        page.mouse.click(box['x'] + 300, box['y'] + 450)
+        d1 = page.evaluate('S.draft.length')
+        page.mouse.click(box['x'] + 300, box['y'] + 450, button='right')
+        check('오른쪽 클릭 = 취소', d1 == 1 and page.evaluate('S.draft.length') == 0, str(d1))
+
+        touch = """([x, y, pen]) => { if (pen) S.pen = {down: false, at: Date.now()}; else S.pen = null;
+          const o = {pointerId: 7, pointerType: 'touch', clientX: x, clientY: y, isPrimary: true, bubbles: true, cancelable: true, buttons: 1};
+          cv.dispatchEvent(new PointerEvent('pointerdown', o)); cv.dispatchEvent(new PointerEvent('pointerup', {...o, buttons: 0}));
+          const n = S.draft.length; S.draft = []; return n }"""
+        t_nopen = page.evaluate(touch, [box['x'] + 300, box['y'] + 500, False])
+        t_pen = page.evaluate(touch, [box['x'] + 300, box['y'] + 500, True])
+        check('S펜을 쓰는 동안 손바닥 터치 무시', t_nopen == 1 and t_pen == 0, f'펜 없음 {t_nopen}, 펜 근처 {t_pen}')
+
         ctx.set_offline(True)
         page.reload()
         page.wait_for_timeout(800)
