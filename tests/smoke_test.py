@@ -275,6 +275,35 @@ def main(samples):
         g = page.evaluate('S.doc.els.find(e => e.group).group')
         check('SG 그룹 만들기 · AG 그룹에 추가 → 저장 → 다시 열기', r == f'아래:{g} 오른쪽:0 왼쪽:{g} 위:{g}' and g > 0, r)
 
+        # 시접 직접 고르기: 모서리마다 0.5cm씩 벌어진 사각형 → 자동 실패 → 차례로 눌러 한 바퀴 → 시접 1cm
+        page.click('#new')
+        page.evaluate("""(() => { const L = [[[10.5,10],[29.5,10]],[[30,10.5],[30,19.5]],[[29.5,20],[10.5,20]],[[10,19.5],[10,10.5]]];
+          for (const [a,b] of L) commit({kind:'line', pts:[{x:a[0],y:a[1]},{x:b[0],y:b[1]}], flag:1}) })()""")
+        with page.expect_download() as dl:
+            page.click('#save')
+        gap = os.path.join(OUT, 'gap_rect.pax')
+        dl.value.save_as(gap)
+        page.set_input_files('#file', gap)
+        page.wait_for_timeout(300)
+        page.click('[data-tool=seam]')
+        tap_world(20, 10)
+        auto_failed = page.evaluate('!!S.seamPick && !S.seam')
+        for x, y in ((30, 15), (20, 20), (10, 15)):
+            tap_world(x, y)
+        page.click('#spDone')
+        page.fill('#seamW', '1')
+        page.click('#seamAdd')
+        with page.expect_download() as dl:
+            page.click('#save')
+        gaps = os.path.join(OUT, 'gap_rect_seam.pax')
+        dl.value.save_as(gaps)
+        page.set_input_files('#file', gaps)
+        page.wait_for_timeout(300)
+        r = page.evaluate("""(() => { const z = S.doc.els.find(e => e.type === 0x5C); if (!z) return null; const idx = (z.rec - REC) / RSZ + 1;
+          const P = S.doc.els.filter(e => e.link === 0x15 && e.owner === idx).flatMap(e => e.pts), xs = P.map(p => p.x), ys = P.map(p => p.y);
+          return [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)].map(v => v.toFixed(1)).join(',') })()""")
+        check('시접 직접 고르기 (틈 있는 외곽선)', auto_failed and r == '9.0,31.0,9.0,21.0', f'자동 실패 {auto_failed}, 시접 범위 {r}')
+
         # ── 탭·DeX: 키보드, 휠·트랙패드, S펜 손바닥 무시, 마우스 버튼 ──
         page.click('#new')
         page.click('[data-tool=line]')

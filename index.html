@@ -230,9 +230,12 @@ canvas.draw{cursor:crosshair}canvas.grab{cursor:grab}canvas.grabbing{cursor:grab
       <span id="mvXY"><label for="mvX">X cm</label><input id="mvX" type="number" inputmode="decimal" step="0.1"><label for="mvY">Y cm</label><input id="mvY" type="number" inputmode="decimal" step="0.1"><button id="mvApply">적용</button></span>
       <span id="mvR"><label for="mvAng">각도 °</label><input id="mvAng" type="number" inputmode="decimal" step="1" value="0"><button id="mvRot">적용</button></span>
     </div>
+    <div id="seamPickPanel" class="float" hidden>
+      <output id="spInfo"></output><button id="spDone">한 바퀴 완성</button><button id="spReset">다시</button>
+    </div>
     <div id="seamPanel" class="float" hidden>
       <output id="seamWhat"></output><label for="seamW">폭 cm</label><input id="seamW" type="number" inputmode="decimal" step="0.1" min="0.1" value="1">
-      <button id="seamAll">모든 변에</button><button id="seamAdd">시접 넣기</button>
+      <button id="seamAll">모든 변에</button><button id="seamAdd">시접 넣기</button><button id="seamManual">직접 고르기</button>
     </div>
     <div id="notchPanel" class="float" hidden>
       <button id="notchEnd">시작점</button><label for="notchAt">에서 cm</label><input id="notchAt" type="number" inputmode="decimal" step="0.1" min="0">
@@ -576,6 +579,10 @@ function draw(){
   if(S.hl&&S.hl.pts.length){c.save();c.globalAlpha=.35;c.strokeStyle=css('--draw');c.lineWidth=7;c.lineCap='round';c.beginPath();shape(S.hl).forEach((p,i)=>{const q=toS(p);i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y)});c.stroke();c.restore()}
   if(MOVES.includes(S.tool))drawMove(c);
   if(S.tool==='box'&&S.box&&S.hover){const a=toS(S.box),b=toS(S.hover);c.strokeStyle=css('--mark');c.lineWidth=1.8;c.setLineDash([6,4]);c.strokeRect(a.x,a.y,b.x-a.x,b.y-a.y);c.setLineDash([])}
+  if(S.tool==='seam'&&S.seamPick){
+    c.strokeStyle=css('--c4');c.lineWidth=2.8;c.fillStyle=css('--c4');c.font='bold 13px '+css('--font');
+    S.seamPick.forEach((e,i)=>{const P=shape(e);c.beginPath();P.forEach((p,k)=>{const q=toS(p);k?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y)});c.stroke();const m=toS(P[Math.floor(P.length/2)]);c.fillText(String(i+1),m.x+6,m.y-6)});
+  }
   if(S.tool==='seam'&&S.seam){
     const Z=S.seam;Z.loop.forEach((l,i)=>{c.strokeStyle=css(i===Z.sel?'--mark':'--c4');c.lineWidth=i===Z.sel?3.4:2.6;c.beginPath();shape(l.e).forEach((p,k)=>{const q=toS(p);k?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y)});c.stroke()});
     c.strokeStyle=css('--c3');c.lineWidth=1.8;c.setLineDash([6,4]);
@@ -628,7 +635,7 @@ function pick(sp){
 }
 const lenOf=p=>p.reduce((s,q,i)=>i?s+Math.hypot(q.x-p[i-1].x,q.y-p[i-1].y):s,0);
 const elLen=e=>lenOf(shape(e)); // curves are measured along the drawn curve, not between stored points
-function readout(t){$('readout').textContent=t||(S.tool==='line'?'시작점을 누르세요':S.tool==='curve'?'곡선이 지날 점을 차례로 누르세요':S.tool==='measure'?'두 점을 누르면 거리가 나옵니다':S.tool==='offset'?'기준 선을 누르세요':S.tool==='box'?(S.box?'반대쪽 꼭짓점을 누르거나 가로·세로를 입력하세요':'사각형의 한 꼭짓점을 누르세요'):MOVES.includes(S.tool)?moveHint():S.tool==='notch'?'너치를 넣을 선을 누르세요':S.tool==='seam'?'시접을 넣을 패턴의 외곽선을 누르세요':S.tool==='seamdel'?'지울 패턴의 분홍 시접선을 누르세요':S.tool==='edit'?'고칠 선을 누르세요':S.tool==='match'?(S.match.side==='A'?'기준이 될 선을 차례로 누르세요 (다시 누르면 빠짐)':'맞출 쪽 선을 누르세요. 마지막에 누른 선으로 길이를 맞출 수 있어요'):'선을 누르면 길이가 나옵니다')}
+function readout(t){$('readout').textContent=t||(S.tool==='line'?'시작점을 누르세요':S.tool==='curve'?'곡선이 지날 점을 차례로 누르세요':S.tool==='measure'?'두 점을 누르면 거리가 나옵니다':S.tool==='offset'?'기준 선을 누르세요':S.tool==='box'?(S.box?'반대쪽 꼭짓점을 누르거나 가로·세로를 입력하세요':'사각형의 한 꼭짓점을 누르세요'):MOVES.includes(S.tool)?moveHint():S.tool==='notch'?'너치를 넣을 선을 누르세요':S.tool==='seam'?(S.seamPick?'외곽선을 한 바퀴 순서대로 누르고 [한 바퀴 완성]을 누르세요 (다시 누르면 빠짐)':'시접을 넣을 패턴의 외곽선을 누르세요'):S.tool==='seamdel'?'지울 패턴의 분홍 시접선을 누르세요':S.tool==='edit'?'고칠 선을 누르세요':S.tool==='match'?(S.match.side==='A'?'기준이 될 선을 차례로 누르세요 (다시 누르면 빠짐)':'맞출 쪽 선을 누르세요. 마지막에 누른 선으로 길이를 맞출 수 있어요'):'선을 누르면 길이가 나옵니다')}
 function refresh(){
   $('name').innerHTML='';$('name').textContent=S.name;
   const sm=document.createElement('small');sm.textContent=dirty()?'저장 안 됨':'';$('name').append(sm);
@@ -636,6 +643,7 @@ function refresh(){
   $('boxPanel').hidden=!(S.tool==='box'&&S.box);
   $('movePanel').hidden=!MOVES.includes(S.tool);if(MOVES.includes(S.tool))showMove();
   $('seamPanel').hidden=!(S.tool==='seam'&&S.seam);if(S.seam)showSeam();
+  $('seamPickPanel').hidden=!(S.tool==='seam'&&S.seamPick);if(S.seamPick)$('spInfo').textContent=S.seamPick.length+'개 고름';
   $('offsetPanel').hidden=!(S.tool==='offset'&&S.sel);$('editPanel').hidden=!(S.tool==='edit'&&S.sel&&S.sel.pts.length===2);$('undo').disabled=!S.hist.length;$('redo').disabled=!(S.redo&&S.redo.length);$('del').disabled=!S.sel;
   $('input').hidden=!((S.tool==='line'&&S.draft.length===1)||(S.tool==='curve'&&S.draft.length));
   $('done').hidden=S.tool!=='curve';$('apply').hidden=S.tool!=='line';$('len').hidden=S.tool!=='line';$('input').querySelector('label').hidden=S.tool!=='line';
@@ -660,11 +668,16 @@ function tap(sp){
   if(MOVES.includes(S.tool)){moveTap(sp,w);return}
   if(S.tool==='seam'){
     const e=pick(sp);if(!e)return;
+    if(S.seamPick){
+      const why=seamBlock(e);if(why)return say(why,true);
+      if(S.seamPick.length&&e.layer!==S.seamPick[0].layer)return say('같은 레이어의 외곽선만 고를 수 있습니다.',true);
+      const k=S.seamPick.indexOf(e);k>=0?S.seamPick.splice(k,1):S.seamPick.push(e);say('');refresh();return;
+    }
     const at=S.seam?S.seam.loop.findIndex(l=>l.e===e):-1;
     if(at>=0){S.seam.sel=S.seam.sel===at?-1:at;if(S.seam.sel>=0)$('seamW').value=S.seam.w[at];refresh();return}
     const why=seamBlock(e);if(why){S.seam=null;say(why,true);refresh();return}
     const loop=findLoop(e);
-    if(!loop){S.seam=null;say('닫힌 패턴 외곽선을 찾지 못했습니다. 외곽선 끝점끼리 1mm 넘게 떨어진 곳이 있는지 확인해 주세요.',true);refresh();return}
+    if(!loop){S.seam=null;S.seamPick=[e];say('한 바퀴를 자동으로 찾지 못했습니다(끝점이 1mm 넘게 떨어진 곳이 있음). 외곽선을 순서대로 직접 눌러 주세요.',true);readout();refresh();return}
     const taken=seamedOutline();if(loop.some(l=>taken.has(l.e.rec)))return say('이미 시접이 있는 패턴입니다. 시접 삭제로 지운 뒤 넣어 주세요.',true);
     const w=parseFloat($('seamW').value)>0?parseFloat($('seamW').value):1;
     S.seam={loop,w:loop.map(()=>w),sel:-1};say('');refresh();return;
@@ -739,7 +752,7 @@ function shape(e){ // curves pass smoothly through their stored points
   return e.smooth;
 }
 function setTool(t){
-  S.tool=t;S.draft=[];S.hover=null;S.sel=null;S.hl=null;if(typeof cursor==='function')cursor();S.match={A:[],B:[],side:'A'};S.notch=null;S.seam=null;S.box=null;S.mv={phase:'pick',sel:new Set()};S.rect=null;
+  S.tool=t;S.draft=[];S.hover=null;S.sel=null;S.hl=null;if(typeof cursor==='function')cursor();S.match={A:[],B:[],side:'A'};S.notch=null;S.seam=null;S.seamPick=null;S.box=null;S.mv={phase:'pick',sel:new Set()};S.rect=null;
   document.querySelectorAll('nav [data-tool]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.tool===t));
   readout();refresh();
 }
@@ -811,7 +824,7 @@ cv.addEventListener('wheel',e=>{
 },{passive:false});
 
 function load(bytes,name,example){
-  S.doc=parse(bytes);S.name=name;S.regroup=new Set();S.adds=[];S.dels=[];S.hist=newHist();S.redo=[];S.ver=0;S.savedVer=0;S.hl=null;S.edits=new Set();S.sel=null;S.draft=[];S.example=example;S.match={A:[],B:[],side:'A'};S.notch=null;S.seam=null;S.box=null;S.mv={phase:'pick',sel:new Set()};S.rect=null;
+  S.doc=parse(bytes);S.name=name;S.regroup=new Set();S.adds=[];S.dels=[];S.hist=newHist();S.redo=[];S.ver=0;S.savedVer=0;S.hl=null;S.edits=new Set();S.sel=null;S.draft=[];S.example=example;S.match={A:[],B:[],side:'A'};S.notch=null;S.seam=null;S.seamPick=null;S.box=null;S.mv={phase:'pick',sel:new Set()};S.rect=null;
   S.hide=new Set();renderLayers();fit();refresh();
   document.querySelector('[data-tab=draw]').click();
 }
@@ -1008,6 +1021,23 @@ function findLoop(e0){ // walk end to end; at forks try the sharpest turn first 
   if(loopArea(loop)>0)loop=loop.slice().reverse().map(l=>({e:l.e,rev:!l.rev})); // Yuka goes round clockwise
   return loop;
 }
+// Outline picked by hand, in order: each piece is turned so it starts where the previous one ended (gaps allowed).
+function loopFromPicks(els){
+  const D=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y),ends=e=>[e.pts[0],e.pts[e.pts.length-1]];
+  const [a0,a1]=ends(els[0]),[b0,b1]=ends(els[1]);
+  const loop=[{e:els[0],rev:Math.min(D(a0,b0),D(a0,b1))<Math.min(D(a1,b0),D(a1,b1))}];
+  for(let i=1;i<els.length;i++){const pv=loop[i-1],pe=pv.rev?pv.e.pts[0]:pv.e.pts[pv.e.pts.length-1],[s0,s1]=ends(els[i]);loop.push({e:els[i],rev:D(s1,pe)<D(s0,pe)})}
+  return loopArea(loop)>0?loop.slice().reverse().map(l=>({e:l.e,rev:!l.rev})):loop; // Yuka goes round clockwise
+}
+$('spDone').onclick=()=>{
+  const els=S.seamPick;if(!els||els.length<2)return say('외곽선을 2개 이상 순서대로 골라 주세요.',true);
+  const loop=loopFromPicks(els),taken=seamedOutline();
+  if(loop.some(l=>taken.has(l.e.rec)))return say('이미 시접이 있는 외곽선이 들어 있습니다. 시접 삭제로 지운 뒤 넣어 주세요.',true);
+  const w=parseFloat($('seamW').value)>0?parseFloat($('seamW').value):1;
+  S.seam={loop,w:loop.map(()=>w),sel:-1};S.seamPick=null;say('');readout();refresh();
+};
+$('spReset').onclick=()=>{S.seamPick=[];say('');refresh()};
+$('seamManual').onclick=()=>{S.seam=null;S.seamPick=[];say('');readout();refresh()};
 function seamSides(Z){
   // As Yuka does: a curve's seam is its drawn shape (8 steps per span) moved out by the width;
   // at corners only straight seam lines are stretched or cut to meet the neighbour's end direction.
