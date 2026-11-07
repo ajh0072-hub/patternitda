@@ -328,7 +328,7 @@ function parse(bytes){  const v=new DataView(bytes.buffer,bytes.byteOffset,bytes
       if(len===26+n*8){
         e.n=n;for(let i=0;i<n;i++)e.pts.push(pt(a+18+i*8));
         const from=v.getFloat32(a+18+n*8,true),to=v.getFloat32(a+22+n*8,true);
-        if(from||to){e.trim=true;e.pts=cutCurve(spline(e.pts),from,to)}
+        if(from||to){e.trim=true;e.pts=cutCurve(spline(e.pts),from,to,e.pts)}
       }
     }
     else if(type===TYPE.ARC&&len===36){e.arc={c:pt(a+16),r:v.getFloat32(a+24,true),from:v.getFloat32(a+28,true),to:v.getFloat32(a+32,true)};e.pts=arcPts(e.arc.c,e.arc.r,e.arc.from,e.arc.to)}
@@ -373,7 +373,24 @@ function arcThrough(p1,p2,p3){
   let from=ccw?ang(p1):ang(p3),to=ccw?ang(p3):ang(p1);if(!from&&!to)to=1e-4;
   return {c,r,from,to};
 }
-function cutCurve(P,from,to){
+function cutCurve(P,from,to,C){ // from below 0 or to past the end: Yuka runs the curve on straight past that end (C: the curve's own points)
+  const L=lenOf(P),go=(p,u,d)=>({x:p.x+u.x*d,y:p.y+u.y*d});
+  const o=cutInside(P,Math.max(0,from),Math.min(L,to)).slice();
+  if(from<0)o.unshift(go(P[0],endDir(C||P,false),-from));
+  if(to>L)o.push(go(P[P.length-1],endDir(C||P,true),to-L));
+  return o;
+}
+// Which way a curve runs on past an end (unit vector, outward). Yuka draws a curve's end span as a parabola through the
+// three end points, spaced by the square roots of their distances (centripetal), in 8 steps, and runs on along the first step.
+// Checked on 92 Yuka seam corners: median 0.004°, 90% within 0.045° (under 0.01 mm over a 1 cm run-on).
+function endDir(C,atEnd){
+  const Q=atEnd?C.slice(-3).reverse():C.slice(0,3),unit=(x,y)=>{const d=Math.hypot(x,y)||1;return {x:x/d,y:y/d}};
+  if(Q.length<3)return unit(Q[0].x-Q[1].x,Q[0].y-Q[1].y);
+  const [p0,p1,p2]=Q,t1=Math.sqrt(Math.hypot(p1.x-p0.x,p1.y-p0.y))||1,t2=t1+(Math.sqrt(Math.hypot(p2.x-p1.x,p2.y-p1.y))||1),h=t1/8;
+  const at=k=>{const a=(p1[k]-p0[k])/t1,b=(p2[k]-p1[k])/(t2-t1);return p0[k]+a*h+(b-a)/t2*h*(h-t1)};
+  return unit(p0.x-at('x'),p0.y-at('y'));
+}
+function cutInside(P,from,to){
   const out=[];let run=0;
   const at=(a,b,d)=>{const L=Math.hypot(b.x-a.x,b.y-a.y)||1,t=(d-run)/L;return {x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t}};
   for(let i=1;i<P.length;i++){
@@ -503,12 +520,18 @@ function encodeNotch(e){
 }
 // Seam record (5C) with the most common values seen in Yuka files: outline list, seam-line list,
 // directions, start/end widths; corner settings left at their usual defaults.
+function encodeSeamCurve(sd){ // a seam curve also keeps how far it runs on at each corner (from/to)
+  const d=encodeCurve(sd.pts),n=sd.pts.length,v=new DataView(d.buffer),P=seamPath(sd),xs=P.map(p=>p.x),ys=P.map(p=>p.y);
+  [Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)].forEach((c,i)=>v.setFloat32(i*4,c,true)); // box of the drawn curve, as Yuka keeps it
+  v.setFloat32(18+8*n,sd.from||0,true);v.setFloat32(22+8*n,sd.to||0,true);return d;
+}
 function encodeSeam(layer,L0,L1,dir,w){
   const n=L0.length,b=new DataView(new ArrayBuffer(206+94*n)),u=(o,x)=>b.setUint16(o,x&0xFFFF,true);
   u(0,layer);u(2,3);u(4,n);
   for(let i=0;i<n;i++){u(6+2*i,L0[i]);u(6+2*n+2*i,L1[i]);u(6+14*n+2*i,dir[i]);
-    b.setFloat32(6+16*n+8*i,w[i],true);b.setFloat32(6+16*n+8*i+4,w[i],true);u(6+24*n+56+68*i+14,1)} // each side: start width, end width
-  u(6+24*n+2,1);
+    b.setFloat32(6+16*n+8*i,w[i],true);b.setFloat32(6+16*n+8*i+4,w[i],true); // each side: start width, end width
+    u(6+24*n+56+68*i,1);if(i<n-1)u(6+24*n+56+68*i+14,1)} // corner after side i: 연장 (as Yuka: +0=1, type 1)
+  u(6+24*n+2,1); // the last corner's type sits here
   return new Uint8Array(b.buffer);
 }
 // Yuka keeps a group counter in its saved state (tables page +0x1272, .pax only). Keep it at or above every group used.
@@ -553,7 +576,7 @@ function build(doc0,adds,dels,edits=[],regroups=[]){
   let doc=parse(base);
   adds=adds.map(e=>e.kind==='curve'?{...e,pts:resample(e.pts,15)}:e);
   adds=adds.map(e=>e.kind==='text'?{...e,data:encodeText(e)}:e.kind==='arc'?{...e,data:encodeArc(e.arc)}:e);
-  adds=adds.map(e=>e.kind==='seam'?{...e,sides:e.sides.map(sd=>({...sd,data:sd.curve?encodeCurve(sd.pts):encodeLine(sd.pts)}))}:e);
+  adds=adds.map(e=>e.kind==='seam'?{...e,sides:e.sides.map(sd=>({...sd,data:sd.curve?encodeSeamCurve(sd):encodeLine(sd.pts)}))}:e);
   const need=adds.reduce((s,e)=>s+(e.kind==='text'||e.kind==='arc'?e.data.length:e.kind==='line'?16:e.kind==='notch'?56:e.kind==='seam'?e.sides.reduce((t,sd)=>t+sd.data.length,0)+206+94*e.sides.length:26+e.pts.length*8),0);
   const recCount=adds.reduce((s,e)=>s+(e.kind==='seam'?e.sides.length+1:1),0),gone=[...dels];
   for(const e of adds)if(e.kind==='seam'&&e.outline.some(o=>gone.includes(o.rec)))throw new Error('시접을 넣은 패턴의 외곽선이 지워졌습니다. 되돌리기로 시접을 빼 주세요.');
@@ -638,7 +661,7 @@ function draw(){
     const sel=S.sel===e,pen=css('--c'+e.color)||css('--ink'),g=S.tool==='match'?(S.match.A.includes(e)?'--c4':S.match.B.includes(e)?'--mark':''):'';
     c.strokeStyle=g?css(g):sel?css('--mark'):e.kind?css('--draw'):pen;c.globalAlpha=e.kind&&e.color===3?.5:1;c.lineWidth=g?2.8:sel?2.4:1.3;
     if(e.pts.length){c.beginPath();shape(e).forEach((p,i)=>{const q=toS(p);i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y)});c.stroke()}
-    if(e.kind==='seam'){c.strokeStyle=css('--c3');for(const sd of e.sides){c.beginPath();sd.pts.forEach((p,i)=>{const q=toS(p);i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y)});c.stroke()}}
+    if(e.kind==='seam'){c.strokeStyle=css('--c3');for(const sd of e.sides){c.beginPath();seamPath(sd).forEach((p,i)=>{const q=toS(p);i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y)});c.stroke()}}
     if(e.text&&e.size*V.s>=3)drawText(c,e,pen);
     c.globalAlpha=1;
   }
@@ -662,7 +685,7 @@ function draw(){
   if(S.tool==='seam'&&S.seam){
     const Z=S.seam;Z.loop.forEach((l,i)=>{c.strokeStyle=css(i===Z.sel?'--mark':'--c4');c.lineWidth=i===Z.sel?3.4:2.6;c.beginPath();shape(l.e).forEach((p,k)=>{const q=toS(p);k?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y)});c.stroke()});
     c.strokeStyle=css('--c3');c.lineWidth=1.8;c.setLineDash([6,4]);
-    for(const sd of seamSides(Z)){c.beginPath();sd.pts.forEach((p,i)=>{const q=toS(p);i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y)});c.stroke()}
+    for(const sd of seamSides(Z)){c.beginPath();seamPath(sd).forEach((p,i)=>{const q=toS(p);i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y)});c.stroke()}
     c.setLineDash([]);
   }
   if(S.tool==='notch'&&S.notch){
@@ -1159,25 +1182,49 @@ $('txtAdd').onclick=()=>{
 $('spReset').onclick=()=>{S.seamPick=[];say('');refresh()};
 $('seamManual').onclick=()=>{S.seam=null;S.seamPick=[];say('');readout();refresh()};
 function seamSides(Z){
-  // As Yuka does: a curve's seam is its drawn shape (8 steps per span) moved out by the width;
-  // at corners only straight seam lines are stretched or cut to meet the neighbour's end direction.
+  // As Yuka does: a curve's seam is its drawn shape moved out by the width, kept in at most 15 points.
+  // Corners (연장): both seam lines run on straight past their ends to where they meet. A straight line
+  // gets the meeting point as its end; a curve keeps its points and gets from/to (distances along it, below 0 or past its length).
+  const key=Z.w.join();if(Z.cache&&Z.cacheKey===key)return Z.cache;
   const n=Z.loop.length,sides=Z.loop.map((l,i)=>{
     const P=l.rev?l.e.pts.slice().reverse():l.e.pts,curve=P.length>2,D=curve&&!l.e.trim?spline(P):P;
-    return {pts:offsetPts(D,Z.w[i]),curve,base:P}; // clockwise, so the left side is outside
+    const pts=offsetPts(D,Z.w[i]); // clockwise, so the left side is outside
+    if(!curve)return {pts,curve,base:P};
+    const q=fitSeamCurve(pts,P.length);return {pts:q,curve,base:P,from:0,to:lenOf(spline(q))};
   });
   for(let i=0;i<n;i++){
-    const SA=sides[i],SB=sides[(i+1)%n];if(SA.curve&&SB.curve)continue;
-    const A=SA.pts,B=SB.pts,a1=A[A.length-2],a2=A[A.length-1],b1=B[0],b2=B[1];
-    const dx1=a2.x-a1.x,dy1=a2.y-a1.y,dx2=b2.x-b1.x,dy2=b2.y-b1.y,den=dx1*dy2-dy1*dx2,corner=SA.base[SA.base.length-1];
-    if(Math.abs(den)<=1e-6*Math.hypot(dx1,dy1)*Math.hypot(dx2,dy2))continue;
-    const t=((b1.x-a1.x)*dy2-(b1.y-a1.y)*dx2)/den,X={x:a1.x+dx1*t,y:a1.y+dy1*t};
-    if(Math.hypot(X.x-corner.x,X.y-corner.y)>4*Math.max(Z.w[i],Z.w[(i+1)%n])+0.5)continue;
-    if(!SA.curve)A[A.length-1]={...X};
-    if(!SB.curve)B[0]={...X};
+    const SA=sides[i],SB=sides[(i+1)%n],path=sd=>sd.curve?spline(sd.pts):sd.pts;
+    const da=endDir(SA.pts,true),db=endDir(SB.pts,false);
+    if(-(da.x*db.x+da.y*db.y)>Math.cos(3*Math.PI/180))continue; // runs almost straight on (under 3°): Yuka leaves both ends as they are
+    const X=seamMeet(path(SA),path(SB),SA.base[SA.base.length-1],4*Math.max(Z.w[i],Z.w[(i+1)%n])+0.5,da,db);
+    if(!X)continue;
+    if(SA.curve)SA.to=X.a;else SA.pts[SA.pts.length-1]={...X.p};
+    if(SB.curve)SB.from=X.b;else SB.pts[0]={...X.p};
   }
-  for(const sd of sides)if(sd.curve)sd.pts=fitSeamCurve(sd.pts,sd.base.length);
-  return sides;
+  Z.cacheKey=key;Z.cache=sides;return sides;
 }
+// Where seam line A (ending at corner c) and B (starting there) meet, each run on straight up to R past its end.
+// Gives the point and the distance along A and along B (below 0 = before B's start).
+function seamMeet(A,B,c,R,da,db){ // da, db: which way A and B run on past their ends
+  const a=A[A.length-1],b=B[0],SA=[],SB=[];let run=0;
+  for(let i=1;i<A.length;i++){const d=Math.hypot(A[i].x-A[i-1].x,A[i].y-A[i-1].y);SA.push({p:A[i-1],q:A[i],s:run,L:d});run+=d}
+  SA.push({p:a,q:{x:a.x+da.x*R,y:a.y+da.y*R},s:run,L:R});
+  SB.push({p:{x:b.x+db.x*R,y:b.y+db.y*R},q:b,s:-R,L:R});run=0;
+  for(let i=1;i<B.length;i++){const d=Math.hypot(B[i].x-B[i-1].x,B[i].y-B[i-1].y);SB.push({p:B[i-1],q:B[i],s:run,L:d});run+=d}
+  const far=g=>Math.min(Math.hypot(g.p.x-c.x,g.p.y-c.y),Math.hypot(g.q.x-c.x,g.q.y-c.y))>R+g.L;
+  let best=null;
+  for(const x of SA){if(far(x))continue;
+    for(const y of SB){if(far(y))continue;
+      const rx=x.q.x-x.p.x,ry=x.q.y-x.p.y,sx=y.q.x-y.p.x,sy=y.q.y-y.p.y,den=rx*sy-ry*sx;if(Math.abs(den)<1e-12)continue;
+      const t=((y.p.x-x.p.x)*sy-(y.p.y-x.p.y)*sx)/den,u=((y.p.x-x.p.x)*ry-(y.p.y-x.p.y)*rx)/den;
+      if(t<-1e-9||t>1+1e-9||u<-1e-9||u>1+1e-9)continue;
+      const p={x:x.p.x+rx*t,y:x.p.y+ry*t},d=Math.hypot(p.x-c.x,p.y-c.y);
+      if(d<=R&&(!best||d<best.d))best={p,a:x.s+t*x.L,b:y.s+u*y.L,d};
+    }}
+  return best;
+}
+// A seam side as drawn: curves follow their points from 'from' to 'to'.
+const seamPath=sd=>sd.curve?cutCurve(spline(sd.pts),sd.from,sd.to,sd.pts):sd.pts;
 // Yuka curves hold at most 15 points (its seam curves use 4–15): store few points whose curve follows the offset shape.
 function fitSeamCurve(D,from){
   const far=q=>{const C=spline(q);let m=0;for(const p of D){let b=1e9;for(let i=1;i<C.length;i++){const a=C[i-1],c=C[i],dx=c.x-a.x,dy=c.y-a.y,t=Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy||1)));b=Math.min(b,Math.hypot(a.x+t*dx-p.x,a.y+t*dy-p.y))}m=Math.max(m,b)}return m};
