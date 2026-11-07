@@ -201,9 +201,9 @@ def main(samples):
           const n = v.getUint16(z.addr + 4, true), idx = (z.rec - REC) / RSZ + 1;
           const seams = S.doc.els.filter(e => e.link === 0x15 && e.owner === idx);
           const xs = seams.flatMap(e => e.pts.map(p => p.x)), ys = seams.flatMap(e => e.pts.map(p => p.y));
-          const w = Array.from({length:n}, (_, i) => v.getFloat32(z.addr + 6 + 16*n + 4*i, true)).sort();
-          return [n, seams.length, Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys), w.join(','), seamSet(seams[0]).length] })()""")
-        check('시접 넣기 → 저장 → 다시 열기', r == [4, 4, 9, 31, 6, 21, '1,1,1,4', 5], str(r))
+          const w = Array.from({length:n}, (_, i) => v.getFloat32(z.addr + 6 + 16*n + 8*i, true)).sort();  // each side: start width, end width
+          return [n, seams.length, Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys), w.join(','), seamSet(seams[0]).length, Array.from({length:n}, (_, i) => v.getFloat32(z.addr + 6 + 16*n + 8*i, true) === v.getFloat32(z.addr + 6 + 16*n + 8*i + 4, true)).every(Boolean)] })()""")
+        check('시접 넣기 → 저장 → 다시 열기', r == [4, 4, 9, 31, 6, 21, '1,1,1,4', 5, True], str(r))
 
         # 박스 → 무브 → 시무브 → MVRT
         page.click('#new')

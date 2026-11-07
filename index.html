@@ -507,7 +507,7 @@ function encodeSeam(layer,L0,L1,dir,w){
   const n=L0.length,b=new DataView(new ArrayBuffer(206+94*n)),u=(o,x)=>b.setUint16(o,x&0xFFFF,true);
   u(0,layer);u(2,3);u(4,n);
   for(let i=0;i<n;i++){u(6+2*i,L0[i]);u(6+2*n+2*i,L1[i]);u(6+14*n+2*i,dir[i]);
-    b.setFloat32(6+16*n+4*i,w[i],true);b.setFloat32(6+20*n+4*i,w[i],true);u(6+24*n+56+68*i+14,1)}
+    b.setFloat32(6+16*n+8*i,w[i],true);b.setFloat32(6+16*n+8*i+4,w[i],true);u(6+24*n+56+68*i+14,1)} // each side: start width, end width
   u(6+24*n+2,1);
   return new Uint8Array(b.buffer);
 }
@@ -1151,6 +1151,7 @@ $('txtAdd').onclick=()=>{
   const text=$('txt').value.trim(),size=parseFloat($('txtSize').value),rot=((parseFloat($('txtRot').value)||0)%360+360)%360;
   if(!S.textAt)return;if(!text)return say('글자를 입력해 주세요.',true);if(!(size>0))return say('크기를 cm로 입력해 주세요.',true);
   if(!eucKr(text))return say('유카에서 쓸 수 없는 글자가 들어 있습니다(이모지·특수 기호 등).',true);
+  if(text.includes('&'))return say('&는 유카에서 쓸 수 없는 글자입니다(다른 기호로 바뀌어 보입니다).',true);
   const at={...S.textAt};
   commit({kind:'text',text,at,size,h:2,v:2,rot,lh:size*1.2,box:textBox(at,text,size,2,2,rot),pts:[],layer:S.layer,color:7});
   S.textAt=null;$('txt').value='';say('글자를 넣었습니다. 다른 자리를 누르면 또 넣을 수 있습니다.');readout();refresh();
@@ -1174,7 +1175,16 @@ function seamSides(Z){
     if(!SA.curve)A[A.length-1]={...X};
     if(!SB.curve)B[0]={...X};
   }
+  for(const sd of sides)if(sd.curve)sd.pts=fitSeamCurve(sd.pts,sd.base.length);
   return sides;
+}
+// Yuka curves hold at most 15 points (its seam curves use 4–15): store few points whose curve follows the offset shape.
+function fitSeamCurve(D,from){
+  const far=q=>{const C=spline(q);let m=0;for(const p of D){let b=1e9;for(let i=1;i<C.length;i++){const a=C[i-1],c=C[i],dx=c.x-a.x,dy=c.y-a.y,t=Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy||1)));b=Math.min(b,Math.hypot(a.x+t*dx-p.x,a.y+t*dy-p.y))}m=Math.max(m,b)}return m};
+  let best=null,err=1e9;
+  if(from<=15&&D.length===8*(from-1)+1){best=D.filter((p,i)=>i%8===0);err=far(best);if(err<0.02)return best} // the offset at the curve's own points
+  for(let n=Math.max(4,Math.min(15,from));n<=15;n++){const q=resample(D,n,true),e=far(q);if(e<err){best=q;err=e}if(e<0.02)break}
+  return best;
 }
 function showSeam(){
   const Z=S.seam;$('seamWhat').textContent=Z.sel>=0?Z.sel+1+'번 변 ('+elLen(Z.loop[Z.sel].e).toFixed(1)+' cm)':'변 '+Z.loop.length+'개 · 폭 '+[...new Set(Z.w)].join('/')+' cm';
