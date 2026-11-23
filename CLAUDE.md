@@ -9,6 +9,8 @@
 - `sw.js` — 서비스워커 (오프라인 실행, 새 버전 알림)
 - `manifest.webmanifest`, `icons/` — 홈 화면 설치용
 - `tests/smoke_test.py` — 자동 테스트
+- `tests/app_check.py` — 명령 점검(패턴 파일 없이: 계산 칸, 점 잡기, 명령 흐름, 명령 코드 훑기)
+- 명령 코드는 아래 명령 칸(>)이나 유카 탭에서 시작한다. 코드 표는 `index.html`의 `ACT`(코드 → 하는 일), `YC`(단계를 차례로 받는 명령), `XF`(고른 뒤 옮기기·돌리기)
 - 배포: main에 푸시하면 GitHub Pages가 자동 배포 → https://ajh0072-hub.github.io/patternitda/
 
 ## .pax 형식 (index.html 상단 코드)
@@ -50,6 +52,7 @@ pip install playwright
 python -m playwright install chromium
 python tests/smoke_test.py            # 기본 테스트
 python tests/smoke_test.py samples/*.pax   # 실제 파일 왕복 검증까지
+python tests/app_check.py             # 명령 점검(패턴 파일 없이)
 ```
 
 확인 항목: 화면 실행·JS 오류, 직선 그리기·되돌리기, 저장 후 다시 열기, 오프라인 실행, 설치 조건, 샘플 파일 열기 → 저장 → 다시 열기에서 요소 수와 좌표 유지.
@@ -79,3 +82,5 @@ python tests/smoke_test.py samples/*.pax   # 실제 파일 왕복 검증까지
 - [x] 원·원호 그리기 (11/6): 그리기 > 원(중심 + 반지름 입력 또는 둘레 점), 원호(시작점·지나는 점·끝점). 무브·시무브·MVRT 됨
 - [x] 앱으로 그린 원·원호가 유카에서 정상인지 확인 (11/7)
 - [x] 아이콘 다듬기 (11/6): 매끄러운 몸판 + 같은 간격 분홍 점선 시접 + 너치 + 식서선. 원본 그림은 `icons/icon.svg`
+- [ ] 2026-11-24에 옮긴 명령(가·나·다·라)으로 고친 파일이 유카에서 정상으로 열리는지 확인 — 먼저 곡선을 `c`·`k`·`b`로 고친 것(재형)
+- [ ] 2026-11-24 커밋(v17~v20)을 어디까지 올릴지 정하기(재형). 정하기 전에는 push하지 않는다
