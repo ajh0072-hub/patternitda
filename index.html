@@ -150,7 +150,7 @@ canvas.draw{cursor:crosshair}canvas.grab{cursor:grab}canvas.grabbing{cursor:grab
   <div id="title">
     <div id="quick">
       <button id="new" title="새 패턴" aria-label="새 패턴"><svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></svg></button>
-      <label class="btn" title="열기" aria-label="열기"><svg viewBox="0 0 24 24"><path d="M3 19V5h6l2 2h8v3M3 19l3-9h16l-3 9z"/></svg><input id="file" type="file" accept=".pax,.001,.002,.003,.004,.005" hidden></label>
+      <label class="btn" title="열기" aria-label="열기"><svg viewBox="0 0 24 24"><path d="M3 19V5h6l2 2h8v3M3 19l3-9h16l-3 9z"/></svg><input id="file" type="file" accept=".pax,.pan,.001,.002,.003,.004,.005" hidden></label>
       <button id="save" title="저장" aria-label="저장"><svg viewBox="0 0 24 24"><path d="M4 4h13l3 3v13H4zM8 4v6h8V4M8 20v-6h8v6"/></svg></button>
       <button id="undo" title="되돌리기 (Ctrl+Z)" aria-label="되돌리기" disabled><svg viewBox="0 0 24 24"><path d="M9 7L4 12l5 5M4 12h11a5 5 0 010 10"/></svg></button>
       <button id="redo" title="다시 실행 (Ctrl+Y)" aria-label="다시 실행" disabled><svg viewBox="0 0 24 24"><path d="M15 7l5 5-5 5M20 12H9a5 5 0 000 10"/></svg></button>
@@ -171,6 +171,8 @@ canvas.draw{cursor:crosshair}canvas.grab{cursor:grab}canvas.grabbing{cursor:grab
       <button class="tool" data-click="new"><svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></svg>새 패턴</button>
       <button class="tool" data-click="file"><svg viewBox="0 0 24 24"><path d="M3 19V5h6l2 2h8v3M3 19l3-9h16l-3 9z"/></svg>열기</button>
       <button class="tool" data-click="save"><svg viewBox="0 0 24 24"><path d="M4 4h13l3 3v13H4zM8 4v6h8V4M8 20v-6h8v6"/></svg>저장</button>
+      <button class="tool" id="savePan"><svg viewBox="0 0 24 24"><path d="M4 4h13l3 3v13H4zM8 4v6h8V4M8 20v-6h8v6"/><path d="M16 12l4 4-4 4"/></svg>pan으로 저장</button>
+      <button class="tool" id="savePax"><svg viewBox="0 0 24 24"><path d="M4 4h13l3 3v13H4zM8 4v6h8V4M8 20v-6h8v6"/><path d="M16 12l4 4-4 4"/></svg>pax로 저장</button>
     </div><span>패턴 파일</span></div>
   </div>
   <div class="tabpane" data-pane="draw">
@@ -288,6 +290,8 @@ canvas.draw{cursor:crosshair}canvas.grab{cursor:grab}canvas.grabbing{cursor:grab
       <output id="seamWhat"></output><label for="seamW">폭 cm</label><input id="seamW" type="number" inputmode="decimal" step="0.1" min="0.1" value="1">
       <button id="seamAll">모든 변에</button><button id="seamSq">모서리 직각</button><label for="seamCorner">모서리</label><select id="seamCorner" title="모서리 점을 누르면 무엇으로 바꿀지"><option value="">연장·직각·반전 차례로</option><option value="171">각자름 끝점</option><option value="172">각자름 연장</option><option value="173">각자름 직각</option><option value="174">각자름 교점</option></select><label for="seamCs">S</label><input id="seamCs" type="number" inputmode="decimal" step="0.1" value="1" style="width:48px" title="각자름 거리 cm"><button id="seamAdd">시접 넣기</button><button id="seamManual">직접 고르기</button>
     </div>
+    <div id="gxyPanel" class="float" hidden style="flex-direction:column;align-items:stretch;max-height:60vh;overflow:auto"></div>
+    <div id="grePanel" class="float" hidden style="flex-direction:column;align-items:stretch;max-height:60vh;overflow:auto"></div>
     <div id="notchPanel" class="float" hidden>
       <button id="notchEnd">시작점</button><label for="notchAt">에서 cm</label><input id="notchAt" type="number" inputmode="decimal" step="0.1" min="0">
       <label for="notchN">개수</label><input id="notchN" type="number" inputmode="numeric" step="1" min="1" max="10" value="1" style="width:52px">
@@ -315,6 +319,10 @@ canvas.draw{cursor:crosshair}canvas.grab{cursor:grab}canvas.grabbing{cursor:grab
     <h3>기호</h3>
     <label class="row"><input type="checkbox" data-cat="notch" checked> 너치</label>
     <label class="row"><input type="checkbox" data-cat="text" checked> 글자</label>
+    <h3>그레이딩</h3>
+    <label class="row" title="레이어 200: 절개선(빨강 기준직각·하늘 기준수평·노랑 사선직각)·패턴영역(보라 점선)·기준점 G. 유카 poo/pf"><input type="checkbox" id="gradeOn" checked> 절개선·기준점</label>
+    <label class="row" title="절개선마다 사이즈별 절개량(레이어: 값)"><input type="checkbox" id="gradeVal"> 절개량 글자</label>
+    <label class="row" title="유카 영역(마킹정보): 이름:소재·1벌매수·결방향(X 한방향 · Y 양방향 · Z 무지). 유카 ps로 넣은 것. won/wof"><input type="checkbox" id="areaOn" checked> 영역 이름</label>
   </aside>
 </div>
 <footer id="status">
@@ -332,7 +340,7 @@ canvas.draw{cursor:crosshair}canvas.grab{cursor:grab}canvas.grabbing{cursor:grab
 // 패턴잇다: 유카 패턴 파일을 여는 PWA. 파일 꼴은 샘플 파일을 견주어 알아냈고, 모르는 바이트는 그대로 둔다.
 // 기능마다 어디서 알아냈는지는 기능-출처.md에 적는다.
 
-const REC=0x800, RSZ=32, PAX=10016, isPan=n=>false, heapStart=v=>0xB0E;
+const REC=0x800, RSZ=32, PAX=10016, PAN=10012, PAN0=10010, isPan=n=>n===PAN||n===PAN0, heapStart=v=>isPan(v.getUint16(10,true))?0x832:0xB0E;
  const TEMPLATE=[[0,"AQABAAYAEwsAACAnAgAAAKDAAACgwAAA/EIAAKhCAQAAAAIAAQABAAAAAAAAAAAAAABUMQAAAAAAAAQQ6gcLAAE="],[250,"ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICC+yDU0ICAgICAgICAgICAgvsg1NCAgICC9ycH2MiAgIFRDMSAgICAgVEMyICAgICA="],[651,"Lf8AAP//AAr1bQCT/QIA/wAAAO+READTLL4AqValALm8QwCgnl8AAP//AJWIagAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AxtC1+SAgICC0z7Xpxt3EoQD//wAA//8AAP//AAD//wAA//8AAP//"],[4096,"AQA3ABAAAQBHAAoCAQBRAgAQAgBRAhgAAgBpAiIAAgCLAiQAAgCvAiAAAgDPAlQAAgDPAlQAAACgwAAAoMAAAPxCAACoQgEAAQAQAIAH5QMBAAIAAAAAAAAAAAAIACYAeAecAw=="],[4236,"6oQMwgIAoMA6IRxDAACoQg=="],[4348,"gLnNPQ=="],[4434,"oEAAAKBA"],[4480,"////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////AQACAAAAAAAAAAAAAAABAAAAAAD4DwAAAQABAAIAAAAAAAAAAAAIACYAeAecAw=="],[4758,"6oQMwgIAoMA6IRxDAACoQg=="],[4870,"gLnNPQ=="],[4956,"oEAAAKBA"],[5002,"////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////AQACAAAAAAAAAAAAAAAB"],[8808,"KwAHAAEAAQ=="],[8844,"AQACAAIAAACAPwAAgD8AAIA/mpmZPw=="],[9354,"EScAAAE="]];
 const TYPE={LINE:2,CURVE:7,ARC:3,NOTCH:0x14,TEXT:0x20,DIM:0x28};
 
@@ -358,7 +366,7 @@ function forRefs(v,type,a,len,fn){
   }
 }
 function parse(bytes){  const v=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength), end=recsEnd(v), els=[], refs=new Set();
-  if(bytes.length<0x2000||v.getUint16(10,true)!==PAX||end<REC||end>bytes.length) throw new Error('유까 패턴 파일이 아니거나 지원하지 않는 형식입니다.');
+  if(bytes.length<0x2000||![PAX,PAN,PAN0].includes(v.getUint16(10,true))||end<REC||end>bytes.length) throw new Error('유까 패턴 파일이 아니거나 지원하지 않는 형식입니다.');
   let a=heapFirst(v);
   const pt=o=>({x:v.getFloat32(o,true),y:v.getFloat32(o+4,true)});
   for(let o=REC;o<end;o+=RSZ){
@@ -379,16 +387,26 @@ function parse(bytes){  const v=new DataView(bytes.buffer,bytes.byteOffset,bytes
       const n=v.getUint16(a+16,true),m=v.getUint16(a+18,true),cs=[...Array(m)].map((_,i)=>v.getUint16(a+20+2*i,true));let q=a+((20+2*m+3)&~3);
       if(q+8*n<=a+len){e.dim=cs.map(k=>{const P=[];for(let i=0;i<k;i++){P.push(pt(q));q+=8}return P})}}
     else if(type===TYPE.NOTCH&&len>=40){e.pts=[pt(a+16),pt(a+24)];e.at=pt(a+32)}
+    else if(bytes[o+2]===0xC8&&(type===4||type===8||type===1)){
+
+      if(type===4&&len>=40&&(()=>{const n=v.getUint16(a+16,true),k=v.getUint16(a+18,true),m=v.getUint16(a+24,true);if(k<1||k>3||a+28+6*m+8*n>a+len)return false;for(let j=0;j<m;j++){const q=v.getUint16(a+28+2*j,true);if(q<1||q>n)return false}return true})()){
+        const n=v.getUint16(a+16,true),k=v.getUint16(a+18,true),m=v.getUint16(a+24,true),cap=v.getUint16(a+26,true),p0=a+28+6*m,P=[...Array(n)].map((_,i)=>pt(p0+8*i));
+        const ok=len===28+6*m+8*n+4*m*cap,at=[...Array(m)].map((_,j)=>v.getUint16(a+28+2*j,true)),V=ok?[...Array(m)].map((_,j)=>[...Array(cap)].map((_,i)=>v.getFloat32(p0+8*n+4*(j*cap+i),true))):null;
+        e.gr={t:'cut',k,cap,P,m,at,V,A:V&&V[0],B:V&&V[m-1]}}
+      else if(type===8&&len>=18){const n=v.getUint16(a+16,true);if(len>=18+8*n)e.gr={t:'area',P:[...Array(n)].map((_,i)=>pt(a+18+8*i))}}
+      else if(type===1&&len>=8)e.gr={t:'base',P:[pt(a)]};
+    }
     else if(type===TYPE.TEXT){
       e.at=pt(a+16);e.box=[pt(a),pt(a+8)];e.text=readText(bytes,v,a,len);
       e.size=v.getFloat32(a+24,true)||1;
       if(len>=62){e.cw=v.getFloat32(a+28,true);e.pitch=v.getFloat32(a+32,true);e.lh=v.getFloat32(a+36,true);e.rot=v.getFloat32(a+44,true);e.h=v.getUint16(a+56,true);e.v=v.getUint16(a+58,true)}
     }
     forRefs(v,type,a,len,p=>{const x=v.getUint16(p,true);if(x)refs.add(x)});
-    if(flag!==0) els.push(e);
+    if(flag!==0||e.gr) els.push(e);
     a+=len;
   }
-  return {bytes,els,walkEnd:a,refs};
+  const areas=areasParse(bytes).filter(x=>!x.before).map(x=>({label:x.label,name:x.name,mat:x.mat,n:x.n,grain:x.grain,box:[Math.min(x.r[0],x.r[2]),Math.min(x.r[1],x.r[3]),Math.max(x.r[0],x.r[2]),Math.max(x.r[1],x.r[3])]}));
+  return {bytes,els,walkEnd:a,refs,areas};
 }
 
 function arcPts(c,r,from,to){
@@ -510,10 +528,30 @@ function resample(pts,n,exact){
 
 function setPos(out,rec,addr){
   const off=addr%4096;
+  if(isPan(out[10]+out[11]*256)){
+    let lo,hi;
+    if(off>=0xF9D){const s=off+0x5C;lo=(s&15)<<4|0xE;hi=s<0x1000?15:((s-0x1000)>>4)+16}
+    else{
+      const base=off<0x19D?0x5C:0x5D,limit=off<0x19D?0xF9:0xFA,s=off+base;let top=0xE+(s>>8);hi=(s>>4)&15;
+      if((s&255)>=limit){hi=-1;top++}
+      lo=(s&15)<<4|(top&15);
+    }
+    out[rec+14]=lo;out[rec+15]=hi&255;return;
+  }
   const q=off+142,hi=(q&15)+(off<=0x9A1?-6:off<=0xF71?9:10);
   out[rec+14]=(q>>4)&255;out[rec+15]=hi&255;
 }
-function heapFirst(v){const end=recsEnd(v);return (end>REC?v.getUint16(REC+12,true):v.getUint16(4,true))*4096+heapStart(v)}
+
+const _posTab={};
+function posOff(bytes,rec){
+  const k=isPan(bytes[10]+bytes[11]*256)?1:0;
+  if(!_posTab[k]){const t=new Map(),o=new Uint8Array(RSZ+16);o[10]=bytes[10];o[11]=bytes[11];for(let off=0;off<4096;off++){setPos(o,16,off);const c=o[30]|o[31]<<8;if(!t.has(c))t.set(c,off)}_posTab[k]=t}
+  const r=_posTab[k].get(bytes[rec+14]|bytes[rec+15]<<8);return r===undefined?-1:r}
+function heapFirst(v){
+  const bytes=new Uint8Array(v.buffer,v.byteOffset,v.byteLength),end=recsEnd(v);
+  if(end<=REC)return v.getUint16(4,true)*4096+heapStart(v);
+  const pg=v.getUint16(REC+12,true),off=posOff(bytes,REC),std=pg*4096+heapStart(v);
+  return off>=0&&off!==heapStart(v)?pg*4096+off:std}
 
 function fitRecords(bytes,count){
   const v=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength),end=recsEnd(v),hasRec=end>REC;
@@ -526,6 +564,69 @@ function fitRecords(bytes,count){
   const w=new DataView(out.buffer);
   for(let o=REC;o<end;o+=RSZ)w.setUint16(o+12,w.getUint16(o+12,true)+k,true);
   w.setUint16(4,w.getUint16(4,true)+k,true);
+  return out;
+}
+
+function areasParse(bytes){const v=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength),T=Math.ceil(recsEnd(v)/4096)*4096,out=[];if(T+0x260>bytes.length)return out;
+  const n=v.getUint16(T+0x250,true),dec=(o,k)=>{try{return new TextDecoder('euc-kr').decode(bytes.subarray(o,o+k)).trim()}catch(err){return ''}},f4=o=>[0,4,8,12].map(d=>v.getFloat32(o+d,true));if(!(n>0&&n<=121))return out;
+  if(isPan(v.getUint16(10,true))){if(T+0x7F4+16*n>bytes.length)return out;
+    for(let i=0;i<n;i++){const o=T+0x254+12*i;let k=0;while(k<12&&bytes[o+k])k++;const label=dec(o,k),r=f4(T+0x7F4+16*i),m=/^(.*):([A-Z])(\d+)([XYZ])$/.exec(label);if(!label||!r.every(Number.isFinite))continue;
+      out.push({label,name:m?m[1]:label,mat:m?m[2]:'',n:m?+m[3]:0,grain:m?m[4]:'',r,before:label==='before'})}return out}
+  let o=T+0x25A;const lim=Math.min(bytes.length,T+0x1250);
+  for(let i=0;i<n;i++){if(o+19>lim)return [];const k=bytes[o];if(!k||k>40||o+1+k+18>lim)return [];const name=dec(o+1,k),r=f4(o+1+k);o+=1+k+16;const typ=v.getUint16(o,true);o+=2;let mat='',cnt=0,grain='';
+    if(typ){if(o+6>lim)return [];const a=v.getUint16(o,true),g=v.getUint16(o+4,true);cnt=v.getUint16(o+2,true);o+=6;if(a<1||a>26||g<1||g>3||cnt>99)return [];mat=String.fromCharCode(64+a);grain='XYZ'[g-1]}
+    if(!name||!r.every(Number.isFinite))return [];out.push({label:mat?name+':'+mat+cnt+grain:name,name,mat,n:cnt,grain,r,before:name==='before'&&!typ})}
+  return out}
+function areasEmit(out,list){const v=new DataView(out.buffer,out.byteOffset,out.byteLength),T=Math.ceil(recsEnd(v)/4096)*4096,n0=v.getUint16(T+0x250,true);
+  if(isPan(v.getUint16(10,true))){if(T+0xF74>out.length)return false;list=list.slice(0,120);const m=Math.max(Math.min(120,n0),list.length);out.fill(0,T+0x254,T+0x254+12*m);out.fill(0,T+0x7F4,T+0x7F4+16*m);
+    list.forEach((x,i)=>{const b=eucKr(x.label)||new Uint8Array(0);out.set(b.subarray(0,11),T+0x254+12*i);x.r.forEach((f,d)=>v.setFloat32(T+0x7F4+16*i+4*d,f,true))})}
+  else{if(T+0x1250>out.length)return false;const parts=list.slice(0,121).map(x=>{const b=eucKr(x.name)||new Uint8Array(0),e=new Uint8Array(1+b.length+18+(x.mat?6:0)),w=new DataView(e.buffer);e[0]=b.length;e.set(b,1);let q=1+b.length;
+      x.r.forEach((f,d)=>w.setFloat32(q+4*d,f,true));q+=16;if(x.mat){w.setUint16(q,1,true);w.setUint16(q+2,x.mat.charCodeAt(0)-64,true);w.setUint16(q+4,x.n,true);w.setUint16(q+6,'XYZ'.indexOf(x.grain)+1,true)}return e});
+    if(parts.reduce((t,e)=>t+e.length,0)>0x1250-0x25A)throw new Error('영역이 너무 많아 파일에 다 들어가지 않습니다.');let q=T+0x25A;for(const e of parts){out.set(e,q);q+=e.length}
+    if(!v.getUint32(T+0x254,true))v.setUint32(T+0x254,0xFF8,true);if(!v.getUint16(T+0x258,true))v.setUint16(T+0x258,1,true)}
+  v.setUint16(T+0x250,list.length,true);if(list.length)v.setUint16(T+0x252,1,true);return true}
+
+function toPan(pax){
+  const v=new DataView(pax.buffer,pax.byteOffset,pax.byteLength),end=recsEnd(v),T=Math.ceil(end/4096)*4096,GAP=0x2DC,he=heapEnd(v);
+  const out=new Uint8Array(pax.length),w=new DataView(out.buffer);
+  out.set(pax.subarray(0,T+0x254));
+  out.set([0x62,0x65,0x66,0x6F,0x72,0x65],T+0x254);
+  out.set(pax.subarray(T+0x254+GAP+12,he),T+0x260);
+  out.set(pax.subarray(T+0x261,T+0x271),T+0x7F4);
+  w.setUint16(T+16,0xD24,true);
+  for(let i=3;i<=8;i++){
+    const p=T+i*6,abs=w.getUint16(p,true)*4096+w.getUint16(p+2,true)-GAP;
+    w.setUint16(p,Math.floor(abs/4096),true);w.setUint16(p+2,abs%4096,true);
+  }
+  w.setUint16(10,PAN,true);setHeapEnd(w,he-GAP);
+  {const L=areasParse(pax);if(L.some(x=>!x.before)){out.fill(0,T+0x254,T+0xF74);areasEmit(out,L)}}
+  let a=heapFirst(v)-GAP;
+  for(let o=REC;o<end;o+=RSZ){w.setUint16(o+12,Math.floor(a/4096),true);setPos(out,o,a);a+=w.getUint16(o+16,true)}
+  return out;
+}
+
+function toPax(pan){
+  const v=new DataView(pan.buffer,pan.byteOffset,pan.byteLength),end=recsEnd(v),T=Math.ceil(end/4096)*4096,GAP=0x2DC,he=heapEnd(v);
+  const out=new Uint8Array(Math.max(pan.length,Math.ceil((he+GAP)/4096)*4096)),w=new DataView(out.buffer),block=blank();
+  out.set(pan.subarray(0,T+0x254));
+  out.set(block.subarray(0x1254,0x1254+GAP+12),T+0x254);
+  out.set(pan.subarray(T+0x260,he),T+0x254+GAP+12);
+  out.set([6,0x62,0x65,0x66,0x6F,0x72,0x65],T+0x25A);
+  out.set(pan.subarray(T+0x7F4,T+0x804),T+0x261);
+  out.set([7,0x9C,3],T+0x273);out.set([0,0,0xA0,0x40,0,0,0xA0,0x40],T+0x362);
+  out[T+0x38A]=0xFE;out[T+0x396]=0xEF;out[T+0x3AA]=0xFE;out[T+0x3C9]=0x7F;
+  out.fill(0,T+0x7F4+GAP,T+0x804+GAP);
+  out.set(pan.subarray(T+0x8C,T+0xAC),T+0x296);
+  out.set(pan.subarray(T+0xEC,T+0x104),T+0x2F6);
+  w.setUint16(T+16,0x1000,true);
+  for(let i=3;i<=8;i++){
+    const p=T+i*6,abs=w.getUint16(p,true)*4096+w.getUint16(p+2,true)+GAP;
+    w.setUint16(p,Math.floor(abs/4096),true);w.setUint16(p+2,abs%4096,true);
+  }
+  w.setUint16(10,PAX,true);setHeapEnd(w,he+GAP);
+  {const L=areasParse(pan);if(L.some(x=>!x.before))areasEmit(out,L)}
+  let a=heapFirst(v)+GAP;
+  for(let o=REC;o<end;o+=RSZ){w.setUint16(o+12,Math.floor(a/4096),true);setPos(out,o,a);a+=w.getUint16(o+16,true)}
   return out;
 }
 function setRecsEnd(v,e){v.setUint16(0,Math.floor(e/0x800),true);v.setUint16(2,e%0x800+1,true)}
@@ -615,7 +716,7 @@ function bumpGroupCounter(out){
   if(v.getUint16(at,true)<m)v.setUint16(at,m,true);
 }
 function rawData(e){
-  const d=e.rawData.slice(),w=new DataView(d.buffer);
+  if(e.gr)return encodeGr(e.type,e.gr);const d=e.rawData.slice(),w=new DataView(d.buffer);
   if(e.type===TYPE.TEXT){[e.box[0].x,e.box[0].y,e.box[1].x,e.box[1].y,e.at.x,e.at.y].forEach((x,i)=>w.setFloat32(4*i,x,true))}return d}
 
 function encode5B(line,dir,front,back){const d=new DataView(new ArrayBuffer(258));[0,2,4].forEach(o=>d.setUint16(o,1,true));if(line)d.setUint16(6,1,true);
@@ -728,7 +829,7 @@ function build(doc0,adds,dels,edits=[],regroups=[]){
   setRecsEnd(v,rec);setHeapEnd(v,hEnd+need);
   v.setUint16(8,v.getUint16(8,true)+recCount,true);
   if(regroups.length||adds.some(e=>e.group))bumpGroupCounter(out);
-  
+  if(typeof S!=='undefined'&&S.areasDirty&&doc0===S.doc)areasTable(out);
   return out;
 }
 
@@ -768,6 +869,10 @@ function resize(){
 }
 function css(n){return getComputedStyle(document.documentElement).getPropertyValue(n)}
 
+const gradeEls=()=>S.doc?S.doc.els.filter(e=>e.gr&&!S.dels.includes(e.rec)).concat(S.adds.filter(e=>e.gr)):[];
+const gradeVals=g=>{if(!g.V)return [];const o=[];for(let i=0;i<g.cap;i++)if(g.V.some(a=>a[i]))o.push({lay:i+1,v:g.V.map(a=>a[i])});return o};
+const gradeTxt=g=>gradeVals(g).map(x=>x.lay+': '+(x.v.every(y=>Math.abs(y-x.v[0])<1e-6)?+x.v[0].toFixed(3):x.v.map(y=>+y.toFixed(3)).join('/'))).join('  ');
+
 function drawSeamW(c){
   if(!S.seamW||!S.doc)return;const rn=x=>(x.rec-REC)/RSZ+1,v=new DataView(S.doc.bytes.buffer,S.doc.bytes.byteOffset),lab=[];
   for(const s5 of S.doc.els.filter(e=>e.type===0x5C&&!S.dels.includes(e.rec)&&e.scol!==0)){try{const I=seamInfo(s5,true);I.L1.forEach((k,i)=>{const l=S.doc.els.find(x=>rn(x)===k);if(!l||!l.pts.length)return;
@@ -775,6 +880,18 @@ function drawSeamW(c){
   for(const e of S.adds.filter(e=>e.kind==='seam'&&e.scol!==0))e.sides.forEach((sd,i)=>{const P=seamPath(sd);lab.push([ycAlong(P,lenOf(P)/2),e.w[i],e.w[i]])});
   const f=x=>(+x.toFixed(2)).toString().replace(/^(\d+)$/,'$1.0');c.save();c.fillStyle=css('--c3');c.font='bold 11px sans-serif';c.textAlign='center';
   for(const [p,a,b] of lab){const q=toS(p);c.fillText(Math.abs(a-b)<1e-4?f(a):f(a)+'/'+f(b),q.x,q.y-3)}c.restore()}
+
+function drawAreas(c){const A=S.doc&&S.areas;if(!A||!A.length||!$('areaOn')||!$('areaOn').checked)return;c.save();c.strokeStyle=c.fillStyle='#2a6fe0';c.lineWidth=1.2;c.setLineDash([6,4]);c.font='bold 12px sans-serif';
+  for(const a of A){const p=toS({x:a.box[0],y:a.box[3]}),q=toS({x:a.box[2],y:a.box[1]});c.strokeRect(Math.min(p.x,q.x),Math.min(p.y,q.y),Math.abs(q.x-p.x),Math.abs(q.y-p.y));c.fillText(a.label,Math.min(p.x,q.x)+3,Math.min(p.y,q.y)-4)}c.restore()}
+function drawGrade(c){
+  if(!$('gradeOn')||!$('gradeOn').checked)return;
+  const col={1:'#e0302a',2:'#16a6c4',3:'#d9a400',4:'#7a3fd0'};c.save();c.lineWidth=1.6;c.font='11px sans-serif';
+  for(const e of gradeEls()){const g=e.gr,Q=g.P.map(toS);
+    if(g.t==='cut'){c.strokeStyle=col[g.k]||'#e0302a';c.setLineDash([]);c.beginPath();Q.forEach((q,i)=>i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y));c.stroke();
+      if($('gradeVal').checked){const t=gradeTxt(g);if(t){c.fillStyle=c.strokeStyle;c.fillText(t,Q[0].x+4,Q[0].y-4)}}}
+    else if(g.t==='area'){c.strokeStyle='#9b4dca';c.setLineDash([5,4]);c.beginPath();Q.forEach((q,i)=>i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y));c.stroke()}
+    else{c.setLineDash([]);c.strokeStyle=c.fillStyle='#1a9e4b';c.beginPath();c.arc(Q[0].x,Q[0].y,6,0,7);c.stroke();c.font='bold 10px sans-serif';c.fillText('G',Q[0].x-3.5,Q[0].y+3.5);c.font='11px sans-serif'}}
+  c.restore()}
 
 function paneAt(x){if(!S.split)return;const n=S.panes.length,k=Math.max(0,Math.min(n-1,Math.floor(x/(S.w/n))));if(k===S.paneActive)return;S.paneActive=k;S.view=S.panes[k].view;S.hide=S.panes[k].hide;renderLayers();draw()}
 function draw(){
@@ -808,7 +925,7 @@ function drawPane(){
     if(e.text&&e.size*V.s>=3)drawText(c,e,pen);
     c.globalAlpha=1;
   }
-  drawSeamW(c);
+  drawGrade(c);drawAreas(c);drawSeamW(c);
   if(S.hl&&S.hl.pts.length){c.save();c.globalAlpha=.35;c.strokeStyle=css('--draw');c.lineWidth=7;c.lineCap='round';c.beginPath();shape(S.hl).forEach((p,i)=>{const q=toS(p);i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y)});c.stroke();c.restore()}
   if(MOVES.includes(S.tool))drawMove(c);
   if(S.tool==='yc')drawYc(c);
@@ -1181,9 +1298,9 @@ cv.addEventListener('wheel',e=>{paneAt(e.offsetX);
 },{passive:false});
 
 function load(bytes,name,example){
-  S.doc=parse(bytes);S.name=name;S.file=null;S.fh=null;S.regroup=new Set();S.adds=[];S.dels=[];S.hist=newHist();S.redo=[];S.ver=0;S.savedVer=0;S.edits=new Set();S.example=example;
+  S.doc=parse(bytes);S.areas=S.doc.areas.map(a=>({...a,box:[...a.box]}));S.areasDirty=false;S.name=name;S.file=null;S.fh=null;S.regroup=new Set();S.adds=[];S.dels=[];S.hist=newHist();S.redo=[];S.ver=0;S.savedVer=0;S.edits=new Set();S.example=example;
   const ycCode=S.tool==='yc'&&S.yc?S.yc.code:null;{const o=S.t;S.t=toolState(o.mv&&o.mv.cmd);S.mvCopy=o.mvCopy;S.gMove=o.gMove;S.casMode=o.casMode}
-  S.split=false;S.panes=null;S.paneActive=0;S.hide=new Set();renderLayers();fit();refresh();
+  S.split=false;S.panes=null;S.paneActive=0;S.hide=new Set();S.grOrig=grSnap();renderLayers();fit();refresh();
   if(ycCode)ycStart(ycCode);
   document.querySelector('[data-tab=draw]').click();
 }
@@ -1354,6 +1471,7 @@ function moved(e,T,deg){
 }
 function applyMove(deg,Tover,mir,scl){
   const M=S.mv,T=Tover||xform(M,deg),copy=S.tool==='cmove'||(S.tool==='mvrt'&&!!S.mvCopy)||(S.tool==='xf'&&!!(M.cmd&&M.cmd.copy)),sel=[...M.sel];let skip=0;
+  if(S.tool==='mvrt'&&S.gMove&&!copy){const has=new Set(sel);for(const e of [...sel])if(e.type===TYPE.LINE||e.type===TYPE.CURVE||e.kind==='line'||e.kind==='curve')for(const t of gMates(e))if(!has.has(t)){has.add(t);sel.push(t)}}
   const moved=(e,T,deg)=>movedXS(e,T,deg,mir,scl);
   if(copy){
     const made=[];
@@ -1906,7 +2024,7 @@ document.querySelectorAll('nav [data-tool]').forEach(b=>b.onclick=()=>{S.cmdCode
 $('new').onclick=()=>{load(blank(),'새 패턴');say('')};
 async function openFile(){
   if(!window.showOpenFilePicker)return $('file').click();
-  let h;try{[h]=await showOpenFilePicker({types:[{description:'유카 패턴',accept:{'application/octet-stream':['.pax','.001','.002','.003','.004','.005']}}]})}catch(err){return}
+  let h;try{[h]=await showOpenFilePicker({types:[{description:'유카 패턴',accept:{'application/octet-stream':['.pax','.pan','.001','.002','.003','.004','.005']}}]})}catch(err){return}
   try{const f=await h.getFile();load(new Uint8Array(await f.arrayBuffer()),f.name.replace(/\.(pax|pan)(\.\d+)?$|\.\d+$/,''));S.file=f.name;S.fh=h;recentAdd(h);say('')}catch(err){say(err.message,true)}
 }
 $('file').closest('label').addEventListener('click',e=>{if(window.showOpenFilePicker){e.preventDefault();openFile()}});
@@ -1973,7 +2091,7 @@ function revert(h){
   if(h.sc){inv.sc=h.sc.map(k=>({e:k.e,key:k.key,old:k.e[k.key],was:k.e.kind?null:S.regroup.has(k.e)}));for(const k of h.sc){k.e[k.key]=k.old;if(k.was===false)S.regroup.delete(k.e);if(k.was===true)S.regroup.add(k.e)}}
   if(h.rl){inv.rl=h.rl.map(k=>({e:k.e,old:k.e.flag,was:k.e.kind?null:S.regroup.has(k.e)}));for(const k of h.rl){k.e.flag=k.old;if(k.was===false)S.regroup.delete(k.e);if(k.was===true)S.regroup.add(k.e)}}
   if(h.rc){inv.rc=h.rc.map(k=>({e:k.e,old:k.e.color,was:k.e.kind?null:S.regroup.has(k.e)}));for(const k of h.rc){k.e.color=k.old;if(k.was===false)S.regroup.delete(k.e);if(k.was===true)S.regroup.add(k.e)}}
-  
+  if(h.ar){inv.ar={list:S.areas,dirty:S.areasDirty};S.areas=h.ar.list;S.areasDirty=h.ar.dirty}
   if(h.m){inv.m=h.m;inv.pts=h.m.pts.map(q=>({...q}));inv.was=S.edits.has(h.m);h.m.pts=h.pts;mem(h.m,h.was);if(S.sel===h.m&&h.pts.length===2)$('editLen').value=lenOf(h.pts).toFixed(2)}
   return inv;
 }
@@ -1999,6 +2117,8 @@ function saveFile(format){
   try{
     let out=build(S.doc,S.adds,S.dels,[...S.edits].filter(e=>!S.dels.includes(e.rec)),[...S.regroup].filter(e=>!S.dels.includes(e.rec)).map(e=>({rec:e.rec,addr:e.addr,group:e.group,color:e.color,flag:e.flag,scol:e.type===0x5C?e.scol:null})));S.savedVer=S.ver;refresh();
     const now=new DataView(out.buffer).getUint16(10,true);
+    if(format==='pan'&&!isPan(now))out=toPan(out);
+    if(format==='pax'&&now!==PAX)out=toPax(out);
     const a=document.createElement('a'),stem=yukaStem(S.name.replace(/[^\w가-힣-]/g,'_'));
     a.href=URL.createObjectURL(new Blob([out]));a.download=stem+'.'+(isPan(new DataView(out.buffer).getUint16(10,true))?'pan':'pax');a.click();
     setTimeout(()=>URL.revokeObjectURL(a.href),5000);
@@ -2006,6 +2126,8 @@ function saveFile(format){
   }catch(err){say(err.message,true)}
 }
 $('save').onclick=()=>saveFile();
+$('savePan').onclick=()=>saveFile('pan');
+$('savePax').onclick=()=>saveFile('pax');
 $('editApply').onclick=()=>{
   const e=S.sel,L=parseFloat($('editLen').value);if(!e||e.pts.length!==2)return;
   if(!(L>0))return say('길이를 cm로 입력해 주세요.',true);
@@ -2020,7 +2142,7 @@ document.querySelectorAll('#tabs [data-tab]').forEach(b=>b.onclick=()=>{
 document.querySelectorAll('[data-click]').forEach(b=>b.onclick=()=>$(b.dataset.click).click());
 document.querySelectorAll('[data-cat]').forEach(b=>b.onchange=()=>{b.checked?S.off.delete(b.dataset.cat):S.off.add(b.dataset.cat);S.sel=null;refresh()});
 $('snapMode').onchange=()=>setSnap($('snapMode').value);
-$('areaSnap').onchange=()=>{const v=$('areaSnap').value;$('areaSnap').value='';if(v)areaSnapStart(v)};$('gridOn').onchange=draw;
+$('areaSnap').onchange=()=>{const v=$('areaSnap').value;$('areaSnap').value='';if(v)areaSnapStart(v)};$('gridOn').onchange=draw;$('gradeOn').onchange=$('gradeVal').onchange=$('areaOn').onchange=draw;
 $('fitBtn').onclick=()=>{fit();draw()};
 $('zoomIn').onclick=()=>zoom(1.25,S.w/2,S.h/2);$('zoomOut').onclick=()=>zoom(.8,S.w/2,S.h/2);
 function togglePanel(btn,cls){const w=$('work'),off=w.classList.toggle(cls);btn.setAttribute('aria-pressed',!off);resize()}
@@ -2029,7 +2151,7 @@ $('toggleRight').onclick=()=>togglePanel($('toggleRight'),'noRight');
 $('toggleLeft').click();
 if(innerWidth<=900)$('toggleRight').click()
 
-const YUKA="파일|파일|파일열기|call\n파일|파일|참조열기|ref\n파일|파일|새파일|new\n파일|파일|저장|save\n파일|곡선저장|길이조정|mach\n입력|TRACE|수직보정|hv\n입력|TRACE|수평보정|hh\n패턴||외주름|khda\n패턴||맞주름|bhda\n패턴||핀턱|phda\n패턴|[절개]|양측절개|bten\n패턴|[절개]|편측절개|kten\n패턴|다트|다트|dart\n패턴|다트|접어보기|ta\n패턴|다트|다트접기|dara\n패턴|[분산]|회전|drt\n패턴|분할분리|2점방향|b2\n패턴|분할분리|상방향|bu\n패턴|분할분리|하방향|bd\n패턴|분할분리|좌방향|bl\n패턴|분할분리|우방향|br\n패턴|분할분리|직각절개|bq\n패턴|분할분리|각도절개|ba\n패턴|분할분리|3점절개|b3\n패턴|분할분리|편측절개|be\n패턴|분할분리|양측절개|bb\n패턴|등분분할|상방향|beu\n패턴|등분분할|하방향|bed\n패턴|등분분할|좌방향|bel\n패턴|등분분할|우방향|ber\n패턴|등분분할|직각절개|beq\n패턴|등분분할|각도절개|bea\n패턴|등분분할|편측절개|bee\n패턴|등분분할|양측절개|beb\n패턴|지정분할|상방향|bsu\n패턴|지정분할|하방향|bsd\n패턴|지정분할|좌방향|bsl\n패턴|지정분할|우방향|bsr\n패턴|지정분할|직각절개|bsq\n패턴|지정분할|각도절개|bsa\n패턴|지정분할|편측절개|bse\n패턴|지정분할|양측절개|bsb\n패턴|지정분할|부속분리|bx\n패턴|지정분할|선자르기|c\n기호|1-기호|직각결선|qz\n기호|1-기호|평행결선|paz\n기호|1-기호|임의결선|zim\n기호|1-기호|결선연장|zm\n기호|1-기호|결선변경|zc\n기호|1-기호|스티치|st\n기호|1-기호|W스티치|wst\n기호|1-기호|이세표시|gaz\n기호|1-기호|사선|ht\n기호|1-기호|화살표|arw\n기호|1-기호|골표시|w\n기호|2-기호|상SNAP|snpo\n기호|2-기호|하SNAP|snpm\n기호|2-기호|구멍표시|hol\n기호|2-기호|＋표시|k+\n기호|CUT시작점|너치|aij\n기호|CUT시작점|봉제너치|ana\n기호|CUT시작점|자동너치|ajs\n기호|CUT시작점|연장너치|anb\n기호|CUT시작점|2분각너치|an2\n기호|CUT시작점|너치수정|ajm\n기호|CUT시작점|너치연동|are\n기호|CUT시작점|연동on/off|amr\n기호|CUT시작점|너치화|agn\n기호|CUT시작점|너치해제|ajpm\n기호|3-기호|늘임표시|noba\n기호|3-기호|이세|is\n기호|3-기호|심지|sim\n기호|3-기호|DRILL홀|dril\n기호|3-기호|털방향|jz\n기호|3-기호|바이어스|jn\n기호|3-기호|역BIAS|jr\n기호|문자|문자입력|t\n기호|문자|영역문자|tb\n기호|문자|임의문자|td\n기호|[수정]|지정변경|tr\n기호|[수정]|지시변경|tm\n기호|[수정]|메모편집|meme\n기호|[수정]|영역변경|tmb\n기호|[수정]|배율변경|tms\n기호|[수정]|경사변경|tma\n기호|[신배치]|배치문자|mol\n기호|[신배치]|저장문자|mof\n시접||영역시접|nu\n시접||부분시접|cma\n시접||동폭시접|nh\n시접|지정시접|각변경|cas\n시접|폭변경|폭입력|nt\n시접|폭변경|폭표시ON/OFF|no\n시접|합복확인|시접삭제|nud\n시접|색지정|비표시|cna\n시접|빨간색|보라색|cpa\n시접|노란색|흰색|cwa\n시접|색변경|비표시|cn\n시접|빨간색|보라색|cp\n시접|노란색|흰색|cw\n선의종류||곡선|crv\n선의종류||평행|pl\n선의종류||연속평행|plm\n선의종류||2점선|l\n선의종류||연속선|lc\n선의종류||수평선|lh\n선의종류||수직선|lv\n선의종류||직각선|lq\n선의종류||3점원|a3\n선의종류||사각BOX|box\n선의종류||임의사각|fbox\n선의종류|기타|연장선|lt\n선의종류|기타|각도선|la\n선의종류|기타|접선|ld\n선의종류|기타|2접선|ld2\n선의종류|기타|중간곡선|cct\n선의종류|기타|반지름원|cc\n선의종류|기타|지름원|cd\n선의종류|기타|반경중심|crc\n선의종류|기타|임의평행|pp\n수정||양측수정|b\n수정||편측수정|k\n수정||각수정|fil\n수정||2각수정|dfil\n수정||선수정|cl\n수정||선자르기|c\n수정|단점이동|임의이동|e2\n수정|단점이동|상방향|eu\n수정|단점이동|하방향|ed\n수정|단점이동|좌방향|el\n수정|단점이동|우방향|er\n수정|축소확대|축소확대|ex\n수정|축소확대|폭방향|exx\n수정|축소확대|길이방향|exy\n수정|축소확대|양측방향|exa\n수정|축소확대|2점방향|ex2\n수정|축소확대|회전|exr\n수정|축소확대|복사회전|cexr\n곡선수정|유사처리|2점유사|sg2\n곡선수정|유사처리|유사이동|sr\n곡선수정|유사처리|S수정|s\n곡선수정|유사처리|SS수정|ss\n곡선수정|유사처리|SA수정|sa\n곡선수정|유사처리|점추가|pa\n곡선수정|유사처리|점삭제|pde\n곡선수정|유사처리|선합치기|rc\n이동|이동|2점방향|mv\n이동|이동|상방향|mvu\n이동|이동|하방향|mvd\n이동|이동|좌방향|mvl\n이동|이동|우방향|mvr\n이동|이동|이동회전|mvrt\n이동|이동|임의이동|dm\n이동|복사이동|2점방향|cmv\n이동|복사이동|상방향|cmvu\n이동|복사이동|하방향|cmvd\n이동|복사이동|좌방향|cmvl\n이동|복사이동|우방향|cmvr\n이동|복사이동|이동회전|cmvrt\n이동|복사이동|임의이동|cdm\n회전|회전|각도지정|rt\n회전|회전|회전량|re\n회전|회전|3점지정|rt3\n회전|회전|임의회전|dr\n회전|복사회전|각도지정|crt\n회전|복사회전|회전량|cre\n회전|복사회전|3점지정|crt3\n회전|복사회전|임의회전|cdr\n회전|보정|수직보정|hv\n회전|보정|수평보정|hh\n반전|반전|2점반전|mir\n반전|반전|수직반전|vm\n반전|반전|수평반전|hm\n반전|반전|선반전|ml\n반전|복사반전|2점반전|cmir\n반전|복사반전|수직반전|cvm, cv\n반전|복사반전|수평반전|chm\n반전|복사반전|선반전|cml\n그룹||설정|sg\n그룹||추가|ag\n그룹||해제|rg\n그룹||2점이동|mg\n그룹||이동회전|mrg\n그룹||임의이동|dmg\n그룹||전undo|bga\n그룹||지시undo|bg\n삭제||지정삭제|d\n삭제||전체삭제|dela\n복사||복사|cop\n복사||사이즈간|lcop\n표시|GRID|삭제|gof\n표시|GRID|점표시|gds\n표시|GRID|점|gdf\n표시|GRID|선표시|gls\n표시|GRID|선|glf\n표시|GRID|크기|gs\n표시|GRID|원점변경|gog\n표시|화면변경|1화면|1q\n표시|화면변경|2화면|2q\n표시|화면변경|3화면|3q\n표시|화면변경|전체화면|full\n표시|DRAW화면|임의화면|fr\n속성|색지정|파란색|blue\n속성|색지정|빨간색|red\n속성|색지정|보라색|purp\n속성|색지정|초록색|gree\n속성|색지정|하늘색|mizu\n속성|색지정|노란색|yell\n속성|색지정|흰색|whit\n속성|색변경|파란색|cblu\n속성|색변경|빨간색|cred\n속성|색변경|보라색|cpur\n속성|색변경|초록색|cgre\n속성|색변경|하늘색|cmiz\n속성|색변경|노란색|cyel\n속성|색변경|흰색|cwhi\n속성|선지정|실선|soli\n속성|선지정|점선|dash\n속성|선지정|1점파선|ds1\n속성|선지정|2점파선|ds2\n속성|선변경|실선|csol\n속성|선변경|점선|cdas\n속성|선변경|1점파선|cds1\n속성|선변경|2점파선|cds2\n촌법선||수평촌법|hdi\n촌법선||수직촌법|vdi\n촌법선||2점촌법|2di\n촌법선||반경촌법|rdi".split("\n").map(l=>{const [m,g,n,c]=l.split("|");return {m,g,n,c:c.split(",").map(s=>s.trim()).filter(Boolean)}});
+const YUKA="파일|파일|파일열기|call\n파일|파일|참조열기|ref\n파일|파일|새파일|new\n파일|파일|저장|save\n파일|곡선저장|길이조정|mach\n입력|TRACE|수직보정|hv\n입력|TRACE|수평보정|hh\n패턴||외주름|khda\n패턴||맞주름|bhda\n패턴||핀턱|phda\n패턴|[절개]|양측절개|bten\n패턴|[절개]|편측절개|kten\n패턴|다트|다트|dart\n패턴|다트|접어보기|ta\n패턴|다트|다트접기|dara\n패턴|[분산]|회전|drt\n패턴|분할분리|2점방향|b2\n패턴|분할분리|상방향|bu\n패턴|분할분리|하방향|bd\n패턴|분할분리|좌방향|bl\n패턴|분할분리|우방향|br\n패턴|분할분리|직각절개|bq\n패턴|분할분리|각도절개|ba\n패턴|분할분리|3점절개|b3\n패턴|분할분리|편측절개|be\n패턴|분할분리|양측절개|bb\n패턴|등분분할|상방향|beu\n패턴|등분분할|하방향|bed\n패턴|등분분할|좌방향|bel\n패턴|등분분할|우방향|ber\n패턴|등분분할|직각절개|beq\n패턴|등분분할|각도절개|bea\n패턴|등분분할|편측절개|bee\n패턴|등분분할|양측절개|beb\n패턴|지정분할|상방향|bsu\n패턴|지정분할|하방향|bsd\n패턴|지정분할|좌방향|bsl\n패턴|지정분할|우방향|bsr\n패턴|지정분할|직각절개|bsq\n패턴|지정분할|각도절개|bsa\n패턴|지정분할|편측절개|bse\n패턴|지정분할|양측절개|bsb\n패턴|지정분할|부속분리|bx\n패턴|지정분할|선자르기|c\n기호|1-기호|직각결선|qz\n기호|1-기호|평행결선|paz\n기호|1-기호|임의결선|zim\n기호|1-기호|결선연장|zm\n기호|1-기호|결선변경|zc\n기호|1-기호|스티치|st\n기호|1-기호|W스티치|wst\n기호|1-기호|이세표시|gaz\n기호|1-기호|사선|ht\n기호|1-기호|화살표|arw\n기호|1-기호|골표시|w\n기호|2-기호|상SNAP|snpo\n기호|2-기호|하SNAP|snpm\n기호|2-기호|구멍표시|hol\n기호|2-기호|＋표시|k+\n기호|CUT시작점|너치|aij\n기호|CUT시작점|봉제너치|ana\n기호|CUT시작점|자동너치|ajs\n기호|CUT시작점|연장너치|anb\n기호|CUT시작점|2분각너치|an2\n기호|CUT시작점|너치수정|ajm\n기호|CUT시작점|너치연동|are\n기호|CUT시작점|연동on/off|amr\n기호|CUT시작점|너치화|agn\n기호|CUT시작점|너치해제|ajpm\n기호|CUT시작점|너치전개|agrd\n기호|3-기호|늘임표시|noba\n기호|3-기호|이세|is\n기호|3-기호|심지|sim\n기호|3-기호|DRILL홀|dril\n기호|3-기호|털방향|jz\n기호|3-기호|바이어스|jn\n기호|3-기호|역BIAS|jr\n기호|문자|문자입력|t\n기호|문자|영역문자|tb\n기호|문자|임의문자|td\n기호|[수정]|지정변경|tr\n기호|[수정]|지시변경|tm\n기호|[수정]|메모편집|meme\n기호|[수정]|영역변경|tmb\n기호|[수정]|배율변경|tms\n기호|[수정]|경사변경|tma\n기호|[신배치]|배치문자|mol\n기호|[신배치]|저장문자|mof\n시접||영역시접|nu\n시접||부분시접|cma\n시접||동폭시접|nh\n시접|지정시접|각변경|cas\n시접|폭변경|폭입력|nt\n시접|폭변경|폭표시ON/OFF|no\n시접|합복확인|시접삭제|nud\n시접|색지정|비표시|cna\n시접|빨간색|보라색|cpa\n시접|노란색|흰색|cwa\n시접|색변경|비표시|cn\n시접|빨간색|보라색|cp\n시접|노란색|흰색|cw\n그레이딩|절개선|선입력|gl\n그레이딩|절개선|양지정|gi, gv\n그레이딩|포인트|수정|gre\n그레이딩|초기화|전개삭제|gid\n그레이딩|기준점|작성|gwp, gbp\n그레이딩|기준점|삭제|gwd\n그레이딩|계산|영역|gca\n그레이딩|계산|분산|gdv\n그레이딩|표시|ON|poo\n그레이딩|표시|OFF|pf\n그레이딩|표시|양확인|pvi\n그레이딩|파일|전개개시|gr\nG수정|수정|편측수정|gk\nG수정|회전|이동회전|gmvrt\nG수정|회전|곡선수정|gss\nG수정|회전|유사이동|srg\nG수정|회전|평행이동|gpl\nG수정|회전|선합치기|grc\nG수정|회전|선자르기|gc\nG수정|회전|좌표변화|gxy\n선의종류||곡선|crv\n선의종류||평행|pl\n선의종류||연속평행|plm\n선의종류||2점선|l\n선의종류||연속선|lc\n선의종류||수평선|lh\n선의종류||수직선|lv\n선의종류||직각선|lq\n선의종류||3점원|a3\n선의종류||사각BOX|box\n선의종류||임의사각|fbox\n선의종류|기타|연장선|lt\n선의종류|기타|각도선|la\n선의종류|기타|접선|ld\n선의종류|기타|2접선|ld2\n선의종류|기타|중간곡선|cct\n선의종류|기타|반지름원|cc\n선의종류|기타|지름원|cd\n선의종류|기타|반경중심|crc\n선의종류|기타|임의평행|pp\n수정||양측수정|b\n수정||편측수정|k\n수정||각수정|fil\n수정||2각수정|dfil\n수정||선수정|cl\n수정||선자르기|c\n수정|단점이동|임의이동|e2\n수정|단점이동|상방향|eu\n수정|단점이동|하방향|ed\n수정|단점이동|좌방향|el\n수정|단점이동|우방향|er\n수정|축소확대|축소확대|ex\n수정|축소확대|폭방향|exx\n수정|축소확대|길이방향|exy\n수정|축소확대|양측방향|exa\n수정|축소확대|2점방향|ex2\n수정|축소확대|회전|exr\n수정|축소확대|복사회전|cexr\n곡선수정|유사처리|2점유사|sg2\n곡선수정|유사처리|유사이동|sr\n곡선수정|유사처리|S수정|s\n곡선수정|유사처리|SS수정|ss\n곡선수정|유사처리|SA수정|sa\n곡선수정|유사처리|점추가|pa\n곡선수정|유사처리|점삭제|pde\n곡선수정|유사처리|선합치기|rc\n이동|이동|2점방향|mv\n이동|이동|상방향|mvu\n이동|이동|하방향|mvd\n이동|이동|좌방향|mvl\n이동|이동|우방향|mvr\n이동|이동|이동회전|mvrt\n이동|이동|임의이동|dm\n이동|복사이동|2점방향|cmv\n이동|복사이동|상방향|cmvu\n이동|복사이동|하방향|cmvd\n이동|복사이동|좌방향|cmvl\n이동|복사이동|우방향|cmvr\n이동|복사이동|이동회전|cmvrt\n이동|복사이동|임의이동|cdm\n회전|회전|각도지정|rt\n회전|회전|회전량|re\n회전|회전|3점지정|rt3\n회전|회전|임의회전|dr\n회전|복사회전|각도지정|crt\n회전|복사회전|회전량|cre\n회전|복사회전|3점지정|crt3\n회전|복사회전|임의회전|cdr\n회전|보정|수직보정|hv\n회전|보정|수평보정|hh\n반전|반전|2점반전|mir\n반전|반전|수직반전|vm\n반전|반전|수평반전|hm\n반전|반전|선반전|ml\n반전|복사반전|2점반전|cmir\n반전|복사반전|수직반전|cvm, cv\n반전|복사반전|수평반전|chm\n반전|복사반전|선반전|cml\n그룹||설정|sg\n그룹||추가|ag\n그룹||해제|rg\n그룹||2점이동|mg\n그룹||이동회전|mrg\n그룹||임의이동|dmg\n그룹||전undo|bga\n그룹||지시undo|bg\n삭제||지정삭제|d\n삭제||전체삭제|dela\n복사||복사|cop\n복사||사이즈간|lcop\n표시|GRID|삭제|gof\n표시|GRID|점표시|gds\n표시|GRID|점|gdf\n표시|GRID|선표시|gls\n표시|GRID|선|glf\n표시|GRID|크기|gs\n표시|GRID|원점변경|gog\n표시|화면변경|1화면|1q\n표시|화면변경|2화면|2q\n표시|화면변경|3화면|3q\n표시|화면변경|전체화면|full\n표시|DRAW화면|임의화면|fr\n영역|영역이름|수동영역|ps\n영역|영역설정|화면표시|won\n영역|영역설정|표시금지|wof\n영역|영역삭제|전체|asd\n영역|영역삭제|지정|add\n속성|색지정|파란색|blue\n속성|색지정|빨간색|red\n속성|색지정|보라색|purp\n속성|색지정|초록색|gree\n속성|색지정|하늘색|mizu\n속성|색지정|노란색|yell\n속성|색지정|흰색|whit\n속성|색변경|파란색|cblu\n속성|색변경|빨간색|cred\n속성|색변경|보라색|cpur\n속성|색변경|초록색|cgre\n속성|색변경|하늘색|cmiz\n속성|색변경|노란색|cyel\n속성|색변경|흰색|cwhi\n속성|선지정|실선|soli\n속성|선지정|점선|dash\n속성|선지정|1점파선|ds1\n속성|선지정|2점파선|ds2\n속성|선변경|실선|csol\n속성|선변경|점선|cdas\n속성|선변경|1점파선|cds1\n속성|선변경|2점파선|cds2\n촌법선||수평촌법|hdi\n촌법선||수직촌법|vdi\n촌법선||2점촌법|2di\n촌법선||반경촌법|rdi".split("\n").map(l=>{const [m,g,n,c]=l.split("|");return {m,g,n,c:c.split(",").map(s=>s.trim()).filter(Boolean)}});
 const tool=t=>()=>document.querySelector('[data-tool='+t+']').click();
 const press=id=>()=>$(id).click();
 
@@ -2085,7 +2207,7 @@ ACT.dela=()=>{
   say(vis.length+'개를 지웠습니다. 되돌리기로 복구할 수 있습니다.');refresh();
 };
 {const m=ACT.mvrt;ACT.mvrt=()=>{m();S.mvCopy=false;S.gMove=false};ACT.cmvrt=()=>{m();S.mvCopy=true;say('복사 이동회전: 옮길 선을 고르세요(원본은 남음)')}}
-ACT.dm=ACT.mv;ACT.cdm=ACT.cmv;ACT.cop=ACT.cmv;ACT.mg=ACT.mv;ACT.mrg=ACT.mvrt;ACT.dmg=ACT.mv;
+ACT.dm=ACT.mv;ACT.cdm=ACT.cmv;ACT.cop=ACT.cmv;ACT.mg=ACT.mv;ACT.mrg=ACT.mvrt;ACT.dmg=ACT.mv; ACT.gmvrt=()=>{ACT.mvrt();S.gMove=true;say('G이동회전: 옮길 요소를 고르세요(그레이딩 사이즈 짝도 같이 옮김)')};
 
 const YC={};
 const ycD=(a,b)=>Math.hypot(b.x-a.x,b.y-a.y);
@@ -2472,6 +2594,25 @@ YC.bx={name:'지정분할 부속분리',steps:YC.b2.steps,
       if(whole)adds.push({kind:e.pts.length>2?'curve':'line',pts:e.pts.map(mv),...o})}
     adds.push({kind:'line',pts:[mv(A),mv(B)],layer:cut.layer,color:cut.color,group:g});ycAdd(adds);Y.n=adds.length},done:Y=>'고른 쪽 '+Y.n+'개를 복사해 옮겼습니다.'};
 
+function areasTable(out){const old=areasParse(out).filter(x=>x.before),pax=!isPan(new DataView(out.buffer,out.byteOffset,out.byteLength).getUint16(10,true));
+  const mine=S.areas.map(a=>({label:a.label,name:a.name,mat:a.mat,n:a.n,grain:a.grain,r:[a.box[0],a.box[3],a.box[2],a.box[1]],before:false}));
+
+  if(pax&&!old.length&&mine.length)old.push({label:'before',name:'before',mat:'',n:0,grain:'',r:[Math.min(...mine.map(m=>m.r[0])),Math.max(...mine.map(m=>m.r[1])),Math.max(...mine.map(m=>m.r[2])),Math.min(...mine.map(m=>m.r[3]))],before:true});
+  areasEmit(out,[...old,...mine])}
+const areaHit=(b,x,y)=>x>=b[0]&&x<=b[2]&&y>=b[1]&&y<=b[3],areaKeep=()=>({list:S.areas,dirty:S.areasDirty}),docIsPan=()=>isPan(new DataView(S.doc.bytes.buffer,S.doc.bytes.byteOffset).getUint16(10,true));
+function areaSet(box,label){const m=/^([^:]{1,9}):([A-Z])(\d{1,2})([XYZ])$/.exec(String(label).trim().replace('：',':'));
+  if(!m)throw new Error("영역 이름은 '이름:소재·벌수·결방향' 꼴로 적어 주세요. 예: 앞판:A2Y (결방향 X 한방향 · Y 양방향 · Z 무지)");
+  const bytes=eucKr(m[0]);if(!bytes)throw new Error('유카에서 못 쓰는 글자가 있습니다.');if(bytes.length>11)throw new Error('이름이 깁니다. 이름:소재·벌수·결방향을 다 해서 11바이트까지(한글 한 자 = 2바이트).');
+  const a={label:m[0],name:m[1],mat:m[2],n:+m[3],grain:m[4],box},cx=(box[0]+box[2])/2,cy=(box[1]+box[3])/2,keep=areaKeep();
+  S.areas=S.areas.filter(o=>!(areaHit(o.box,cx,cy)||areaHit(box,(o.box[0]+o.box[2])/2,(o.box[1]+o.box[3])/2))).concat([a]);S.areasDirty=true;S.areaLast=m[2]+m[3]+m[4];S.hist.push({ar:keep});refresh();return a}
+YC.ps={name:'수동영역',steps:[{t:'area',hint:Y=>'영역의 두점을 누르세요'+(Y.areaPts&&Y.areaPts.length?' (둘째 점)':'')}],
+  run:Y=>{const [p,q]=Y.area,box=[Math.min(p.x,q.x),Math.min(p.y,q.y),Math.max(p.x,q.x),Math.max(p.y,q.y)];if(box[2]-box[0]<0.5||box[3]-box[1]<0.5)throw new Error('영역이 너무 작습니다.');
+    let k=1;while(S.areas.some(a=>a.name===String(k)))k++;const cx=(box[0]+box[2])/2,cy=(box[1]+box[3])/2,old=S.areas.find(o=>areaHit(o.box,cx,cy)),def=old?old.label:k+':'+(S.areaLast||'A2Y');
+    const label=Y.label!==undefined?Y.label:prompt('영역 이름 — 이름:소재·벌수·결방향\n소재 A~ · 벌수 = 1벌매수 · 결방향 X 한방향 / Y 양방향 / Z 무지',def);if(label===null||label==='')throw new Error('영역을 넣지 않았습니다.');
+    Y.a=areaSet(box,label);$('areaOn').checked=true},done:Y=>'영역 '+Y.a.label+'을(를) 넣었습니다.'};
+YC.add={name:'영역삭제 지정',steps:[{t:'pt',hint:'지울 영역 안을 누르세요'}],run:Y=>{const p=Y.pts[0],hit=S.areas.filter(a=>areaHit(a.box,p.x,p.y)).sort((a,b)=>(a.box[2]-a.box[0])*(a.box[3]-a.box[1])-(b.box[2]-b.box[0])*(b.box[3]-b.box[1]))[0];
+    if(!hit)throw new Error('그 자리에 영역이 없습니다.');const keep=areaKeep();S.areas=S.areas.filter(a=>a!==hit);S.areasDirty=true;S.hist.push({ar:keep});refresh();Y.a=hit},done:Y=>'영역 '+Y.a.label+'을(를) 지웠습니다.'};
+
 YC.drt={name:'다트 회전',steps:[{t:'area',hint:Y=>'처리대상을 대각의 2점으로 누르세요'+(Y.areaPts&&Y.areaPts.length?' (둘째 점)':'')},{t:'pt',hint:'다트의 회전 중심(다트 끝)을 누르세요: 끝점'},
     {t:'el',need:'line',hint:'다트선을 반시계 방향으로 누르세요: 첫째 다트선(고정 쪽)'},{t:'el',need:'line',hint:'다트선을 반시계 방향으로 누르세요: 둘째 다트선'},
     {t:'multi',min:2,hint:Y=>'절개선을 반시계 방향으로 차례로 누르고 오른클릭 ('+(Y.pts.length-1)+'개)'},
@@ -2577,8 +2718,15 @@ function kOne(b,e,tap){
 YC.k={name:'편측수정',steps:[{t:'el',need:'any',hint:'기준이 되는 선을 누르세요'},{t:'multi',min:1,hint:Y=>'수정할 선을 수정할 쪽에서 누르세요(여러 개 — 다 누르고 오른클릭) ['+Y.pts.length+']'}],
   run:Y=>{const b=Y.els[0],ts=Y.pts.map((w,i)=>{let best=null,bd=2;for(const e of allEls()){if(e===b||e.text||isNotch(e)||e.pts.length<2)continue;const d=ycNear(shape(e),w).d;if(d<bd){bd=d;best=e}}
       if(!best)throw new Error((i+1)+'번째 수정할 선을 못 찾았습니다. 선 가까이를 눌러 주세요.');if(locked(best)&&!best.kind)throw new Error('그레이딩이나 다른 요소에 연결된 선은 유카에서 고쳐 주세요.');return best});
-    if(new Set(ts).size<ts.length)throw new Error('같은 선을 두 번 눌렀습니다.');Y.n=ts.length;Y.kTs=ts; ts.forEach((e,i)=>kOne(b,e,Y.pts[i]))},
+    if(new Set(ts).size<ts.length)throw new Error('같은 선을 두 번 눌렀습니다.');Y.n=ts.length;Y.kTs=ts;if(Y.g)Y.kMates=ts.map(e=>gMates(e)); ts.forEach((e,i)=>kOne(b,e,Y.pts[i]))},
   done:Y=>(Y.n>1?Y.n+'개의 ':'')+'선 끝을 기준선에 맞췄습니다.'};
+
+YC.gk={name:'G편측수정',steps:[{t:'el',need:'any',hint:'[GK] 기준이 되는 선을 누르세요'},{t:'multi',min:1,hint:Y=>'수정할 선을 누르세요 ['+Y.pts.length+']'}],
+  run:Y=>{const bm=new Map(gMates(Y.els[0]).map(t=>[t.layer,t]));Y.g=true;YC.k.run(Y);let n=0,skip=0;
+    Y.kTs.forEach((e,i)=>{const P=shape(e),end=ycD(Y.pts[i],P[P.length-1])<ycD(Y.pts[i],P[0]);
+      for(const t of Y.kMates[i]){const bb=bm.get(t.layer);if(!bb){skip++;continue}const Q=shape(t);try{kOne(bb,t,end?Q[Q.length-1]:Q[0]);n++}catch(err){skip++}}});
+    Y.gn=n;Y.gskip=skip},
+  done:Y=>(Y.n>1?Y.n+'개의 ':'')+'선 끝을 기준선에 맞췄습니다. 사이즈 '+Y.gn+'개도'+(Y.gskip?' (짝이 없거나 안 만나는 '+Y.gskip+'개는 건너뜀)':'')};
 
 function bOne(b1,b2,e){
   if(e.arc)throw new Error('원·원호는 양측수정할 수 없습니다.');const L1=b1.pts.length===2&&!ycCurve(b1),L2=b2.pts.length===2&&!ycCurve(b2),B1=shape(b1),B2=shape(b2);
@@ -2758,8 +2906,199 @@ YC.phda={name:'핀턱',steps:pleatSteps(1).map((st,k,a)=>st.t==='num'&&a.findInd
 for(const code of Object.keys(YC))ACT[code]=()=>ycStart(code);
 ACT.sft=ACT.jz;ACT.bias=ACT.jn;
 
+ACT.poo=()=>{$('gradeOn').checked=true;$('gradeVal').checked=true;draw()};ACT.won=()=>{$('areaOn').checked=true;draw();const n=S.doc&&S.areas?S.areas.length:0;say(n?'영역 '+n+'개: '+S.areas.map(a=>a.label).join(' · '):'이 파일에는 영역 이름이 없습니다(ps로 넣을 수 있음).')};ACT.wof=()=>{$('areaOn').checked=false;draw();say('영역 이름을 감췄습니다.')};ACT.asd=()=>{if(!S.areas||!S.areas.length)return say('영역이 없습니다.');const keep=areaKeep();S.areas=[];S.areasDirty=true;S.hist.push({ar:keep});refresh();say('영역 이름을 모두 지웠습니다.')};ACT.pf=()=>{$('gradeVal').checked=false;draw()};
+YC.pvi={name:'양확인',steps:[{t:'pt',hint:'절개선을 누르세요'}],run:Y=>{const w=Y.pts[0];let best=null;
+  for(const e of gradeEls())if(e.gr.t==='cut'){const n=ycNear(e.gr.P,w);if(n&&(!best||n.d<best.d))best={d:n.d,e}}
+  if(!best||best.d*S.view.s>24)throw new Error('가까운 절개선이 없습니다.');const g=best.e.gr,t=gradeTxt(g);
+  S.gradePick=best.e;say('절개선 #'+((best.e.rec-REC)/RSZ+1)+' ('+({1:'기준직각',2:'기준수평',3:'사선직각',4:'종류4'}[g.k]||'종류'+g.k)+'): '+(t||(g.V?'절개량 없음':'이 절개선은 못 읽는 형식'))+(g.m>2?' (절개량 자리: 점 '+g.at.join(',')+')':''))}};ACT.pvi=()=>ycStart('pvi');
+
 const grGeo=e=>!e.gr&&(e.type===TYPE.LINE||e.type===TYPE.CURVE);
 const grP=e=>(e.ctrl||e.pts);
+function grSnap(){
+  if(!S.doc||!gradeEls().some(e=>e.gr.t==='cut'))return null;const m=new Map();
+  for(const e of S.doc.els)if(grGeo(e))m.set(e,grP(e).map(p=>({x:p.x,y:p.y})));
+  S.grOrigV=new Map();for(const c of gradeEls())if(c.gr.t==='cut'&&c.gr.V)S.grOrigV.set(c,c.gr.V.map(a=>a.slice()));
+  S.grOrigX=new Map();for(const e of S.doc.els)if(!e.gr&&((e.type===TYPE.NOTCH&&e.at&&e.pts)||(e.type===TYPE.ARC&&e.arc)||(e.type===TYPE.TEXT&&e.at)))S.grOrigX.set(e,grXsnap(e));return m}
+function grSegX(a,b,c,d){const r={x:b.x-a.x,y:b.y-a.y},s={x:d.x-c.x,y:d.y-c.y},den=r.x*s.y-r.y*s.x;if(Math.abs(den)<1e-12)return null;
+  return {t:((c.x-a.x)*s.y-(c.y-a.y)*s.x)/den,u:((c.x-a.x)*r.y-(c.y-a.y)*r.x)/den}}
+function grPrep(geoOf,withAdds,old){
+  const G=gradeEls(),base=G.filter(e=>e.gr.t==='base').map(e=>e.gr.P[0]),cuts=G.filter(e=>e.gr.t==='cut'&&e.gr.V&&e.gr.m>0);
+  const B=grBase(),lines=S.doc.els.filter(e=>grGeo(e)&&e.layer===B&&!S.dels.includes(e.rec)).map(geoOf).concat(withAdds?S.adds.filter(e=>e.layer===B&&(e.kind==='line'||e.kind==='curve')).map(e=>e.pts):[]);
+  const areas=[],boxes=G.filter(e=>e.gr.t==='area').map(a=>grBoxOf(a.gr.P)).concat(grAutoBoxes(lines,G));for(const bx of boxes){
+    const In=(q,t)=>q.x>=bx[0]-t&&q.x<=bx[2]+t&&q.y>=bx[1]-t&&q.y<=bx[3]+t,g=base.find(q=>In(q,0.01));if(!g)continue;
+    const corn=[{x:bx[0],y:bx[1]},{x:bx[2],y:bx[1]},{x:bx[2],y:bx[3]},{x:bx[0],y:bx[3]}],hit=P=>P.some(q=>In(q,0))||P.some((q,i)=>i&&corn.some((c,k)=>{const h=grSegX(P[i-1],q,c,corn[(k+1)%4]);return h&&h.t>=0&&h.t<=1&&h.u>=0&&h.u<=1}));
+    const own=lines.filter(P=>P.every(q=>In(q,0.01)));
+    areas.push({bx,G:g,size:(bx[2]-bx[0])*(bx[3]-bx[1]),In,cuts:cuts.filter(c=>hit(c.gr.P)&&(!old||(S.grOrigV&&S.grOrigV.has(c)))).map(c=>{const P=c.gr.P;let q0=null,q1=null;
+      for(const L of own)for(let i=1;i<L.length;i++)for(let j=1;j<P.length;j++){const h=grSegX(P[j-1],P[j],L[i-1],L[i]);if(!h||h.t<0||h.t>1||h.u<0||h.u>1)continue;const q=j-1+h.t;if(q0===null||q<q0)q0=q;if(q1===null||q>q1)q1=q}
+      return {g:old?{...c.gr,V:S.grOrigV.get(c)}:c.gr,clip:q0===null?null:[q0,q1]}})})}
+  areas.sort((a,b)=>a.size-b.size);return areas}
+function grBase(){
+  const cuts=gradeEls().filter(e=>e.gr.t==='cut'&&e.gr.V),lays=new Set(S.doc.els.filter(grGeo).map(e=>e.layer));
+  if(lays.has(43))return 43;for(const l of [...lays].sort((a,b)=>a-b))if(cuts.every(c=>c.gr.V.every(a=>!a[l-1])))return l;return 43}
+function grPt(p,A,lay){
+  if(!A)return {x:p.x,y:p.y};const G=A.G;let dx=0,dy=0;
+  for(const {g,clip} of A.cuts){const P=g.P,n=P.length,H=[];
+    for(let i=1;i<n;i++){const h=grSegX(G,p,P[i-1],P[i]);if(!h)continue;const lo=i===1?-1e9:0,hi=i===n-1?1e9:1;if(h.t>=0&&h.t<=1&&h.u>=lo&&h.u<=hi)H.push(i)}
+    if(H.length%2!==1)continue;
+    const vs=g.V.map(a=>a[lay-1]||0);let a=vs[0];
+    if(g.m>1){let at=g.at.map(x=>x-1);if(clip)at=at.map(x=>Math.max(clip[0],Math.min(clip[1],x)));
+      let best=null;for(let i=1;i<n;i++){const s=P[i-1],e=P[i],ex=e.x-s.x,ey=e.y-s.y,L2=ex*ex+ey*ey||1e-12;let t=((p.x-s.x)*ex+(p.y-s.y)*ey)/L2;t=Math.max(i===1?-1e9:0,Math.min(i===n-1?1e9:1,t));
+        const d=Math.hypot(p.x-s.x-ex*t,p.y-s.y-ey*t);if(!best||d<best.d)best={d,q:i-1+Math.max(0,Math.min(1,t))}}
+      const q=best.q;a=vs[g.m-1];if(q<=at[0])a=vs[0];else for(let j=1;j<g.m;j++)if(q<=at[j]){const f=(q-at[j-1])/((at[j]-at[j-1])||1);a=vs[j-1]+(vs[j]-vs[j-1])*f;break}}
+    if(!a)continue;let d;
+
+    {const k3=g.k!==1&&g.k!==2,s=k3?P[H[0]-1]:P[0],e=k3?P[H[0]]:P[n-1],L=Math.hypot(e.x-s.x,e.y-s.y)||1,tx=(e.x-s.x)/L,ty=(e.y-s.y)/L;let nx=-ty,ny=tx;if((p.x-G.x)*nx+(p.y-G.y)*ny<0){nx=-nx;ny=-ny}
+     if(g.k===1)d={x:Math.abs(nx)>1e-6?Math.sign(nx):Math.sign(tx*ny)||1,y:0};else if(g.k===2)d={x:0,y:Math.abs(ny)>1e-6?Math.sign(ny):Math.sign(ty*nx)||1};else d={x:nx,y:ny}}
+    dx+=d.x*a;dy+=d.y*a}
+  return {x:p.x+dx,y:p.y+dy}}
+function grEl(P,curve,areas,lay,hint){
+  const A=(hint&&areas.find(a=>hint.every(q=>a.In(q,0.01))))||areas.find(a=>P.every(q=>a.In(q,0.01)));if(!curve||P.length<3)return P.map(p=>grPt(p,A,lay));
+  const n=P.length,e0=P[0],eN=P[n-1],P0=grPt(e0,A,lay),PN=grPt(eN,A,lay),u={x:eN.x-e0.x,y:eN.y-e0.y},c={x:PN.x-P0.x,y:PN.y-P0.y},U=u.x*u.x+u.y*u.y||1e-12,re=(c.x*u.x+c.y*u.y)/U,im=(c.y*u.x-c.x*u.y)/U;
+  return P.map((p,i)=>i===0?P0:i===n-1?PN:{x:P0.x+re*(p.x-e0.x)-im*(p.y-e0.y),y:P0.y+im*(p.x-e0.x)+re*(p.y-e0.y)})}
+function grLayers(B){
+  const out=new Set();for(const c of gradeEls())if(c.gr.t==='cut'&&c.gr.V)for(const a of c.gr.V)a.forEach((v,i)=>{if(v&&i+1!==B&&i+1<100)out.add(i+1)});return [...out].sort((a,b)=>a-b)}
+function grPairs(B,L,areasOld){
+  const O=S.grOrig,bs=S.doc.els.filter(e=>grGeo(e)&&e.layer===B),ts=S.doc.els.filter(e=>grGeo(e)&&e.layer===L&&!S.dels.includes(e.rec)),cand=[];
+  for(const b of bs){const P=O.get(b),Q=grEl(P,b.type===TYPE.CURVE,areasOld,L);
+    for(const t of ts){const T=O.get(t);if(t.type!==b.type||T.length!==P.length)continue;let d=0;for(let i=0;i<P.length;i++)d+=Math.hypot(Q[i].x-T[i].x,Q[i].y-T[i].y);d/=P.length;if(d<5)cand.push([d,b,t,Q])}}
+  cand.sort((x,y)=>x[0]-y[0]);const ub=new Set(),ut=new Set(),out=[];for(const [d,b,t,Q] of cand){if(ub.has(b)||ut.has(t))continue;ub.add(b);ut.add(t);out.push({b,t,old:Q})}return out}
+function grSet(t,N,mv){
+  const snap={};for(const k of ['pts','ctrl','ft','trim','baked'])snap[k]=t[k];mv.push({e:t,was:!t.kind&&S.edits.has(t),snap});
+  if(t.ctrl&&t.ft)Object.assign(t,{pts:resample(cutCurve(spline(N),t.ft[0],t.ft[1],N),t.n,true),trim:false,baked:true});else t.pts=N;changed(t)}
+
+const grXsnap=e=>e.type===TYPE.ARC?{arc:{...e.arc,c:{...e.arc.c}},pts:e.pts}:e.type===TYPE.TEXT?{at:{...e.at},box:e.box?e.box.map(p=>({...p})):null}:{at:{...e.at},pts:e.pts.map(p=>({...p}))};
+const grKey=(e,o)=>e.type===TYPE.ARC?(o||e).arc.c:(o||e).at;
+const grArea=(areas,p)=>areas.find(a=>a.In(p,0.01));
+const grDraw=(P,curve)=>curve&&P.length>2?spline(P):P;
+function grOn(P,p){let best=null,acc=0;for(let i=1;i<P.length;i++){const a=P[i-1],b=P[i],dx=b.x-a.x,dy=b.y-a.y,L=Math.hypot(dx,dy)||1e-12;let t=((p.x-a.x)*dx+(p.y-a.y)*dy)/(L*L);t=Math.max(0,Math.min(1,t));
+  const d=Math.hypot(a.x+dx*t-p.x,a.y+dy*t-p.y);if(!best||d<best.d)best={d,s:acc+L*t};acc+=L}return {...(best||{d:1e9,s:0}),L:acc}}
+function grAt(P,s){let acc=0;for(let i=1;i<P.length;i++){const a=P[i-1],b=P[i],L=Math.hypot(b.x-a.x,b.y-a.y);if(acc+L>=s||i===P.length-1){const t=L?(s-acc)/L:0;return {x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t}}acc+=L}return P[0]}
+function grMoveX(t,o,d,b,bo,mv){
+  const keys=t.type===TYPE.ARC?['arc','pts']:t.type===TYPE.TEXT?['at','box']:['at','pts'],snap={};for(const k of keys)snap[k]=t[k];
+  const sh=p=>({x:p.x+d.x,y:p.y+d.y});let N;
+  if(t.type===TYPE.ARC){const a={...o.arc,c:sh(o.arc.c),r:o.arc.r+(b.arc.r-bo.arc.r),from:o.arc.from+(b.arc.from-bo.arc.from),to:o.arc.to+(b.arc.to-bo.arc.to)};N={arc:a,pts:arcPts(a.c,a.r,a.from,a.to)}}
+  else if(t.type===TYPE.TEXT)N={at:sh(o.at),box:o.box?o.box.map(sh):t.box};else N={at:sh(o.at),pts:o.pts.map(sh)};
+  const cur=grKey(t),nk=t.type===TYPE.ARC?N.arc.c:N.at;if(Math.hypot(cur.x-nk.x,cur.y-nk.y)<1e-9&&(t.type!==TYPE.ARC||(Math.abs(t.arc.r-N.arc.r)<1e-9&&Math.abs(t.arc.from-N.arc.from)<1e-9&&Math.abs(t.arc.to-N.arc.to)<1e-9)))return false;
+  mv.push({e:t,was:S.edits.has(t),snap});Object.assign(t,N);changed(t);return true}
+
+function gr5B(n){if(n.kind||!n.owner)return null;const s5=S.doc.els.find(e=>e.type===0x5B&&(e.rec-REC)/RSZ+1===n.owner);if(!s5)return null;
+  const v=new DataView(S.doc.bytes.buffer,S.doc.bytes.byteOffset),no=(n.rec-REC)/RSZ+1;
+  for(let k=0;k+258<=s5.len;k+=256){const o=s5.addr+k,n2=Math.min(v.getUint16(o+48,true),50),ns=[...Array(n2)].map((_,i)=>v.getUint16(o+50+2*i,true)),i=ns.indexOf(no);
+    if(i>=0&&v.getUint16(o+6,true))return {line:v.getUint16(o+8,true),dir:v.getInt16(o+28,true)<0?-1:1,dist:v.getFloat32(o+70,true),first:i===0}}
+  return null}
+function grOthers(B,lays,aOld,aNew,mv,as,ds){
+  const O=S.grOrig,X=S.grOrigX,dead=new Set(S.dels),D=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y),lines=S.doc.els.filter(e=>grGeo(e)&&e.layer===B),c={n:0,skip:0};
+  const kill=t=>{if(!dead.has(t.rec)){S.dels.push(t.rec);ds.push(t.rec);dead.add(t.rec)}};
+  for(const L of lays){const pairOf=new Map(grPairs(B,L,aOld).map(x=>[x.b,x]));
+    for(const ty of [TYPE.ARC,TYPE.TEXT,TYPE.NOTCH]){
+      const bs=S.doc.els.filter(e=>e.layer===B&&e.type===ty&&!e.gr&&X.has(e)),ts=S.doc.els.filter(e=>e.layer===L&&e.type===ty&&!e.gr&&X.has(e)),used=new Set();
+      for(const b of bs){const bo=X.get(b),k0=grKey(b,bo);
+        if(ty!==TYPE.NOTCH){const p0=grPt(k0,grArea(aOld,k0),L);let t=null,bd=0.05;for(const x of ts){if(used.has(x))continue;const d=D(grKey(x,X.get(x)),p0);if(d<bd){bd=d;t=x}}
+          if(!t){c.skip++;continue}used.add(t);if(dead.has(b.rec)){kill(t);continue}
+          const k1=grKey(b),p1=grPt(k1,grArea(aNew,k0)||grArea(aNew,k1),L);if(grMoveX(t,X.get(t),{x:p1.x-p0.x,y:p1.y-p0.y},b,bo,mv))c.n++;continue}
+
+        let h=null;for(const l of lines){const o=grOn(grDraw(O.get(l),l.type===TYPE.CURVE),k0);if(!h||o.d<h.o.d)h={l,o}}
+        const pr=h&&h.o.d<0.05?pairOf.get(h.l):null;if(!pr){c.skip++;continue}
+        const TP=grDraw(O.get(pr.t),pr.t.type===TYPE.CURVE),TL=grOn(TP,TP[0]).L;let t=null,bd=1e9;
+        for(const x of ts){if(used.has(x))continue;const o=grOn(TP,X.get(x).at);if(o.d>0.05)continue;const d=Math.abs(o.s/(TL||1)-h.o.s/(h.o.L||1));if(d<bd){bd=d;t=x}}
+        if(!t){c.skip++;continue}used.add(t);if(dead.has(b.rec)||dead.has(h.l.rec)){kill(t);continue}
+        const cv=h.l.type===TYPE.CURVE,Q0=grDraw(pr.old,cv),Q1=grDraw(grEl(grP(h.l),cv,aNew,L,O.get(h.l)),cv),s1=grOn(grDraw(grP(h.l),cv),b.at),L0=grOn(Q0,Q0[0]).L,L1=grOn(Q1,Q1[0]).L;
+        const fromStart=h.o.s<h.o.L/2,q0=grAt(Q0,fromStart?h.o.s:L0-(h.o.L-h.o.s)),q1=grAt(Q1,fromStart?s1.s:L1-(s1.L-s1.s));
+
+        const nb=gr5B(b),moved=grP(h.l).some((p,i)=>{const o=O.get(h.l)[i];return !o||Math.abs(p.x-o.x)>1e-9||Math.abs(p.y-o.y)>1e-9});
+        if(nb&&nb.line===(h.l.rec-REC)/RSZ+1&&moved){const dEnd=nb.first?nb.dist:(nb.dir>0?s1.s:s1.L-s1.s),q=grAt(Q1,nb.dir>0?dEnd:L1-dEnd),o=X.get(t);
+          if(grMoveX(t,o,{x:q.x-o.at.x,y:q.y-o.at.y},b,bo,mv))c.n++;continue}
+        if(grMoveX(t,X.get(t),{x:q1.x-q0.x,y:q1.y-q0.y},b,bo,mv))c.n++}}
+  }
+  return c}
+
+const GRHEAD={4:[4,2,200,1,0,0,0,0],8:[8,2,200,3,2,1,0,0],1:[1,2,200,5,11,1,0,0]};
+function grBoxOf(P){const xs=P.map(p=>p.x),ys=P.map(p=>p.y);return [Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)]}
+function encodeGr(t,g){
+  if(t===1){const b=new DataView(new ArrayBuffer(8));b.setFloat32(0,g.P[0].x,true);b.setFloat32(4,g.P[0].y,true);return new Uint8Array(b.buffer)}
+  if(t===8){const b=new DataView(new ArrayBuffer(18+8*g.P.length));grBoxOf(g.P).forEach((v,i)=>b.setFloat32(4*i,v,true));b.setUint16(16,g.P.length,true);g.P.forEach((p,i)=>{b.setFloat32(18+8*i,p.x,true);b.setFloat32(22+8*i,p.y,true)});return new Uint8Array(b.buffer)}
+  const n=g.P.length,m=g.m,cap=g.cap,b=new DataView(new ArrayBuffer(28+6*m+8*n+4*m*cap)),p0=28+6*m;
+  grBoxOf(g.P).forEach((v,i)=>b.setFloat32(4*i,v,true));b.setUint16(16,n,true);b.setUint16(18,g.k,true);b.setUint16(20,2,true);b.setUint16(24,m,true);b.setUint16(26,cap,true);
+  g.at.forEach((x,j)=>b.setUint16(28+2*j,x,true));g.P.forEach((p,i)=>{b.setFloat32(p0+8*i,p.x,true);b.setFloat32(p0+8*i+4,p.y,true)});
+  for(let j=0;j<m;j++)for(let i=0;i<cap;i++)b.setFloat32(p0+8*n+4*(j*cap+i),g.V[j][i]||0,true);return new Uint8Array(b.buffer)}
+const grRec=(t,gr)=>({kind:'raw',type:t,head:GRHEAD[t],layer:200,gr,pts:[]});
+function grNearCut(w){let best=null;for(const e of gradeEls())if(e.gr.t==='cut'){const n=ycNear(e.gr.P,w);if(n&&(!best||n.d<best.d))best={d:n.d,e}}if(!best||best.d*S.view.s>24)throw new Error('가까운 절개선이 없습니다.');return best.e}
+YC.gwp={name:'기준점 작성',steps:[{t:'pt',hint:'그레이딩 기준점을 누르세요(패턴 안이나 가까운 곳)'}],run:Y=>{const a=grRec(1,{t:'base',P:[{...Y.pts[0]}]});S.adds.push(a);S.hist.push({a})},done:()=>'기준점(G)을 만들었습니다.'};
+YC.gbp=YC.gwp;ACT.gwp=ACT.gbp=()=>{$('gradeOn').checked=true;ycStart('gwp')};
+YC.gwd={name:'기준점 삭제',steps:[{t:'pt',hint:'지울 기준점(G)을 누르세요'}],run:Y=>{const w=Y.pts[0];let best=null;
+  for(const e of gradeEls())if(e.gr.t==='base'){const d=Math.hypot(e.gr.P[0].x-w.x,e.gr.P[0].y-w.y);if(!best||d<best.d)best={d,e}}
+  if(!best||best.d*S.view.s>24)throw new Error('가까운 기준점이 없습니다.');const e=best.e;
+  if(e.kind){S.adds.splice(S.adds.indexOf(e),1);S.hist.push({r:e})}else{S.dels.push(e.rec);S.hist.push({d:e.rec})}},done:()=>'기준점을 지웠습니다.'};ACT.gwd=()=>ycStart('gwd');
+YC.gl={name:'절개선 선입력',steps:[{t:'num',label:'종류 (1 기준직각 · 2 기준수평 · 3 사선직각)',def:()=>S.glKind||1,pos:1},{t:'multi',min:2,hint:'절개선의 점열을 누르세요(오른클릭으로 끝, 15점까지)'}],
+  run:Y=>{const k=Math.round(Y.nums[0]);if(![1,2,3].includes(k))throw new Error('종류는 1·2·3 중 하나입니다.');S.glKind=k;const P=Y.pts.slice(0,15).map(p=>({...p})),n=P.length,cap=100;
+    const a=grRec(4,{t:'cut',k,cap,P,m:2,at:[1,n],V:[new Array(cap).fill(0),new Array(cap).fill(0)]});a.gr.A=a.gr.V[0];a.gr.B=a.gr.V[1];S.adds.push(a);S.hist.push({a})},
+  done:()=>'절개선을 넣었습니다. 양지정(gi)으로 절개량을 넣으세요.'};ACT.gl=()=>{$('gradeOn').checked=true;$('gradeVal').checked=true;ycStart('gl')};
+
+YC.gi={name:'양지정',steps:[{t:'pt',hint:'절개량을 설정할 절개선을 누르세요'},{t:'num',label:'한 사이즈당 편차 cm (작게는 −)',def:()=>S.giStep??0.5},
+  {t:'num',label:'가장 작은 사이즈(레이어 번호)',def:()=>S.giLo??42,pos:1},{t:'num',label:'가장 큰 사이즈(레이어 번호)',def:()=>S.giHi??45,pos:1}],
+  run:Y=>{const e=grNearCut(Y.pts[0]),g=e.gr;if(!g.V)throw new Error('이 절개선은 못 읽는 형식이라 양을 넣을 수 없습니다.');
+    const [st,lo0,hi0]=Y.nums,lo=Math.round(Math.min(lo0,hi0)),hi=Math.round(Math.max(lo0,hi0)),B=grBase();S.giStep=st;S.giLo=lo;S.giHi=hi;
+    if(lo<1||hi>g.cap)throw new Error('사이즈 레이어는 1~'+g.cap+' 사이여야 합니다.');
+    const V=g.V.map(a=>a.slice());for(let L=lo;L<=hi;L++)for(const a of V)a[L-1]=L===B?0:+((L-B)*st).toFixed(4);
+    const snap={gr:e.gr,patch:e.patch};const ng={...g,V,A:V[0],B:V[g.m-1]};
+    if(!e.kind){const n=g.P.length,p0=28+6*g.m,keep=(e.patch||[]).filter(([o])=>o<p0+8*n),add=[];for(let j=0;j<g.m;j++)for(let i=0;i<g.cap;i++)if(V[j][i]!==g.V[j][i]||(e.patch||[]).some(([o])=>o===p0+8*n+4*(j*g.cap+i)))add.push([p0+8*n+4*(j*g.cap+i),V[j][i]]);
+      S.hist.push({mv:[{e,was:S.edits.has(e),snap}]});e.gr=ng;e.patch=[...keep,...add];changed(e)}
+    else{S.hist.push({mv:[{e,was:false,snap}]});e.gr=ng}
+    S.gradePick=e},done:Y=>'절개량: '+gradeTxt(S.gradePick.gr)};
+YC.gv=YC.gi;ACT.gi=ACT.gv=()=>{$('gradeOn').checked=true;$('gradeVal').checked=true;ycStart('gi')};
+function grAutoBoxes(lines,G){
+  const areas=G.filter(e=>e.gr.t==='area').map(a=>grBoxOf(a.gr.P)),inB=(b,p,t)=>p.x>=b[0]-t&&p.x<=b[2]+t&&p.y>=b[1]-t&&p.y<=b[3]+t,made=[],els=lines.filter(P=>P&&P.length);
+  if(!els.length)return made;const bb=els.map(grBoxOf),uf=els.map((_,i)=>i),find=x=>{while(uf[x]!==x)x=uf[x]=uf[uf[x]];return x},GAP=3;
+  for(let i=0;i<bb.length;i++)for(let j=i+1;j<bb.length;j++){const p=bb[i],q=bb[j];if(!(p[2]+GAP<q[0]||q[2]+GAP<p[0]||p[3]+GAP<q[1]||q[3]+GAP<p[1]))uf[find(i)]=find(j)}
+  const comp=new Map();bb.forEach((b,i)=>{const r=find(i),c=comp.get(r);comp.set(r,c?[Math.min(c[0],b[0]),Math.min(c[1],b[1]),Math.max(c[2],b[2]),Math.max(c[3],b[3])]:b.slice())});
+  for(const g of G.filter(e=>e.gr.t==='base')){const p=g.gr.P[0];if(areas.some(b=>inB(b,p,0.01))||made.some(b=>inB(b,p,0.01)))continue;
+    let best=null;for(const b of comp.values()){const d=inB(b,p,0)?0:Math.hypot(Math.max(b[0]-p.x,0,p.x-b[2]),Math.max(b[1]-p.y,0,p.y-b[3]));if(!best||d<best.d)best={d,b}}
+    if(!best||best.d>10)continue;const b=[best.b[0]-0.5,best.b[1]-0.5,best.b[2]+0.5,best.b[3]+0.5];b[0]=Math.min(b[0],p.x);b[1]=Math.min(b[1],p.y);b[2]=Math.max(b[2],p.x);b[3]=Math.max(b[3],p.y);made.push(b)}
+  return made}
+function grCopyOf(src,L,A){
+  const sh=d=>q=>({x:q.x+d.x,y:q.y+d.y}),dOf=p=>{const q=grPt(p,grArea(A,p),L);return {x:q.x-p.x,y:q.y-p.y}},base={layer:L,grFrom:src,color:src.color||7,flag:src.flag||1};
+  const t=src.kind||(src.type===TYPE.LINE?'line':src.type===TYPE.CURVE?'curve':src.type===TYPE.NOTCH?'notch':src.type===TYPE.ARC?'arc':src.type===TYPE.TEXT?'text':null);
+  if(t==='line')return {...base,kind:'line',pts:grEl(grP(src),false,A,L),...(src.link===4?{link:4,r10:src.r10||0}:{})};
+  if(t==='curve'){const P=src.kind?src.pts:grP(src);const Q=grEl(P,true,A,L);return {...base,kind:'curve',pts:!src.kind&&src.trim&&src.ctrl&&src.ft?resample(cutCurve(spline(Q),src.ft[0],src.ft[1],Q),Q.length,true):Q}}
+  if(t==='notch'){const d=dOf(src.at);return {...base,kind:'notch',pts:src.pts.map(sh(d)),at:sh(d)(src.at)}}
+  if(t==='arc'){const d=dOf(src.arc.c),arc={...src.arc,c:sh(d)(src.arc.c)};return {...base,kind:'arc',arc,pts:arcPts(arc.c,arc.r,arc.from,arc.to)}}
+  if(t==='text'){const d=dOf(src.at);if(src.kind)return {...src,...base,at:sh(d)(src.at),box:src.box.map(sh(d))};
+    const o={};for(const k of Object.keys(src))if(!['rec','addr','len','patch','reData','owner'].includes(k))o[k]=src[k];
+    return {...o,...base,kind:'raw',type:TYPE.TEXT,head:[...S.doc.bytes.slice(src.rec,src.rec+8)],rawData:S.doc.bytes.slice(src.addr,src.addr+src.len),self:true,at:sh(d)(src.at),box:src.box.map(sh(d)),pts:[]}}
+  return null}
+function grCopies(B,lays,A,mv,as,ras){
+  let n=0;const keys=['pts','at','box','arc'],D=(a,b)=>JSON.stringify(a)===JSON.stringify(b),docLays=new Set(S.doc.els.filter(e=>!e.gr&&e.layer!==B&&!S.dels.includes(e.rec)).map(e=>e.layer));
+  const okKind=e=>['line','curve','notch','arc','text'].includes(e.kind)&&!e.nest&&!e.grFrom&&!e.gr;
+  for(const L of lays){const fresh=!docLays.has(L);
+    const srcs=S.adds.filter(e=>e.layer===B&&okKind(e)).concat(fresh?S.doc.els.filter(e=>e.layer===B&&!e.gr&&!S.dels.includes(e.rec)&&[TYPE.LINE,TYPE.CURVE,TYPE.NOTCH,TYPE.ARC,TYPE.TEXT].includes(e.type)&&!(e.type===TYPE.LINE&&e.owner)):[]);
+    for(const s of srcs){const N=grCopyOf(s,L,A);if(!N)continue;const c=S.adds.find(e=>e.grFrom===s&&e.layer===L);
+      if(!c){S.adds.push(N);as.push(N);continue}
+      if(keys.every(k=>D(c[k],N[k])))continue;const snap={};for(const k of keys)snap[k]=c[k];mv.push({e:c,was:false,snap});for(const k of keys)if(k in N)c[k]=N[k];n++}}
+
+  const alive=new Set(S.adds),gone=S.adds.filter(e=>e.grFrom&&!(alive.has(e.grFrom)||(S.doc.els.includes(e.grFrom)&&!S.dels.includes(e.grFrom.rec))));
+  for(const g of gone){S.adds.splice(S.adds.indexOf(g),1);ras.push(g)}
+  return n}
+ACT.gr=()=>{
+  if(!S.doc)return say('먼저 패턴을 여세요.',true);
+  if(!gradeEls().some(e=>e.gr.t==='cut'))return say('그레이딩 규칙(절개선)이 없습니다. 기준점 gwp → 절개선 gl → 양지정 gi를 먼저 하세요(유카 파일의 규칙도 됩니다).',true);
+  if(!S.grOrig)S.grOrig=grSnap();
+  const B=grBase(),lays=grLayers(B);if(!lays.length)return say('절개량이 들어간 사이즈가 없습니다. 양지정(gi)으로 절개량을 넣으세요.',true);
+  const mv=[],as=[],ds=[],ras=[];
+  const O=S.grOrig,now=e=>grP(e),areasOld=grPrep(e=>O.get(e)||grP(e),false,true),areasNew=grPrep(now,true),same=(P,Q)=>P.length===Q.length&&P.every((p,i)=>Math.abs(p.x-Q[i].x)<1e-9&&Math.abs(p.y-Q[i].y)<1e-9);
+  let fixed=0,edited=0,cant=0,unp=0;const touched=new Set();
+  for(const L of lays){
+    for(const {b,t,old} of grPairs(B,L,areasOld)){
+      if(S.dels.includes(b.rec)){if(!S.dels.includes(t.rec)){S.dels.push(t.rec);ds.push(t.rec)}continue}
+      const P=now(b);
+      const Tn=O.get(t);if(P.length!==Tn.length){cant++;continue}
+      const Q=grEl(P,b.type===TYPE.CURVE,areasNew,L,O.get(b)),N=Tn.map((q,i)=>({x:q.x+Q[i].x-old[i].x,y:q.y+Q[i].y-old[i].y}));
+      if(!same(P,O.get(b)))touched.add(b);if(same(N,grP(t)))continue;grSet(t,N,mv);fixed++}}
+  const ox=grOthers(B,lays,areasOld,areasNew,mv,as,ds);fixed+=ox.n;fixed+=grCopies(B,lays,areasNew,mv,as,ras);
+  for(const b of S.doc.els)if(grGeo(b)&&b.layer===B&&!S.dels.includes(b.rec)&&O.get(b)&&!same(now(b),O.get(b)))edited++;
+  unp=edited-touched.size;
+  if(!mv.length&&!as.length&&!ds.length&&!ras.length)return say('다시 전개할 것이 없습니다(기준 사이즈 '+B+'에서 고친 것이 없거나 이미 전개됨).');
+  S.hist.push({mv,as,ds,ras});renderLayers();refresh();
+  say('전개(기준 '+B+' → 사이즈 '+lays.join('·')+'): 사이즈 요소 '+fixed+'개 고침'+(as.length?', 새 요소 '+as.length+'개':'')+(ds.length+ras.length?', '+(ds.length+ras.length)+'개 지움':'')+(cant?' · 점 수가 바뀐 선 '+cant+'개는 못 고침':'')+(unp>0?' · 짝이 없는 기준 선 '+unp+'개':'')+'. 되돌리기로 돌아갈 수 있습니다.',!!(cant||unp>0))};
 
 YC.ds={name:'2점 재기',steps:[{t:'pt',hint:'2점을 누르세요(첫 점)'},{t:'pt',hint:'2점을 누르세요(둘째 점)'}],
   run:Y=>{const [a,b]=Y.pts;S.dsLast={h:Math.abs(b.y-a.y),w:Math.abs(b.x-a.x),d:Math.hypot(b.x-a.x,b.y-a.y)}},
@@ -2777,9 +3116,10 @@ function gSetPts(e,N,mv){const snap={};for(const k of ['pts','ctrl','ft','trim',
   if(e.trim){e.trim=false;e.baked=true}e.pts=N;changed(e)}
 
 function gMates(e){
-  const B=e.layer,out=[],A=null;
+  const B=e.layer,out=[],rule=gradeEls().some(c=>c.gr.t==='cut');let A=null;if(rule){if(!S.grOrig)S.grOrig=grSnap();A=grPrep(x=>(S.grOrig&&S.grOrig.get(x))||grP(x),false,true)}
   const lays=[...new Set(S.doc.els.filter(x=>grGeo(x)&&x.layer!==B&&Math.abs(x.layer-B)<=5).map(x=>x.layer).concat(S.adds.filter(x=>x.grFrom===e).map(x=>x.layer)))].sort((a,b)=>a-b);
   for(const L of lays){const cp=S.adds.find(x=>x.grFrom===e&&x.layer===L);if(cp){out.push(cp);continue}if(e.kind)continue;let t=null;
+    if(A&&S.grOrig&&S.grOrig.has(e)){const p=grPairs(B,L,A).find(x=>x.b===e);t=p?p.t:null}
     if(!t){const P=grP(e);let bd=5;for(const x of S.doc.els){if(x.layer!==L||x.type!==e.type||!grGeo(x)||S.dels.includes(x.rec))continue;const Q=grP(x);if(Q.length!==P.length)continue;const d=P.reduce((s,p,i)=>s+Math.hypot(p.x-Q[i].x,p.y-Q[i].y),0)/P.length;if(d<bd){bd=d;t=x}}}
     if(t&&!S.dels.includes(t.rec))out.push(t)}
   return out}
@@ -2789,6 +3129,21 @@ function srRun(Y,all){const e=Y.els[0],tap=Y.taps[0],q=Y.pts[0];if(!(e.type===TY
   gSetPts(e,simMove(P,i,q),mv);let n=0;for(const t of mates){if(!t.kind&&locked(t))continue;const T=gPts(t);if(T.length!==P.length)continue;gSetPts(t,simMove(T,i,{x:T[i].x+d.x,y:T[i].y+d.y}),mv);n++}
   S.hist.push({mv});S.srN=n}
 YC.sr={name:'유사이동',steps:[{t:'el',edit:1,hint:'대상을 누르세요(옮길 끝 쪽을 누름)'},{t:'pt',hint:'새로운 점을 누르세요'}],run:Y=>srRun(Y,false),done:()=>'끝점을 옮기고 곡선을 닮게 따라 옮겼습니다.'};ACT.sr=()=>ycStart('sr');
+YC.srg={name:'G유사이동',steps:[{t:'el',edit:1,hint:'기본 사이즈의 대상을 누르세요(옮길 끝 쪽을 누름)'},{t:'pt',hint:'새로운 점을 누르세요'}],run:Y=>srRun(Y,true),done:()=>'기본과 사이즈 '+S.srN+'개를 같이 옮겼습니다.'};ACT.srg=()=>ycStart('srg');
+
+function joinPts(e1,e2,N){let A=e1.trim?e1.pts.slice():gPts(e1),B=e2.trim?e2.pts.slice():gPts(e2);const g=0.05;
+  if(ycD(A[A.length-1],B[0])<g){}else if(ycD(A[A.length-1],B[B.length-1])<g)B.reverse();else if(ycD(A[0],B[B.length-1])<g){[A,B]=[B,A]}else if(ycD(A[0],B[0])<g)A.reverse();else return null;
+  const D=(e,Q)=>(e.type===TYPE.CURVE||e.kind==='curve')&&!e.trim&&Q.length>2?spline(Q):Q;return resample([...D(e1,A),...D(e2,B).slice(1)],N,true)}
+YC.grc={name:'G선합치기',steps:[{t:'el',edit:1,hint:'선합치기할 요소를 누르세요(첫 번째)'},{t:'el',edit:1,hint:'이어진 다음 요소를 누르세요'},{t:'num',label:'점수 (3~15)',def:()=>S.grcN||8,pos:1}],
+  run:Y=>{const [e1,e2]=Y.els,N=Math.round(Y.nums[0]);if(e1===e2)throw new Error('서로 다른 두 요소를 눌러 주세요.');if(N<3||N>15)throw new Error('점수는 3~15입니다.');S.grcN=N;
+    for(const e of [e1,e2])if(!e.kind&&(locked(e)||S.doc.refs.has((e.rec-REC)/RSZ+1)))throw new Error('그레이딩이나 다른 요소에 연결된 선은 유카에서 고쳐 주세요.');
+    const P=joinPts(e1,e2,N);if(!P)throw new Error('두 요소의 끝이 이어져 있지 않습니다.');
+    const m1=gMates(e1),m2=gMates(e2),ds=[],ras=[],as=[],kill=e=>{if(e.kind){S.adds.splice(S.adds.indexOf(e),1);ras.push(e)}else{S.dels.push(e.rec);ds.push(e.rec)}};
+    const nb={kind:'curve',pts:P,layer:e1.layer,color:e1.color,group:e1.group||0,flag:1};let n=0;
+    for(const t1 of m1){const t2=m2.find(x=>x.layer===t1.layer);if(!t2)continue;if([t1,t2].some(t=>!t.kind&&(locked(t)||S.doc.refs.has((t.rec-REC)/RSZ+1))))continue;const Q=joinPts(t1,t2,N);if(!Q)continue;
+      kill(t1);kill(t2);as.push({kind:'curve',pts:Q,layer:t1.layer,color:t1.color,group:t1.group||0,flag:1,grFrom:nb});n++}
+    kill(e1);kill(e2);as.unshift(nb);S.adds.push(...as);S.hist.push({ds,ras,as});S.grcDone=n},
+  done:()=>'기본과 사이즈 '+S.grcDone+'개를 곡선 하나로 합쳤습니다.'};ACT.grc=()=>ycStart('grc');
 
 function ycKill(e,ds,ras){if(e.kind){const i=S.adds.indexOf(e);if(i>=0)S.adds.splice(i,1);ras.push(e)}else{S.dels.push(e.rec);ds.push(e.rec)}}
 
@@ -2831,6 +3186,9 @@ YC.ajpm={name:'너치해제',steps:[{t:'multi',min:1,hint:Y=>'[ajpm] 해제할 �
     const ds=[],ras=[],lines=used.map(e=>({kind:'line',pts:[{...e.pts[0]},{...e.pts[1]}],layer:e.layer,color:e.color,flag:e.flag||1}));
     for(const e of used)ycKill(e,ds,ras);S.hist.push({ds,ras});refresh();ycAdd(lines);const add=S.hist.pop(),kill=S.hist.pop();S.hist.push({multi:[...(mv.length?[{mv}]:[]),kill,add]});Y.n=used.length},
   done:Y=>'너치 '+Y.n+'개를 선으로 되돌렸습니다.'};ACT.ajpm=()=>ycStart('ajpm');
+
+function simFit(B,a,b){const b0=B[0],b1=B[B.length-1],ux=b1.x-b0.x,uy=b1.y-b0.y,vx=b.x-a.x,vy=b.y-a.y,dd=ux*ux+uy*uy;if(dd<1e-12)throw new Error('기준선 두 끝이 같은 자리입니다.');
+  const re=(ux*vx+uy*vy)/dd,im=(ux*vy-uy*vx)/dd;return B.map(p=>({x:a.x+re*(p.x-b0.x)-im*(p.y-b0.y),y:a.y+im*(p.x-b0.x)+re*(p.y-b0.y)}))}
 YC.pl={name:'평행',steps:[{t:'el',need:'any',hint:'평행의 기준선을 누르세요'},{t:'pt',hint:'방향을 누르세요(평행선을 그을 쪽)'},{t:'num',label:'간격 cm',pos:1,def:()=>S.plGap||'1',hint:'간격을 입력하세요'}],
   run:Y=>{const e=Y.els[0];if(e.arc)throw new Error('원·원호의 평행은 아직 안 됩니다.');const d=Y.nums[0];S.plGap=d;ycAdd([{...plEl(e,d*plSide(e,Y.pts[0])),layer:e.layer,color:e.color}])},
   preview:(Y,h,v)=>{const e=Y.els[0];if(!e||e.arc)return null;const w=Y.pts[0]||h;if(!w)return null;const d=(Y.pts[0]?(v>0?v:S.plGap||1):S.plGap||1)*plSide(e,w),o=plEl(e,d);return [o.kind==='line'?o.pts:spline(o.pts)]},
@@ -2847,6 +3205,21 @@ YC.sg2={name:'2점유사',steps:[{t:'el',hint:'기준선을 누르세요'},{t:'p
     ycAdd([{kind:cv?'curve':'line',...(cv?{keepPts:true}:{}),pts:sg2Map(e,p,q),...st}])},
   preview:(Y,h)=>Y.els[0]&&Y.pts[0]&&h?[(()=>{try{const P=sg2Map(Y.els[0],Y.pts[0],h);return P.length>2?spline(P):P}catch(err){return null}})()]:null,
   done:()=>'기준선과 닮은 선을 두 점 사이에 만들었습니다.'};ACT.sg2=()=>ycStart('sg2');
+YC.gsr={name:'유사곡선',steps:[{t:'el',hint:'기준선을 누르세요'},{t:'multi',min:1,hint:Y=>'수정할 선을 누르세요(여러 개 — 다 누르고 오른클릭) ['+Y.pts.length+']'}],
+
+  run:Y=>{const b=Y.els[0],ts=Y.els.length>1?Y.els.slice(1):Y.pts.map((w,i)=>{let best=null,bd=2;for(const e of allEls()){if(e===b||e.text||isNotch(e)||e.arc||e.pts.length<2)continue;const d=ycNear(shape(e),w).d;if(d<bd){bd=d;best=e}}
+      if(!best)throw new Error((i+1)+'번째 수정할 선을 못 찾았습니다. 선 가까이를 눌러 주세요.');return best});
+    if(new Set(ts).size<ts.length)throw new Error('같은 선을 두 번 눌렀습니다.');Y.n=ts.length;for(const t of ts)gsrOne(b,t)},
+  done:Y=>(Y.n>1?Y.n+'개를 ':'')+'기준선과 닮게 바꿨습니다(두 끝은 그대로).'};ACT.gsr=()=>ycStart('gsr');
+function gsrOne(b,t){if(b===t)throw new Error('서로 다른 두 선을 눌러 주세요.');
+    if(!(t.type===TYPE.CURVE||t.kind==='curve'||t.type===TYPE.LINE||t.kind==='line'))throw new Error('수정할 곡선은 직선이나 곡선이어야 합니다.');
+    if(!t.kind&&locked(t))throw new Error('그레이딩이나 다른 요소에 연결된 선은 유카에서 고쳐 주세요.');
+
+    let B=gPts(b);const T=gPts(t),a0=T[0],a1=T[T.length-1];
+    {const bl=B[B.length-1];if((bl.x-B[0].x)*(a1.x-a0.x)+(bl.y-B[0].y)*(a1.y-a0.y)<0)B=B.slice().reverse()}
+    const N=simFit(B,a0,a1);N[0]={...a0};N[N.length-1]={...a1};
+    if(N.length===T.length){const mv=[];gSetPts(t,N,mv);S.hist.push({mv})}
+    else ycReplace([t],[{kind:N.length>2?'curve':'line',pts:N}])}
 
 YC.aij={name:'너치',steps:[{t:'multi',min:1,hint:Y=>'[aij] 대상선을 누르세요 — 시작점 쪽을 차례로, 다 누르고 오른클릭 ['+Y.pts.length+']'},{t:'pt',hint:'"O"의 방향을 누르세요(너치 머리 쪽)'},
     ...[1,2,3,4,5].map(k=>({t:'num',label:k+' 영역 cm (0 = 나눔, 뒤는 끝에서)',def:()=>String((S.aijLast||[5,0,0,0,13])[k-1]),hint:'1~5 영역: 0 앞은 시작에서, 0 뒤는 끝에서(5부터) 잰다'})),
@@ -2997,6 +3370,32 @@ YC.ajm={name:'너치수정',noFollow:1,steps:[{t:'pt',hint:'[ajm] 수정할 너�
     for(const M of mates)for(const {n,s} of ajPos(g,nF,nB,M.L)){const t=M.m.get(n);if(t)k+=ajPut(t,M.Q,s,!!flips.get(n),mv)}
     S.hist.push({mv});Y.k=k;Y.ns=mates.length},
   done:Y=>'너치 정의를 고쳐 너치 '+Y.k+'개를 다시 놓았습니다'+(Y.ns?'(사이즈 '+Y.ns+'개 포함)':'')+'.'};ACT.ajm=()=>ycStart('ajm');
+
+YC.agrd={name:'너치전개',noFollow:1,steps:[{t:'pt',hint:'[agrd] 너치를 누르세요'}],
+  run:Y=>{const g=aj5B(Y.pts[0]),mates=ajMates(g);if(!mates.length)throw new Error('이 너치의 사이즈 짝(그레이딩된 사이즈 선 위 너치)을 못 찾았습니다.');S.agrd={g,mates};agrdShow()},
+  done:()=>'사이즈마다 칸을 고치고 [수정개시]를 누르세요.'};ACT.agrd=()=>ycStart('agrd');
+function agrdRow(g,M){const r=[...g.F,...g.B].filter(y=>y.n).map(y=>{const t=M.m.get(y.n);return {y,s:t?nfFrame(M.Q,t.at).s:0}}),nF=g.F.length;
+  const F=[],B=[];let a=0;r.slice(0,nF).forEach(({s})=>{const d=g.dir>0?s:M.L-s;F.push({len:d-a});a=d});a=0;r.slice(nF).forEach(({s})=>{const d=g.dir>0?M.L-s:s;B.push({len:d-a});a=d});return ajSlots(F,B)}
+function agrdShow(){const A=S.agrd,old=document.getElementById('agrdDlg');if(old)old.remove();if(!A)return;const {g,mates}=A,f=v=>(+(+v).toFixed(3)).toString();
+  const d=document.createElement('div');d.id='agrdDlg';d.className='float';d.style.cssText='position:fixed;left:50%;top:20%;transform:translateX(-50%);z-index:50;display:flex;flex-direction:column;gap:6px;padding:10px;max-width:96vw;overflow:auto';
+  const tb=document.createElement('table');tb.style.cssText='border-collapse:collapse;font-size:13px';const hd=tb.insertRow();for(const t of ['사이즈','전장','1','2','3','4','5','합계','잔량']){const c=document.createElement('th');c.textContent=t;c.style.padding='0 4px';hd.append(c)}
+  const P=shape(g.line),Lb=nfLen(P),rows=[{lay:g.line.layer,L:Lb,a:ajSlots(g.F,g.B),base:true},...mates.map(M=>({lay:M.t.layer,L:M.L,a:agrdRow(g,M),M}))].sort((p,q)=>p.lay-q.lay);
+  const sumUp=(tr,R)=>{const a=[...tr.querySelectorAll('input')].map(i=>+i.value||0),s=a.reduce((p,q)=>p+q,0);tr.cells[7].textContent=f(s);tr.cells[8].textContent=f(R.L-s)};
+  for(const R of rows){const tr=tb.insertRow();tr.dataset.lay=R.lay;const c0=tr.insertCell();c0.textContent=R.lay+(R.base?' 기준':'');tr.insertCell().textContent=f(R.L);
+    R.a.forEach(v=>{const td=tr.insertCell(),i=document.createElement('input');i.type='number';i.step='0.01';i.inputMode='decimal';i.style.width='58px';i.value=f(v);i.disabled=!!R.base;i.oninput=()=>sumUp(tr,R);td.append(i)});tr.insertCell();tr.insertCell();sumUp(tr,R);R.tr=tr}
+  const note=document.createElement('div');note.textContent='주) 너치의 개수를 변경할 수 없습니다. 기준 줄은 ajm으로 고칩니다.';note.style.fontSize='12px';
+  const bar=document.createElement('div');bar.style.cssText='display:flex;gap:6px;flex-wrap:wrap;align-items:center';const btn=(t,fn)=>{const b=document.createElement('button');b.textContent=t;b.onclick=fn;bar.append(b);return b};
+  const baseA=rows.find(R=>R.base).a,step=document.createElement('input');step.type='number';step.step='0.01';step.style.width='58px';step.value='0';
+  btn('동값',()=>{for(const R of rows)if(!R.base){[...R.tr.querySelectorAll('input')].forEach((i,j)=>i.value=f(baseA[j]));sumUp(R.tr,R)}});
+  btn('편차',()=>{const st=+step.value||0,bl=g.line.layer;for(const R of rows)if(!R.base){const i=R.tr.querySelector('input'),j=rows.indexOf(R)-rows.findIndex(x=>x.base);i.value=f(baseA[0]+st*j);sumUp(R.tr,R)}});bar.append(step);
+  btn('수정개시',()=>{try{agrdApply(rows);d.remove();S.agrd=null}catch(err){say(err.message,true)}refresh()});btn('중지',()=>{d.remove();S.agrd=null;say('너치전개를 그만뒀습니다.')});
+  d.append(document.createTextNode('너치전개 (기본너치) — 사이즈마다 너치 자리'),tb,note,bar);document.body.append(d)}
+function agrdApply(rows){const {g}=S.agrd,mv=[];let k=0;
+  for(const R of rows){if(R.base)continue;const a=[...R.tr.querySelectorAll('input')].map(i=>+i.value||0),{F,B}=ajParse(a);
+    if(F.length!==g.F.length||B.length!==g.B.length)throw new Error(R.lay+' 사이즈: 너치의 개수는 바꿀 수 없습니다(앞 '+g.F.length+'·끝 '+g.B.length+'개).');
+    const nF=g.F.map((y,i)=>({...y,len:F[i]})),nB=g.B.map((y,i)=>({...y,len:B[i]}));
+    for(const {n,s} of ajPos(g,nF,nB,R.M.L)){const t=R.M.m.get(n);if(t)k+=ajPut(t,R.M.Q,s,false,mv)}}
+  if(mv.length)S.hist.push({mv});say('너치전개: 사이즈 너치 '+k+'개를 옮겼습니다.')}
 ACT.amr=()=>{S.notchLink=S.notchLink===false;say('너치 연동 '+(S.notchLink?'켬':'끔')+'(선을 고치면 5B로 붙은 너치가 따라감)')};
 
 function an2Corner(e1,e2){const P=shape(e1),Q=shape(e2),ends=[[P[0],P[1]],[P[P.length-1],P[P.length-2]]],endq=[[Q[0],Q[1]],[Q[Q.length-1],Q[Q.length-2]]];let best=null;
@@ -3090,6 +3489,112 @@ function refOpen(bytes,name){const d=parse(bytes);S.ref={doc:d,name:name.replace
 function drawRef(c){if(!S.ref)return;c.save();c.globalAlpha=.35;c.strokeStyle=css('--dim')||'#888';c.lineWidth=1;
   for(const e of S.ref.doc.els){if(e.gr||!e.pts||e.pts.length<2||S.hide.has(e.layer)||e.layer===195)continue;const P=e.type===TYPE.CURVE&&!e.trim&&e.pts.length>2?spline(e.pts):e.pts;c.beginPath();P.forEach((p,i)=>{const q=toS(p);i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y)});c.stroke()}
   c.restore()}
+
+function gSplit(e,R,frac){const A=shape(e),X=ycCross(A,shape(R),false,R.pts.length===2);if(!X.length)return null;const L=lenOf(A);let best=null;for(const x of X)if(x.s>0.01&&x.s<L-0.01&&(!best||Math.abs(x.s/L-frac)<Math.abs(best.s/L-frac)))best=x;if(!best)return null;
+  const line=e.pts.length===2&&!(e.type===TYPE.CURVE||e.kind==='curve'),n=Math.max(3,Math.min(15,e.pts.length)),mk=P=>line?[P[0],P[P.length-1]]:resample(P,n,true);
+  return {s:best.s/L,parts:[mk(cutCurve(A,0,best.s)),mk(cutCurve(A,best.s,L))],line}}
+YC.gc={name:'G선자르기',steps:[{t:'el',edit:1,hint:'분할될 요소를 누르세요'},{t:'el',hint:'기준선을 누르세요'}],
+  run:Y=>{const [e,R]=Y.els;if(e===R)throw new Error('다른 선을 기준선으로 눌러 주세요.');if(!e.kind&&(locked(e)||S.doc.refs.has((e.rec-REC)/RSZ+1)))throw new Error('그레이딩이나 다른 요소에 연결된 선은 유카에서 고쳐 주세요.');
+    const t=ycNear(shape(e),Y.taps[0]),sp=gSplit(e,R,t?t.s/lenOf(shape(e)):0.5);if(!sp)throw new Error('두 선이 만나지 않습니다.');
+    const ds=[],ras=[],as=[],kill=x=>{if(x.kind){S.adds.splice(S.adds.indexOf(x),1);ras.push(x)}else{S.dels.push(x.rec);ds.push(x.rec)}},mk=(x,P,from)=>({kind:sp.line?'line':'curve',pts:P,layer:x.layer,color:x.color,group:x.group||0,flag:x.flag||1,...(from?{grFrom:from}:{})});
+    const base=sp.parts.map(P=>mk(e,P)),mR=gMates(R);let n=0;
+    for(const t2 of gMates(e)){if(!t2.kind&&(locked(t2)||S.doc.refs.has((t2.rec-REC)/RSZ+1)))continue;const R2=mR.find(x=>x.layer===t2.layer)||R,s2=gSplit(t2,R2,sp.s);if(!s2)continue;kill(t2);as.push(...s2.parts.map((P,i)=>mk(t2,P,base[i])));n++}
+    kill(e);as.unshift(...base);S.adds.push(...as);S.hist.push({ds,ras,as});S.gcN=n},done:()=>'기본과 사이즈 '+S.gcN+'개를 기준선에서 둘로 나눴습니다.'};ACT.gc=()=>ycStart('gc');
+
+ACT.gid=ACT.gdel=()=>{if(!S.doc)return;const B=grBase(),lays=new Set(grLayers(B));if(!lays.size)return say('전개된 사이즈가 없습니다(절개량이 있는 사이즈가 없음).',true);
+  const ds=S.doc.els.filter(e=>lays.has(e.layer)&&!e.gr&&!S.dels.includes(e.rec)).map(e=>e.rec),ras=S.adds.filter(e=>lays.has(e.layer)&&!e.gr&&!e.nest);
+  if(!ds.length&&!ras.length)return say('지울 전개 사이즈 요소가 없습니다.');
+  if(!confirm('기본 사이즈('+B+') 외 전개 사이즈 '+[...lays].join('·')+'의 요소 '+(ds.length+ras.length)+'개를 지울까요? (되돌리기로 돌아갈 수 있음)'))return;
+  S.dels.push(...ds);S.adds=S.adds.filter(e=>!ras.includes(e));S.hist.push({ds,ras});refresh();say('전개 사이즈 요소 '+(ds.length+ras.length)+'개를 지웠습니다. gr로 다시 전개할 수 있습니다.')};
+
+YC.gxy={name:'좌표변화',steps:[{t:'el',hint:'기본 사이즈의 대상요소를 누르세요(끝점 쪽을 누름)'}],
+  run:Y=>{const e=Y.els[0],P=gPts(e),i=ycD(Y.taps[0],P[0])<=ycD(Y.taps[0],P[P.length-1])?0:P.length-1,bp={...P[i]},rows=[];
+    for(const t of gMates(e)){const T=gPts(t);if(T.length!==P.length)continue;rows.push({t,L:t.layer,tp:{...T[i]}})}
+    if(!rows.length)throw new Error('이 요소의 다른 사이즈 짝을 못 찾았습니다(그레이딩된 사이즈 레이어가 있어야 함).');
+    S.gxy={e,i,bp,rows};gxyShow()},done:()=>'사이즈별 변화량을 고치고 수정을 누르세요.'};ACT.gxy=()=>ycStart('gxy');
+
+function greSlot(g,w){let j=0,bd=1e18;g.at.forEach((k,i)=>{const p=g.P[Math.max(0,Math.min(g.P.length-1,k-1))],d=(p.x-w.x)**2+(p.y-w.y)**2;if(d<bd){bd=d;j=i}});return j}
+YC.gre={name:'절개량 수정',steps:[{t:'multi',min:1,hint:Y=>'[gre] 수정할 절개선의 양 위치를 누르세요 — 다 누르고 오른클릭 ['+Y.pts.length+']'}],
+  run:Y=>{const sel=new Map();for(const w of Y.pts){const e=grNearCut(w);if(!e.gr.V)throw new Error('이 절개선은 못 읽는 형식이라 양을 고칠 수 없습니다.');const j=greSlot(e.gr,w);if(!sel.has(e))sel.set(e,new Set);sel.get(e).add(j)}
+    const [e0,s0]=[...sel][0],g0=e0.gr,j0=[...s0][0];let lays=gradeVals(g0).map(x=>x.lay);if(!lays.length)lays=[];
+    S.gre={sel,lays,base:grBase(),vals:Object.fromEntries(lays.map(L=>[L,g0.V[j0][L-1]||0]))};if(!lays.length)throw new Error('이 절개선엔 아직 양이 없습니다. 양지정(gi)으로 먼저 넣어 주세요.');greShow()},
+  done:()=>'사이즈별 양을 고치고 수정을 누르세요.'};ACT.gre=()=>{$('gradeOn').checked=true;$('gradeVal').checked=true;ycStart('gre')};
+
+YC.gdv={name:'절개량분산',steps:[{t:'pt',hint:'[gdv] 분산전의 절개선을 누르세요'},{t:'multi',min:1,hint:Y=>'분산후의 절개선을 누르세요 — 여러 개, 다 누르고 오른클릭 ['+(Y.pts.length-1)+']'}],
+  run:Y=>{const src=grNearCut(Y.pts[0]),sg=src.gr;if(!sg.V)throw new Error('분산전 절개선이 못 읽는 형식입니다.');const dests=[];
+    for(const w of Y.pts.slice(1)){const e=grNearCut(w);if(e===src)throw new Error('분산전과 같은 절개선입니다.');if(e.gr.k!==sg.k)throw new Error('타입이 다른 절개선입니다(종류가 같아야 합니다).');if(!e.gr.V)throw new Error('분산후 절개선이 못 읽는 형식입니다.');if(!dests.includes(e))dests.push(e)}
+    if(!dests.length)throw new Error('분산후의 절개선을 하나 이상 눌러 주세요.');const n=dests.length,mv=[];
+    for(const e of dests){const g=e.gr,V=g.V.map((a,j)=>{const sj=sg.V.length===g.V.length?j:(j===0?0:sg.V.length-1),b=sg.V[sj];return a.map((x,i)=>+((b[i]||0)/n).toFixed(4))});
+      const snap={gr:e.gr,patch:e.patch},ng={...g,V,A:V[0],B:V[g.m-1]};
+      if(!e.kind){const nn=g.P.length,p0=28+6*g.m,keep=(e.patch||[]).filter(([o])=>o<p0+8*nn),add=[];for(let j=0;j<g.m;j++)for(let i=0;i<g.cap;i++)if(V[j][i]!==g.V[j][i]||(e.patch||[]).some(([o])=>o===p0+8*nn+4*(j*g.cap+i)))add.push([p0+8*nn+4*(j*g.cap+i),V[j][i]]);
+        mv.push({e,was:S.edits.has(e),snap});e.gr=ng;e.patch=[...keep,...add];changed(e)}else{mv.push({e,was:false,snap});e.gr=ng}}
+    const ds=[],ras=[];ycKill(src,ds,ras);S.hist.push({multi:[{mv},{ds,ras}]});refresh();Y.n=n},
+  done:Y=>'절개량을 절개선 '+Y.n+'개로 나눠 옮기고 분산전 절개선을 지웠습니다.'};ACT.gdv=()=>{$('gradeOn').checked=true;$('gradeVal').checked=true;ycStart('gdv')};
+
+YC.gca={name:'절개량 계산-영역',steps:[{t:'pt',hint:'[gca] 절개량의 범위의 두 점을 누르세요: 첫째 모서리'},{t:'pt',hint:'둘째 모서리'}],
+  run:Y=>{const [a,b]=Y.pts,x0=Math.min(a.x,b.x),x1=Math.max(a.x,b.x),y0=Math.min(a.y,b.y),y1=Math.max(a.y,b.y),sums=new Map;let n=0;
+    for(const e of gradeEls()){const g=e.gr;if(g.t!=='cut'||!g.V)continue;g.at.forEach((k,j)=>{const p=g.P[Math.max(0,Math.min(g.P.length-1,k-1))];if(p.x<x0||p.x>x1||p.y<y0||p.y>y1)return;n++;
+      for(let i=0;i<g.cap;i++)if(g.V[j][i]||sums.has(i+1))sums.set(i+1,(sums.get(i+1)||0)+(g.V[j][i]||0))})}
+    if(!n)throw new Error('영역 안에 절개량이 없습니다.');
+    const lays=[...sums.keys()].sort((x,y)=>x-y),box=$('grePanel');S.gre=null;box.textContent='';const f=v=>(+v.toFixed(3)).toString(),h=document.createElement('b');h.textContent='절개량 합계 (합계점수 '+n+', cm)';box.append(h);
+    for(const L of lays){const lab=document.createElement('label');lab.textContent=L+'  ';const sp=document.createElement('b');sp.dataset.sum=L;sp.textContent=f(sums.get(L));lab.append(sp);box.append(lab)}
+    const ed=document.createElement('button');ed.textContent='수정';ed.onclick=()=>{box.hidden=true;ACT.gre()};const no=document.createElement('button');no.textContent='닫기';no.onclick=()=>{box.hidden=true};box.append(ed,no);box.hidden=false;Y.n=n;Y.sum=Object.fromEntries(lays.map(L=>[L,+sums.get(L).toFixed(4)]))},
+  done:Y=>'합계점수 '+Y.n+': '+Object.entries(Y.sum).map(([L,v])=>L+'='+v).join(' ')};ACT.gca=()=>{$('gradeOn').checked=true;$('gradeVal').checked=true;ycStart('gca')};
+
+function greNb(G,L){const B=G.base,ls=G.lays;if(L>B){const c=ls.filter(x=>x<L&&x>=B);return c.length?Math.max(...c):B}const c=ls.filter(x=>x>L&&x<=B);return c.length?Math.min(...c):B}
+function greToStep(G,V){const o={},v=L=>L===G.base&&!(L in V)?0:V[L]||0;for(const L of G.lays)o[L]=L===G.base?v(L):v(L)-v(greNb(G,L));return o}
+function greToCum(G,D){const o={},B=G.base,get=L=>L===B?(B in D&&G.lays.includes(B)?D[B]:0):o[L];
+  for(const L of G.lays.filter(x=>x>=B).sort((a,b)=>a-b))o[L]=L===B?(D[L]||0):get(greNb(G,L))+(D[L]||0);
+  for(const L of G.lays.filter(x=>x<B).sort((a,b)=>b-a))o[L]=get(greNb(G,L))+(D[L]||0);return o}
+function greRead(G){const o={};for(const i of $('grePanel').querySelectorAll('input[data-lay]')){const v=parseFloat(i.value);o[+i.dataset.lay]=isFinite(v)?v:0}return G.mode==='step'?greToCum(G,o):o}
+function greShow(){const G=S.gre,box=$('grePanel');if(!G){box.hidden=true;return}box.textContent='';const f=v=>(+(+v).toFixed(3)).toString();G.mode=G.mode||'base';
+  const md=document.createElement('span');for(const [k,t] of [['base','기본에서'],['step','각편차']]){const b=document.createElement('button');b.textContent=t;b.setAttribute('aria-pressed',G.mode===k);
+    b.onclick=()=>{if(G.mode===k)return;G.vals=greRead(G);G.mode=k;greShow()};md.append(b)}
+  const shown=G.mode==='step'?greToStep(G,G.vals):G.vals;
+  const h=document.createElement('b');h.textContent='절개량 수정 (누른 자리 '+[...G.sel.values()].reduce((n,s)=>n+s.size,0)+'곳, cm)';box.append(h,md);
+  for(const L of G.lays){const lab=document.createElement('label');lab.textContent=L+'  ';const inp=document.createElement('input');inp.type='number';inp.step='0.01';inp.inputMode='decimal';inp.style.width='70px';inp.value=f(shown[L]||0);inp.dataset.lay=L;lab.append(inp);box.append(lab)}
+  const dl=document.createElement('label');dl.textContent='편차 ';const dv=document.createElement('input');dv.type='number';dv.step='0.01';dv.inputMode='decimal';dv.style.width='70px';dv.id='greStep';dl.append(dv);
+  const bd=document.createElement('button');bd.textContent='편차';bd.onclick=()=>{const st=parseFloat(dv.value);if(!isFinite(st))return;for(const i of box.querySelectorAll('input[data-lay]')){const L=+i.dataset.lay;i.value=f(G.mode==='step'?(L===G.base?0:Math.sign(L-G.base)*st):(L-G.base)*st)}};
+  const ok=document.createElement('button');ok.textContent='수정';ok.onclick=greApply;const no=document.createElement('button');no.textContent='닫기';no.onclick=()=>{S.gre=null;greShow()};box.append(dl,bd,ok,no);box.hidden=false}
+function greApply(){const G=S.gre;if(!G)return;const nv=greRead(G);
+  const mv=[];let n=0;for(const [e,slots] of G.sel){const g=e.gr,V=g.V.map(a=>a.slice());let ch=false;for(const j of slots)for(const L in nv){const v=+nv[L].toFixed(4);if(V[j][L-1]!==v){V[j][L-1]=v;ch=true;n++}}if(!ch)continue;
+    const snap={gr:e.gr,patch:e.patch},ng={...g,V,A:V[0],B:V[g.m-1]};
+    if(!e.kind){const nn=g.P.length,p0=28+6*g.m,keep=(e.patch||[]).filter(([o])=>o<p0+8*nn),add=[];for(let j=0;j<g.m;j++)for(let i=0;i<g.cap;i++)if(V[j][i]!==g.V[j][i]||(e.patch||[]).some(([o])=>o===p0+8*nn+4*(j*g.cap+i)))add.push([p0+8*nn+4*(j*g.cap+i),V[j][i]]);
+      mv.push({e,was:S.edits.has(e),snap});e.gr=ng;e.patch=[...keep,...add];changed(e)}else{mv.push({e,was:false,snap});e.gr=ng}}
+  if(!mv.length)return say('바뀐 값이 없습니다.');S.hist.push({mv});S.gre=null;greShow();refresh();say('절개량 '+n+'칸을 고쳤습니다. 되돌리기로 돌아갈 수 있습니다.')}
+function gxyShow(){const G=S.gxy,box=$('gxyPanel');if(!G){box.hidden=true;return}const f=v=>(+v.toFixed(3)).toString();
+  box.textContent='';const h=document.createElement('b');h.textContent='좌표변화 (기본 '+G.e.layer+' 기준 X/Y cm)';box.append(h);
+  for(const r of G.rows){const lab=document.createElement('label');lab.textContent=r.L+'  X';const x=document.createElement('input'),y=document.createElement('input');
+    for(const [inp,v] of [[x,r.tp.x-G.bp.x],[y,r.tp.y-G.bp.y]]){inp.type='number';inp.step='0.01';inp.inputMode='decimal';inp.style.width='70px';inp.value=f(v);inp.dataset.v=inp.value}
+    x.dataset.k='x';y.dataset.k='y';x.dataset.lay=y.dataset.lay=r.L;const ly=document.createElement('span');ly.textContent='Y';lab.append(x,ly,y);box.append(lab)}
+  const ok=document.createElement('button');ok.textContent='수정';ok.onclick=gxyApply;const no=document.createElement('button');no.textContent='닫기';no.onclick=()=>{S.gxy=null;gxyShow()};box.append(ok,no);box.hidden=false}
+function gxyApply(){const G=S.gxy;if(!G)return;const mv=[],moved=new Set();let n=0;
+  for(const r of G.rows){const ix=$('gxyPanel').querySelector('input[data-k=x][data-lay="'+r.L+'"]'),iy=$('gxyPanel').querySelector('input[data-k=y][data-lay="'+r.L+'"]'),gx=parseFloat(ix.value),gy=parseFloat(iy.value);
+    if(!isFinite(gx)||!isFinite(gy))continue;const to={x:r.tp.x+(gx-parseFloat(ix.dataset.v)),y:r.tp.y+(gy-parseFloat(iy.dataset.v))};
+    if(Math.hypot(to.x-r.tp.x,to.y-r.tp.y)<1e-9)continue;
+    const els=S.doc.els.filter(x=>x.layer===r.L&&grGeo(x)&&!S.dels.includes(x.rec)&&!locked(x)).concat(S.adds.filter(x=>x.layer===r.L&&(x.kind==='line'||x.kind==='curve')));
+    for(const x of els){const X=gPts(x);let hit=false;const N=X.map((p,k)=>(k===0||k===X.length-1)&&Math.hypot(p.x-r.tp.x,p.y-r.tp.y)<0.01?(hit=true,{...to}):p);if(hit&&!moved.has(x)){moved.add(x);gSetPts(x,N,mv)}}
+    r.tp=to;n++}
+  if(!mv.length)return say('바뀐 값이 없습니다.');S.hist.push({mv});refresh();gxyShow();say('사이즈 '+n+'개의 끝점을 옮겼습니다(선 '+mv.length+'개). 되돌리기로 돌아갈 수 있습니다.')}
+
+function gplMove(e,sg,d,mv,done){if(done.has(e))return;const P=gPts(e),N=offsetPts(P,sg*d),ends=[[P[0],N[0]],[P[P.length-1],N[N.length-1]]];
+  const els=(e.kind?S.adds.filter(x=>x.layer===e.layer&&(x.kind==='line'||x.kind==='curve')):S.doc.els.filter(x=>x.layer===e.layer&&grGeo(x)&&!S.dels.includes(x.rec)&&!locked(x)).concat(S.adds.filter(x=>x.layer===e.layer&&(x.kind==='line'||x.kind==='curve'))));
+  done.add(e);gSetPts(e,N,mv);
+  for(const x of els){if(done.has(x))continue;const X=gPts(x);let hit=false;const M=X.map((p,k)=>{if(k!==0&&k!==X.length-1)return p;for(const [o,n] of ends)if(Math.hypot(p.x-o.x,p.y-o.y)<0.01){hit=true;return {...n}}return p});if(hit){done.add(x);gSetPts(x,M,mv)}}}
+YC.gpl={name:'G평행이동',steps:[{t:'el',edit:1,hint:'이동할 요소를 누르세요(기본 사이즈)'},{t:'pt',hint:'이동할 측을 누르세요'},{t:'num',label:'평행이동의 간격 cm',def:()=>S.gplD||0.3}],
+  run:Y=>{const e=Y.els[0],q=Y.pts[0],d=Y.nums[0];S.gplD=d;if(!(e.type===TYPE.LINE||e.type===TYPE.CURVE||e.kind==='line'||e.kind==='curve'))throw new Error('직선이나 곡선을 눌러 주세요.');
+    if(!e.kind&&locked(e))throw new Error('그레이딩이나 다른 요소에 연결된 선은 유카에서 고쳐 주세요.');
+    const P=gPts(e),n=ycNear(P,q),i=Math.max(1,Math.min(P.length-1,(n&&n.i)||1)),a=P[i-1],b=P[i],sg=((b.x-a.x)*(q.y-a.y)-(b.y-a.y)*(q.x-a.x))>0?1:-1,mv=[],done=new Set();
+    gplMove(e,sg,d,mv,done);let k=0;for(const t of gMates(e)){if(!t.kind&&locked(t))continue;if(gPts(t).length!==P.length)continue;gplMove(t,sg,d,mv,done);k++}
+    S.hist.push({mv});S.gplN=k},done:()=>'기본과 사이즈 '+S.gplN+'개를 평행이동했습니다.'};ACT.gpl=()=>ycStart('gpl');
+
+YC.gss={name:'G점열수정',steps:[{t:'el',need:'any',hint:'수정할 선을 누르세요(기본 사이즈 곡선)'},{t:'pt',hint:'이동할 점을 누르세요'},{t:'pt',hint:'새로운 자리를 누르세요'}],
+  run:Y=>{const e=Y.els[0];if(!ycCurve(e))throw new Error('곡선을 눌러 주세요.');if(!e.kind&&locked(e))throw new Error('그레이딩이나 다른 요소에 연결된 선은 유카에서 고쳐 주세요.');
+    const P=gPts(e);let bi=0,bd=1e9;P.forEach((p,i)=>{const d=ycD(p,Y.pts[0]);if(d<bd){bd=d;bi=i}});const d={x:Y.pts[1].x-P[bi].x,y:Y.pts[1].y-P[bi].y},mv=[],end=bi===0||bi===P.length-1;let k=0;
+    const one=(x,T)=>{const old=T[bi],to={x:old.x+d.x,y:old.y+d.y};gSetPts(x,T.map((p,i)=>i===bi?to:p),mv);
+      if(end)for(const y of S.doc.els.filter(z=>z.layer===x.layer&&z!==x&&grGeo(z)&&!S.dels.includes(z.rec)&&!locked(z)).concat(S.adds.filter(z=>z.layer===x.layer&&z!==x&&(z.kind==='line'||z.kind==='curve')))){const Q=gPts(y);let hit=false;const M=Q.map((p,i)=>(i===0||i===Q.length-1)&&ycD(p,old)<0.01?(hit=true,{...to}):p);if(hit)gSetPts(y,M,mv)}};
+    one(e,P);for(const t of gMates(e)){if(!t.kind&&locked(t))continue;const T=gPts(t);if(T.length!==P.length)continue;one(t,T);k++}
+    S.hist.push({mv});S.gssN=k},done:()=>'기본과 사이즈 '+S.gssN+'개의 곡선 점을 옮겼습니다.'};ACT.gss=()=>ycStart('gss');
 
 function rotAbout(p,c,a){const co=Math.cos(a),si=Math.sin(a);return {x:c.x+(p.x-c.x)*co-(p.y-c.y)*si,y:c.y+(p.x-c.x)*si+(p.y-c.y)*co}}
 YC.ta={name:'다트 접어보기',steps:[{t:'el',edit:1,hint:'허리선(다트 왼쪽)을 누르세요'},{t:'el',edit:1,hint:'허리선(다트 오른쪽)을 누르세요'},{t:'el',edit:1,hint:'다트선(고정될 쪽)을 누르세요'},{t:'el',edit:1,hint:'다트선(접히는 쪽)을 누르세요'},{t:'num',label:'점수 (3~15)',def:()=>S.taN||8,pos:1}],
