@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;600&display=swap">
 <style>
-/* Layout: title bar, ribbon, option strip, three-pane workspace, status bar. */
+
 :root{--mat:#fff;--grid:#eef1f3;--grid2:#d8dfe4;--ink:#1d2428;--draw:#0a6fb0;--seam:#c9259a;--mark:#e4570a;--c1:#1f5fd0;--c2:#d62828;--c3:#c9259a;--c4:#1a9e4b;--c5:#0a9fb5;--c6:#b58900;--chrome:#eef0f1;--panel:#f7f8f8;--line:#d5dade;--dim:#667078;--active:#d6ebf8;--danger:#b3261e;color-scheme:light;--font:"IBM Plex Sans KR","Malgun Gothic",system-ui,sans-serif}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -40,6 +40,9 @@ svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.7;stroke
 .group:last-child{border-right:0}
 .tools{display:flex;gap:2px}
 .group>span{text-align:center;color:var(--dim);font-size:11px}
+.nestset{display:grid;grid-template-columns:auto auto auto auto;gap:4px 6px;align-items:center;font-size:12px;white-space:nowrap}
+.nestset input[type=number],.nestset input.numcalc{width:54px}
+.nestsz{display:grid;gap:4px;font-size:12px;white-space:nowrap}.nestsz input{width:130px}
 .tool{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:52px;height:60px;padding:3px 5px;font-size:12px;white-space:nowrap}
 .tool:hover:not(:disabled){background:var(--chrome)}
 .tool[aria-pressed=true]{background:var(--active);box-shadow:inset 0 0 0 1px var(--draw)}
@@ -70,6 +73,8 @@ canvas.draw{cursor:crosshair}canvas.grab{cursor:grab}canvas.grabbing{cursor:grab
 #app{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}input,select{-webkit-user-select:text;user-select:text}
 .float{position:absolute;right:10px;bottom:10px;background:var(--mat);border:1px solid var(--line);border-radius:7px;padding:7px 9px;display:flex;flex-wrap:wrap;gap:7px;align-items:center;box-shadow:0 2px 8px rgba(20,40,50,.12)}
 .float input{width:78px;height:30px;font:inherit;font-variant-numeric:tabular-nums;border:1px solid var(--line);border-radius:4px;padding:0 6px;background:var(--mat);color:var(--ink)}
+.float input[type=checkbox],.float input[type=radio]{width:17px;height:17px;padding:0;border:0}
+.float label:has(>input[type=checkbox]){display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
 .float button{min-height:30px;padding:0 11px;background:var(--active)}
 .float button.on{box-shadow:inset 0 0 0 2px var(--draw);font-weight:600}
 .float output{font-variant-numeric:tabular-nums;white-space:nowrap}
@@ -79,6 +84,21 @@ canvas.draw{cursor:crosshair}canvas.grab{cursor:grab}canvas.grabbing{cursor:grab
 #status{display:flex;align-items:center;gap:16px;padding:5px 12px calc(5px + env(safe-area-inset-bottom));font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden}
 #readout{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
 #status span{color:var(--dim)}
+
+#cmdWrap{display:flex;align-items:center;gap:3px;color:var(--draw);font-weight:600}
+#cmd{width:150px;height:24px;font:inherit;font-weight:400;border:1px solid var(--line);border-radius:4px;padding:0 6px;background:var(--mat);color:var(--ink)}
+#cmd:focus{outline:2px solid var(--draw);outline-offset:-1px}
+.ytop{min-width:0;height:60px;padding:3px 9px;font-size:13px}
+.ytop[aria-pressed=true]{background:var(--active);box-shadow:inset 0 0 0 1px var(--draw)}
+#ydrop{position:fixed;z-index:30;max-height:70vh;overflow:auto;background:var(--mat);border:1px solid var(--line);border-radius:8px;box-shadow:0 6px 20px rgba(20,40,50,.18);padding:8px 10px;display:flex;flex-wrap:wrap;gap:4px 18px;max-width:min(920px,96vw)}
+#ydrop[hidden]{display:none}
+#ydrop .yg{display:flex;flex-direction:column;min-width:130px}
+#ydrop .yg b{font-size:11px;color:var(--dim);font-weight:600;padding:4px 4px 2px}
+#ydrop button{display:flex;justify-content:space-between;gap:10px;text-align:left;padding:5px 6px;border-radius:4px;font-size:13px}
+#ydrop button:hover:not(:disabled){background:var(--chrome)}
+#ydrop button:disabled{color:var(--dim);opacity:.55}
+#ydrop button small{color:var(--dim);font-size:11px}
+@media (pointer:coarse){#ydrop button{padding:9px 8px}#cmd{height:32px;width:130px}}
 #status #readout{color:var(--ink)}
 @media (max-width:900px){
   #work,#work.noLeft,#work.noRight{grid-template-columns:minmax(0,1fr);position:relative}
@@ -86,7 +106,7 @@ canvas.draw{cursor:crosshair}canvas.grab{cursor:grab}canvas.grabbing{cursor:grab
   #leftPanel{left:8px}#rightPanel{right:8px}
   #coord,#count{display:none}
 }
-/* 손가락 화면(폰·탭): 누르는 곳을 크게 */
+
 @media (pointer:coarse){
   #quick button,#quick label.btn{width:42px;height:38px}
   #quick svg{width:21px;height:21px}
@@ -95,7 +115,7 @@ canvas.draw{cursor:crosshair}canvas.grab{cursor:grab}canvas.grabbing{cursor:grab
   select{height:32px}
   input[type=checkbox],input[type=radio]{width:19px;height:19px}
 }
-/* 폰 세로: 도구를 숨기지 않고 두 줄로 접는다 */
+
 @media (max-width:600px){
   #ribbon{min-height:0;margin:2px 6px 0}
   .tabpane{flex-wrap:wrap}
@@ -107,7 +127,7 @@ canvas.draw{cursor:crosshair}canvas.grab{cursor:grab}canvas.grabbing{cursor:grab
   #work{padding:0 6px}
   .float{left:6px;right:6px;bottom:6px;padding:6px;gap:6px}
 }
-/* 폰 가로: 위쪽을 한 줄로 납작하게 해서 패턴 볼 자리를 넓힌다 */
+
 @media (max-height:500px){
   #app>div:first-child{display:flex;align-items:center;gap:6px}
   #title{display:flex;padding:calc(2px + env(safe-area-inset-top)) 8px 0}
@@ -141,6 +161,7 @@ canvas.draw{cursor:crosshair}canvas.grab{cursor:grab}canvas.grabbing{cursor:grab
   <div id="tabs" role="tablist">
     <button role="tab" data-tab="file" aria-selected="false">파일</button>
     <button role="tab" data-tab="draw" aria-selected="true">그리기</button>
+    <button role="tab" data-tab="yuka" aria-selected="false">유카</button>
     <button role="tab" data-tab="view" aria-selected="false">보기</button>
   </div>
 </div>
@@ -182,6 +203,9 @@ canvas.draw{cursor:crosshair}canvas.grab{cursor:grab}canvas.grabbing{cursor:grab
       <button class="tool" data-tool="match" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M3 8h12M3 16h18"/><path d="M15 5v6M21 13v6"/></svg>길이 맞추기</button>
     </div><span>측정</span></div>
   </div>
+  <div class="tabpane" data-pane="yuka" hidden>
+    <div class="group"><div class="tools" id="ymenus"></div><span>유카 메뉴 · 명령 코드는 그냥 키보드로 쳐도 됩니다(아래 &gt; 칸)</span></div>
+  </div>
   <div class="tabpane" data-pane="view" hidden>
     <div class="group"><div class="tools">
       <button class="tool" id="fitBtn"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>화면 맞춤</button>
@@ -195,10 +219,14 @@ canvas.draw{cursor:crosshair}canvas.grab{cursor:grab}canvas.grabbing{cursor:grab
   </div>
 </nav>
 <div id="options">
-  <label><input id="snapOn" type="checkbox" checked> 끝점 맞춤</label>
+  <label title="유카처럼 F1 끝점 · F2 임의점 · F3 선상점 · Shift+F1 교점 · Shift+F2 중점 · Shift+F3 비율점">점 잡기
+    <select id="snapMode"><option value="end">끝점 (F1)</option><option value="free">임의점 (F2)</option><option value="on">선상점 (F3)</option><option value="cross">교점 (⇧F1)</option><option value="mid">중점 (⇧F2)</option><option value="ratio">비율점 (⇧F3)</option></select>
+  </label>
+  <label title="유카 F4·F5·F6·F11">영역 <select id="areaSnap"><option value="">—</option><option value="in">영역내 (F4)</option><option value="cross">영역교차내 (F5)</option><option value="zoom">부분확대 (F6)</option><option value="poly">다각형내 (F11)</option></select></label>
+  <label id="snapRatioL" hidden>비율 <input id="snapRatio" type="number" inputmode="decimal" step="0.05" min="0" max="1" value="0.5" style="width:4.5em"></label>
   <label><input id="gridOn" type="checkbox" checked> 격자</label>
   <label>선 종류
-    <select id="lineKind"><option value="7">일반 선</option><option value="3">연한 선</option></select>
+    <select id="lineKind"><option value="7">일반 선(흰)</option><option value="3">연한 선(보라)</option><option value="1">파란 선</option><option value="2">빨간 선</option><option value="4">초록 선</option><option value="5">하늘 선</option><option value="6">노란 선</option></select>
   </label>
   <label>곡선 수정
     <select id="curveMode"><option value="sa">SA 전체 자연스럽게</option><option value="ss">SS 한 점만</option></select>
@@ -226,6 +254,9 @@ canvas.draw{cursor:crosshair}canvas.grab{cursor:grab}canvas.grabbing{cursor:grab
       <label for="boxW">가로 cm</label><input id="boxW" type="number" inputmode="decimal" step="0.1" min="0">
       <label for="boxH">세로 cm</label><input id="boxH" type="number" inputmode="decimal" step="0.1" min="0">
       <button id="boxApply">적용</button>
+    </div>
+    <div id="ycPanel" class="float" hidden>
+      <label for="ycNum" id="ycLabel"></label><input id="ycNum" type="number" inputmode="decimal" step="0.1"><button id="ycGo">다음</button><button id="ycDone">완료</button>
     </div>
     <div id="movePanel" class="float" hidden>
       <output id="mvInfo"></output><label><input id="mvGroup" type="checkbox" checked> 그룹째</label>
@@ -280,6 +311,8 @@ canvas.draw{cursor:crosshair}canvas.grab{cursor:grab}canvas.grabbing{cursor:grab
   </aside>
 </div>
 <footer id="status">
+  <label id="cmdWrap" title="유카 명령 코드 (예: mv, crv, nu). Enter로 실행">&gt;<input id="cmd" list="cmdList" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="명령 (예: mv)" aria-label="유카 명령"></label>
+  <datalist id="cmdList"></datalist>
   <div id="readout"></div>
   <span id="coord"></span>
   <span id="count"></span>
@@ -289,9 +322,12 @@ canvas.draw{cursor:crosshair}canvas.grab{cursor:grab}canvas.grabbing{cursor:grab
 </div>
 <script>
 'use strict';
-// Layout learned from sample files. Unknown bytes are always preserved.
-const REC=0x800, RSZ=32, HEAP=0xB0E, TEMPLATE=[[0,"AQABAAYAEwsAACAnAgAAAKDAAACgwAAA/EIAAKhCAQAAAAIAAQABAAAAAAAAAAAAAABUMQAAAAAAAAQQ6gcLAAE="],[250,"ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICC+yDU0ICAgICAgICAgICAgvsg1NCAgICC9ycH2MiAgIFRDMSAgICAgVEMyICAgICA="],[651,"Lf8AAP//AAr1bQCT/QIA/wAAAO+READTLL4AqValALm8QwCgnl8AAP//AJWIagAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AxtC1+SAgICC0z7Xpxt3EoQD//wAA//8AAP//AAD//wAA//8AAP//"],[4096,"AQA3ABAAAQBHAAoCAQBRAgAQAgBRAhgAAgBpAiIAAgCLAiQAAgCvAiAAAgDPAlQAAgDPAlQAAACgwAAAoMAAAPxCAACoQgEAAQAQAIAH5QMBAAIAAAAAAAAAAAAIACYAeAecAw=="],[4236,"6oQMwgIAoMA6IRxDAACoQg=="],[4348,"gLnNPQ=="],[4434,"oEAAAKBA"],[4480,"////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////AQACAAAAAAAAAAAAAAABAAAAAAD4DwAAAQABAAIAAAAAAAAAAAAIACYAeAecAw=="],[4758,"6oQMwgIAoMA6IRxDAACoQg=="],[4870,"gLnNPQ=="],[4956,"oEAAAKBA"],[5002,"////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////AQACAAAAAAAAAAAAAAAB"],[8808,"KwAHAAEAAQ=="],[8844,"AQACAAIAAACAPwAAgD8AAIA/mpmZPw=="],[9354,"EScAAAE="]];
-const TYPE={LINE:2,CURVE:7,ARC:3,NOTCH:0x14,TEXT:0x20};
+// 패턴잇다: 유카 패턴 파일을 여는 PWA. 파일 꼴은 샘플 파일을 견주어 알아냈고, 모르는 바이트는 그대로 둔다.
+// 기능마다 어디서 알아냈는지는 기능-출처.md에 적는다.
+
+const REC=0x800, RSZ=32, PAX=10016, isPan=n=>false, heapStart=v=>0xB0E;
+ const TEMPLATE=[[0,"AQABAAYAEwsAACAnAgAAAKDAAACgwAAA/EIAAKhCAQAAAAIAAQABAAAAAAAAAAAAAABUMQAAAAAAAAQQ6gcLAAE="],[250,"ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICC+yDU0ICAgICAgICAgICAgvsg1NCAgICC9ycH2MiAgIFRDMSAgICAgVEMyICAgICA="],[651,"Lf8AAP//AAr1bQCT/QIA/wAAAO+READTLL4AqValALm8QwCgnl8AAP//AJWIagAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AxtC1+SAgICC0z7Xpxt3EoQD//wAA//8AAP//AAD//wAA//8AAP//"],[4096,"AQA3ABAAAQBHAAoCAQBRAgAQAgBRAhgAAgBpAiIAAgCLAiQAAgCvAiAAAgDPAlQAAgDPAlQAAACgwAAAoMAAAPxCAACoQgEAAQAQAIAH5QMBAAIAAAAAAAAAAAAIACYAeAecAw=="],[4236,"6oQMwgIAoMA6IRxDAACoQg=="],[4348,"gLnNPQ=="],[4434,"oEAAAKBA"],[4480,"////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////AQACAAAAAAAAAAAAAAABAAAAAAD4DwAAAQABAAIAAAAAAAAAAAAIACYAeAecAw=="],[4758,"6oQMwgIAoMA6IRxDAACoQg=="],[4870,"gLnNPQ=="],[4956,"oEAAAKBA"],[5002,"////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////AQACAAAAAAAAAAAAAAAB"],[8808,"KwAHAAEAAQ=="],[8844,"AQACAAIAAACAPwAAgD8AAIA/mpmZPw=="],[9354,"EScAAAE="]];
+const TYPE={LINE:2,CURVE:7,ARC:3,NOTCH:0x14,TEXT:0x20,DIM:0x28};
 
 function blank(){
   const b=new Uint8Array(28672);
@@ -301,14 +337,13 @@ function blank(){
 function recsEnd(v){return v.getUint16(0,true)*0x800+v.getUint16(2,true)-1}
 function heapEnd(v){return v.getUint16(4,true)*4096+v.getUint16(6,true)-5}
 
-// Element numbers kept inside notch (5B) and seam (5C) data.
 function forRefs(v,type,a,len,fn){
   if(type===0x5B){
     for(let b=0;b+258<=len;b+=256){
       const n1=Math.min(v.getUint16(a+b+6,true),20),n2=Math.min(v.getUint16(a+b+48,true),50);
       for(let i=0;i<n1;i++)fn(a+b+8+i*2);
       for(let i=0;i<n2;i++)fn(a+b+50+i*2);
-      fn(a+b+152);
+      const n3=Math.min(v.getUint16(a+b+150,true),10);fn(a+b+152);for(let i=1;i<n3;i++)fn(a+b+152+i*2);
     }
   }else if(type===0x5C){
     const n=v.getUint16(a+4,true);
@@ -316,27 +351,31 @@ function forRefs(v,type,a,len,fn){
   }
 }
 function parse(bytes){  const v=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength), end=recsEnd(v), els=[], refs=new Set();
-  if(bytes.length<0x2000||v.getUint16(10,true)!==10016||end<REC||end>bytes.length) throw new Error('유까 패턴 파일이 아니거나 지원하지 않는 형식입니다.');
-  let a=(end>REC?v.getUint16(REC+12,true):v.getUint16(4,true))*4096+HEAP;
+  if(bytes.length<0x2000||v.getUint16(10,true)!==PAX||end<REC||end>bytes.length) throw new Error('유까 패턴 파일이 아니거나 지원하지 않는 형식입니다.');
+  let a=heapFirst(v);
   const pt=o=>({x:v.getFloat32(o,true),y:v.getFloat32(o+4,true)});
   for(let o=REC;o<end;o+=RSZ){
     const type=bytes[o],flag=bytes[o+5],len=v.getUint16(o+16,true),e={rec:o,type,flag,addr:a,len,pts:[],layer:bytes[o+2],color:bytes[o+3],link:bytes[o+7],group:v.getUint16(o+8,true),owner:v.getUint16(o+10,true)};
     if(a+len>bytes.length) throw new Error('파일 구조를 끝까지 읽지 못했습니다.');
+    if(type===0x5C&&len>=4)e.scol=bytes[a+2];
     if(type===TYPE.LINE&&len>=16) e.pts=[pt(a),pt(a+8)];
     else if(type===TYPE.CURVE){
       const n=v.getUint16(a+16,true);
       if(len===26+n*8){
         e.n=n;for(let i=0;i<n;i++)e.pts.push(pt(a+18+i*8));
         const from=v.getFloat32(a+18+n*8,true),to=v.getFloat32(a+22+n*8,true);
-        if(from||to){e.trim=true;e.pts=cutCurve(spline(e.pts),from,to,e.pts)}
+        if(from||to){e.trim=true;e.ctrl=e.pts.slice();e.ft=[from,to];e.pts=cutCurve(spline(e.pts),from,to,e.pts)}
       }
     }
     else if(type===TYPE.ARC&&len===36){e.arc={c:pt(a+16),r:v.getFloat32(a+24,true),from:v.getFloat32(a+28,true),to:v.getFloat32(a+32,true)};e.pts=arcPts(e.arc.c,e.arc.r,e.arc.from,e.arc.to)}
+    else if(type===TYPE.DIM&&len>=20){
+      const n=v.getUint16(a+16,true),m=v.getUint16(a+18,true),cs=[...Array(m)].map((_,i)=>v.getUint16(a+20+2*i,true));let q=a+((20+2*m+3)&~3);
+      if(q+8*n<=a+len){e.dim=cs.map(k=>{const P=[];for(let i=0;i<k;i++){P.push(pt(q));q+=8}return P})}}
     else if(type===TYPE.NOTCH&&len>=40){e.pts=[pt(a+16),pt(a+24)];e.at=pt(a+32)}
     else if(type===TYPE.TEXT){
       e.at=pt(a+16);e.box=[pt(a),pt(a+8)];e.text=readText(bytes,v,a,len);
       e.size=v.getFloat32(a+24,true)||1;
-      if(len>=62){e.cw=v.getFloat32(a+28,true);e.pitch=v.getFloat32(a+32,true);e.lh=v.getFloat32(a+36,true);e.rot=v.getFloat32(a+44,true);e.h=v.getUint16(a+56,true);e.v=v.getUint16(a+58,true)} // +56 left/centre/right, +58 middle/top
+      if(len>=62){e.cw=v.getFloat32(a+28,true);e.pitch=v.getFloat32(a+32,true);e.lh=v.getFloat32(a+36,true);e.rot=v.getFloat32(a+44,true);e.h=v.getUint16(a+56,true);e.v=v.getUint16(a+58,true)}
     }
     forRefs(v,type,a,len,p=>{const x=v.getUint16(p,true);if(x)refs.add(x)});
     if(flag!==0) els.push(e);
@@ -344,14 +383,15 @@ function parse(bytes){  const v=new DataView(bytes.buffer,bytes.byteOffset,bytes
   }
   return {bytes,els,walkEnd:a,refs};
 }
-// The last two floats of a curve give the visible part as distances along it.
-function arcPts(c,r,from,to){ // degrees, counter-clockwise; 0 and 0 mean a full circle
+
+function arcPts(c,r,from,to){
   let span=to-from;if(!from&&!to)span=360;else if(span<=0)span+=360;
+  if(!(span>0&&span<=360))span=isFinite(span)?((span%360)+360)%360||360:360;
   const n=Math.max(8,Math.ceil(span/6)),o=[];
   for(let i=0;i<=n;i++){const t=(from+span*i/n)*Math.PI/180;o.push({x:c.x+r*Math.cos(t),y:c.y+r*Math.sin(t)})}
   return o;
 }
-// Arc as Yuka writes it: box of the arc (angles counter-clockwise in degrees, 0 and 0 = whole circle), centre, radius, angles.
+
 function arcBox(a){
   const full=!a.from&&!a.to,A=full?[0,360]:[a.from,a.to<=a.from?a.to+360:a.to],angs=[A[0],A[1]];
   for(let k=0;k<=720;k+=90)if(k>A[0]&&k<A[1])angs.push(k);
@@ -363,8 +403,8 @@ function encodeArc(a){
   arcBox(a).forEach((x,i)=>f(i*4,x));f(16,a.c.x);f(20,a.c.y);f(24,a.r);f(28,a.from);f(32,a.to);
   return new Uint8Array(b.buffer);
 }
-// The circle through three points; the arc runs counter-clockwise like Yuka's, from start to end through the middle.
-const normAng=a=>{a=((a%360)+360)%360;return a>360-1e-6?0:a}; // Yuka keeps angles in 0…360
+
+const normAng=a=>{a=((a%360)+360)%360;return a>360-1e-6?0:a};
 function arcThrough(p1,p2,p3){
   const d=2*(p1.x*(p2.y-p3.y)+p2.x*(p3.y-p1.y)+p3.x*(p1.y-p2.y));if(Math.abs(d)<1e-9)return null;
   const s1=p1.x*p1.x+p1.y*p1.y,s2=p2.x*p2.x+p2.y*p2.y,s3=p3.x*p3.x+p3.y*p3.y;
@@ -373,16 +413,14 @@ function arcThrough(p1,p2,p3){
   let from=ccw?ang(p1):ang(p3),to=ccw?ang(p3):ang(p1);if(!from&&!to)to=1e-4;
   return {c,r,from,to};
 }
-function cutCurve(P,from,to,C){ // from below 0 or to past the end: Yuka runs the curve on straight past that end (C: the curve's own points)
+function cutCurve(P,from,to,C){
   const L=lenOf(P),go=(p,u,d)=>({x:p.x+u.x*d,y:p.y+u.y*d});
   const o=cutInside(P,Math.max(0,from),Math.min(L,to)).slice();
   if(from<0)o.unshift(go(P[0],endDir(C||P,false),-from));
   if(to>L)o.push(go(P[P.length-1],endDir(C||P,true),to-L));
   return o;
 }
-// Which way a curve runs on past an end (unit vector, outward). Yuka draws a curve's end span as a parabola through the
-// three end points, spaced by the square roots of their distances (centripetal), in 8 steps, and runs on along the first step.
-// Checked on 92 Yuka seam corners: median 0.004°, 90% within 0.045° (under 0.01 mm over a 1 cm run-on).
+
 function endDir(C,atEnd){
   const Q=atEnd?C.slice(-3).reverse():C.slice(0,3),unit=(x,y)=>{const d=Math.hypot(x,y)||1;return {x:x/d,y:y/d}};
   if(Q.length<3)return unit(Q[0].x-Q[1].x,Q[0].y-Q[1].y);
@@ -403,7 +441,7 @@ function cutInside(P,from,to){
   }
   return out.length>1?out:P;
 }
-// Hangul for Yuka: EUC-KR (Windows CP949). Browsers only decode it, so the table is built once by decoding every code.
+
 let EUCKR=null;
 function eucKr(str){
   if(!EUCKR){
@@ -414,41 +452,44 @@ function eucKr(str){
   for(const ch of str){const c=ch.charCodeAt(0);if(c<0x80)out.push(c);else{const k=EUCKR.get(ch);if(!k)return null;out.push(k[0],k[1])}}
   return new Uint8Array(out);
 }
-// Text as Yuka writes it: box, anchor, size ×3, line spacing, angle at +44, 5 / align / valign, length, EUC-KR (no font name).
+
+function encodeDim(segs){
+  const m=segs.length,n=segs.reduce((t,P)=>t+P.length,0),h=(20+2*m+3)&~3,b=new DataView(new ArrayBuffer(h+8*n)),all=segs.flat(),xs=all.map(p=>p.x),ys=all.map(p=>p.y);
+  [Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)].forEach((c,i)=>b.setFloat32(i*4,c,true));b.setUint16(16,n,true);b.setUint16(18,m,true);
+  segs.forEach((P,i)=>b.setUint16(20+2*i,P.length,true));let q=h;for(const p of all){b.setFloat32(q,p.x,true);b.setFloat32(q+4,p.y,true);q+=8}
+  return new Uint8Array(b.buffer)}
 function encodeText(e){
   const t=eucKr(e.text);if(!t)throw new Error('유카에서 쓸 수 없는 글자가 있습니다: '+e.text);
   const b=new DataView(new ArrayBuffer(62+t.length)),f=(o,x)=>b.setFloat32(o,x,true),u=(o,x)=>b.setUint16(o,x,true);
   f(0,e.box[0].x);f(4,e.box[0].y);f(8,e.box[1].x);f(12,e.box[1].y);f(16,e.at.x);f(20,e.at.y);
   f(24,e.size);f(28,e.size);f(32,e.size);f(36,e.lh||e.size*1.2);f(44,e.rot||0);
-  u(54,5);u(56,e.h||2);u(58,e.v||2);u(60,t.length);
+  u(54,e.f54??5);u(56,e.h||2);u(58,e.v||2);u(60,t.length);
   const out=new Uint8Array(b.buffer);out.set(t,62);return out;
 }
-// Box of a text the way Yuka stores it: first character cw wide, then one pitch per character (+28, +32), size high,
-// around the anchor, turned by the angle.
-const textWidth=(text,size,cw,pitch)=>(cw||size)+([...text].length+(text.split('&').length-1)-1)*(pitch||size); // Yuka counts '&' as two characters
-function textBox(at,text,size,h,v,rot,cw,pitch){
-  const w=textWidth(text,size,cw,pitch),x0=h===1?0:h===3?-w:-w/2,y1=v===3?0:v===2?size/2:size,y0=y1-size;
+
+const textWidth=(text,size,cw,pitch)=>(cw||size)+([...text].length+(text.split('&').length-1)-1)*(pitch||size);
+function textBox(at,text,size,h,v,rot,cw,pitch,lh){
+  const lines=String(text).split(/\r?\n/),H=size+(lines.length-1)*(lh??size*1.2),w=Math.max(...lines.map(t=>textWidth(t,size,cw,pitch))),x0=h===1?0:h===3?-w:-w/2,y1=v===3?0:v===2?H/2:H,y0=y1-H;
   const r=(rot||0)*Math.PI/180,c=Math.cos(r),s=Math.sin(r),P=[[x0,y0],[x0+w,y0],[x0+w,y1],[x0,y1]].map(([x,y])=>({x:at.x+x*c-y*s,y:at.y+x*s+y*c}));
   const xs=P.map(p=>p.x),ys=P.map(p=>p.y);
   return [{x:Math.min(...xs),y:Math.min(...ys)},{x:Math.max(...xs),y:Math.max(...ys)}];
 }
-function readText(b,v,a,len){ // length at +60, EUC-KR text at +62, then the font name
+function readText(b,v,a,len){
   if(len<62)return '';
   const n=v.getUint16(a+60,true);
   if(n<1||a+62+n>a+len)return '';
   try{return new TextDecoder('euc-kr').decode(b.subarray(a+62,a+62+n))}catch(e){return ''}
 }
 
-// Saving: appends to a copy, so existing bytes keep their meaning.
 function encodeCurve(pts){
   const n=pts.length,len=26+n*8,b=new DataView(new ArrayBuffer(len));
-  const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y);
+  const sp=n>2?spline(pts):pts,xs=sp.map(p=>p.x).concat(pts.map(p=>p.x)),ys=sp.map(p=>p.y).concat(pts.map(p=>p.y));
   [Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)].forEach((c,i)=>b.setFloat32(i*4,c,true));
   b.setUint16(16,n,true);
   pts.forEach((p,i)=>{b.setFloat32(18+i*8,p.x,true);b.setFloat32(22+i*8,p.y,true)});
   return new Uint8Array(b.buffer);
 }
-function resample(pts,n,exact){ // Yuka curves hold at most 15 points
+function resample(pts,n,exact){
   if(!exact&&pts.length<=n)return pts;
   const L=lenOf(pts),o=[pts[0]];let i=1,run=0;
   for(let k=1;k<n-1;k++){
@@ -459,15 +500,17 @@ function resample(pts,n,exact){ // Yuka curves hold at most 15 points
   }
   o.push(pts[pts.length-1]);return o;
 }
-// Position bytes depend only on the offset inside the page (checked against every Yuka backup).
+
 function setPos(out,rec,addr){
-  const off=addr%4096,q=off+142,hi=(q&15)+(off<=0x9A1?-6:off<=0xF71?9:10);
+  const off=addr%4096;
+  const q=off+142,hi=(q&15)+(off<=0x9A1?-6:off<=0xF71?9:10);
   out[rec+14]=(q>>4)&255;out[rec+15]=hi&255;
 }
-// The element tables always start at ceil(recordEnd/4096) and coordinates five pages later.
+function heapFirst(v){const end=recsEnd(v);return (end>REC?v.getUint16(REC+12,true):v.getUint16(4,true))*4096+heapStart(v)}
+
 function fitRecords(bytes,count){
   const v=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength),end=recsEnd(v),hasRec=end>REC;
-  const cur=(hasRec?v.getUint16(REC+12,true):v.getUint16(4,true))-5;
+  const cur=Math.min((hasRec?v.getUint16(REC+12,true):v.getUint16(4,true))-5,Math.max(1,Math.ceil(end/4096)));
   const want=Math.max(1,Math.ceil((end+count*RSZ)/4096)),k=want-cur;
   if(!k)return bytes;
   const out=new Uint8Array(bytes.length+k*4096);
@@ -479,11 +522,21 @@ function fitRecords(bytes,count){
   return out;
 }
 function setRecsEnd(v,e){v.setUint16(0,Math.floor(e/0x800),true);v.setUint16(2,e%0x800+1,true)}
+
+function resizeRec(buf,rec,data){
+  const v0=new DataView(buf.buffer,buf.byteOffset,buf.byteLength),end=recsEnd(v0);let a=heapFirst(v0),addr=-1;
+  for(let o=REC;o<end;o+=RSZ){if(o===rec)addr=a;a+=v0.getUint16(o+16,true)}
+  if(addr<0)throw new Error('고칠 레코드를 찾지 못했습니다.');
+  const n=v0.getUint16(rec+16,true),hEnd=Math.max(heapEnd(v0),a),d=data.length-n,out=new Uint8Array(Math.ceil(Math.max(buf.length,hEnd+d+8)/4096)*4096);
+  out.set(buf.subarray(0,Math.min(buf.length,out.length)));out.copyWithin(addr+data.length,addr+n,hEnd);if(d<0)out.fill(0,hEnd+d,hEnd);out.set(data,addr);
+  const v=new DataView(out.buffer);v.setUint16(rec+16,data.length,true);let p=addr+data.length;
+  for(let o=rec+RSZ;o<end;o+=RSZ){v.setUint16(o+12,Math.floor(p/4096),true);setPos(out,o,p);p+=v.getUint16(o+16,true)}
+  setHeapEnd(v,hEnd+d);return out}
 function setHeapEnd(v,e){v.setUint16(4,Math.floor((e+5)/4096),true);v.setUint16(6,(e+5)%4096,true)}
-// Deleting removes the record and its data, as Yuka does, then renumbers what follows.
+
 function removeRec(out,rec){
   const v=new DataView(out.buffer),end=recsEnd(v),idx=(rec-REC)/RSZ+1;
-  let a=v.getUint16(REC+12,true)*4096+HEAP,addr=0;
+  let a=heapFirst(v),addr=0;
   for(let o=REC;o<end;o+=RSZ){if(o===rec)addr=a;a+=v.getUint16(o+16,true)}
   const walk=a,n=v.getUint16(rec+16,true),hEnd=Math.max(heapEnd(v),walk);
   out.copyWithin(addr,addr+n,hEnd);out.fill(0,hEnd-n,hEnd);
@@ -497,9 +550,11 @@ function removeRec(out,rec){
       p+=v.getUint16(o+16,true);
     }
   }
-  let q=v.getUint16(REC+12,true)*4096+HEAP;
+  let q=heapFirst(v);
   for(let o=REC;o<end-RSZ;o+=RSZ){
     const l=v.getUint16(o+16,true);
+    if(out[o]===0x5B)for(let b=0;b+258<=l;b+=256)if(v.getUint16(q+b+6,true)===1&&v.getUint16(q+b+8,true)===idx)[6,8,28].forEach(k=>v.setUint16(q+b+k,0,true));
+    if(out[o]===0x5C){const n=v.getUint16(q+4,true);if(l===206+94*n)for(let i=0;i<n;i++)if(v.getUint16(q+6+2*i,true)===idx)for(const j of [i,(i+1)%n])v.setUint16(q+62+24*n+68*j+2,1,true)}
     forRefs(v,out[o],q,l,p=>{const x=v.getUint16(p,true);if(x===idx)v.setUint16(p,0,true);else if(x>idx)v.setUint16(p,x-1,true)});
     q+=l;
   }
@@ -510,31 +565,34 @@ function encodeLine(p){
   p.forEach((q,i)=>{b.setFloat32(i*8,q.x,true);b.setFloat32(i*8+4,q.y,true)});
   return new Uint8Array(b.buffer);
 }
-// A stand-alone notch, as Yuka writes one: box (tick ends ±0.5), tick ends, point on the line, then fixed values.
+
 function encodeNotch(e){
   const b=new DataView(new ArrayBuffer(56)),[a,c]=e.pts,f=(o,x)=>b.setFloat32(o,x,true);
   f(0,Math.min(a.x,c.x)-.5);f(4,Math.min(a.y,c.y)-.5);f(8,Math.max(a.x,c.x)+.5);f(12,Math.max(a.y,c.y)+.5);
   f(16,a.x);f(20,a.y);f(24,c.x);f(28,c.y);f(32,e.at.x);f(36,e.at.y);
-  [1,2,1,1].forEach((x,i)=>b.setUint16(44+i*2,x,true));
+  [1,e.n46||2,1,e.blkNo||(e.side2?2:1)].forEach((x,i)=>b.setUint16(44+i*2,x,true));
   return new Uint8Array(b.buffer);
 }
-// Seam record (5C) with the most common values seen in Yuka files: outline list, seam-line list,
-// directions, start/end widths; corner settings left at their usual defaults.
-function encodeSeamCurve(sd){ // a seam curve also keeps how far it runs on at each corner (from/to)
+
+function encodeSeamCurve(sd){
   const d=encodeCurve(sd.pts),n=sd.pts.length,v=new DataView(d.buffer),P=seamPath(sd),xs=P.map(p=>p.x),ys=P.map(p=>p.y);
-  [Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)].forEach((c,i)=>v.setFloat32(i*4,c,true)); // box of the drawn curve, as Yuka keeps it
+  [Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)].forEach((c,i)=>v.setFloat32(i*4,c,true));
   v.setFloat32(18+8*n,sd.from||0,true);v.setFloat32(22+8*n,sd.to||0,true);return d;
 }
-function encodeSeam(layer,L0,L1,dir,w){
+function encodeSeam(layer,L0,L1,dir,w,kind,L2,L4,flip,scol,cut){
   const n=L0.length,b=new DataView(new ArrayBuffer(206+94*n)),u=(o,x)=>b.setUint16(o,x&0xFFFF,true);
-  u(0,layer);u(2,3);u(4,n);
-  for(let i=0;i<n;i++){u(6+2*i,L0[i]);u(6+2*n+2*i,L1[i]);u(6+14*n+2*i,dir[i]);
-    b.setFloat32(6+16*n+8*i,w[i],true);b.setFloat32(6+16*n+8*i+4,w[i],true); // each side: start width, end width
-    u(6+24*n+56+68*i,1);if(i<n-1)u(6+24*n+56+68*i+14,1)} // corner after side i: 연장 (as Yuka: +0=1, type 1)
-  u(6+24*n+2,1); // the last corner's type sits here
+  kind=kind||L0.map(()=>1);L2=L2||[];L4=L4||[];
+  u(0,layer);u(2,scol??3);u(4,n);
+  for(let i=0;i<n;i++){u(6+2*i,L0[i]);u(6+2*n+2*i,L1[i]);u(6+4*n+2*i,L2[i]||0);u(6+8*n+2*i,L4[i]||0);u(6+14*n+2*i,dir[i]);
+    b.setFloat32(6+16*n+8*i,w[i],true);b.setFloat32(6+16*n+8*i+4,w[i],true);
+    u(6+24*n+56+68*i,L4[i]?2:1);if(i<n-1)u(6+24*n+56+68*i+14,kind[i]);
+    if(flip&&flip[i])u(6+24*n+56+68*i+12,1)}
+  u(6+24*n+2,kind[n-1]);
+
+  if(cut)for(let i=0;i<n;i++){const c=cut[i];if(!c)continue;const a=(i-1+n)%n,B=6+24*n+56+68*i,A=a===n-1?6+24*n-12:6+24*n+56+68*a;u(B+4,c.opt);b.setFloat32(A+32,c.s,true);if(c.aflag)u(A+12,1)}
   return new Uint8Array(b.buffer);
 }
-// Yuka keeps a group counter in its saved state (tables page +0x1272, .pax only). Keep it at or above every group used.
+
 function groupCounterAt(bytes){
   const v=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength),T=Math.ceil(recsEnd(v)/4096)*4096;
   return v.getUint16(10,true)===10016&&T+0x1274<=bytes.length?T+0x1272:-1;
@@ -549,16 +607,27 @@ function bumpGroupCounter(out){
   const v=new DataView(out.buffer,out.byteOffset),m=maxGroup(out);
   if(v.getUint16(at,true)<m)v.setUint16(at,m,true);
 }
-function freeRecords(doc){
-  const v=new DataView(doc.bytes.buffer,doc.bytes.byteOffset,doc.bytes.byteLength);
-  let o=recsEnd(v),n=0;
-  while(o+RSZ<=doc.bytes.length&&doc.bytes.subarray(o,o+RSZ).every(x=>x===0)){n++;o+=RSZ}
-  return n;
-}
+function rawData(e){
+  const d=e.rawData.slice(),w=new DataView(d.buffer);
+  if(e.type===TYPE.TEXT){[e.box[0].x,e.box[0].y,e.box[1].x,e.box[1].y,e.at.x,e.at.y].forEach((x,i)=>w.setFloat32(4*i,x,true))}return d}
+
+function encode5B(line,dir,front,back){const d=new DataView(new ArrayBuffer(258));[0,2,4].forEach(o=>d.setUint16(o,1,true));if(line)d.setUint16(6,1,true);
+ d.setUint16(8,line,true);d.setInt16(28,dir,true);
+  d.setUint16(48,front.length,true);front.forEach((x,i)=>{d.setUint16(50+2*i,x.no,true);d.setFloat32(70+4*i,x.len,true)});d.setUint16(68,1,true);
+  d.setUint16(150,back.length,true);back.forEach((x,i)=>{d.setUint16(152+2*i,x.no,true);d.setFloat32(172+4*i,x.len,true)});d.setUint16(252,2,true);d.setUint16(254,1,true);d.setUint16(256,2,true);return new Uint8Array(d.buffer)}
+
+function encode5Bpair(blocks,x0){const nb=blocks.length,out=new Uint8Array(256*nb+2);
+  blocks.forEach((b,k)=>{const one=encode5B(b.line,b.dir,b.front,b.back),d=new DataView(one.buffer);d.setUint16(0,2,true);d.setUint16(2,nb,true);d.setUint16(4,k+1,true);out.set(one.subarray(0,256),256*k)});
+  new DataView(out.buffer).setUint16(256*nb,2,true);if(x0)new DataView(out.buffer).setUint16(0,x0,true);return out}
 function build(doc0,adds,dels,edits=[],regroups=[]){
-  const base=doc0.bytes.slice();
-  for(const g of regroups)new DataView(base.buffer,base.byteOffset).setUint16(g.rec+8,g.group,true); // SG/AG: group number at +8
-  for(const e of edits){ // same length, so only the coordinates change
+  let base=doc0.bytes.slice();
+  for(const g of regroups){new DataView(base.buffer,base.byteOffset).setUint16(g.rec+8,g.group,true);
+    if(g.color>=1&&g.color<=7)base[g.rec+3]=g.color;
+    if(g.flag>=1&&g.flag<=4)base[g.rec+5]=g.flag;
+    if(g.scol!=null){base[g.addr+2]=g.scol;new DataView(base.buffer,base.byteOffset).setUint16(g.rec+18,(g.rec-REC)/RSZ+1,true)}}
+  for(const e of edits){
+    if(e.patch16){const w=new DataView(base.buffer,base.byteOffset);for(const [o,x] of e.patch16)w.setUint16(e.addr+o,x,true);if((e.type===0x5C||e.type===0x5B)&&!e.patch)continue}
+    if(e.patch){const w=new DataView(base.buffer,base.byteOffset);for(const [o,x] of e.patch)w.setFloat32(e.addr+o,x,true);if(e.type===0x5C||e.type===0x5B||e.gr)continue}
     if(e.type===TYPE.LINE)base.set(encodeLine(e.pts),e.addr);
     else if(e.type===TYPE.NOTCH)base.set(encodeNotch(e).subarray(0,40),e.addr);
     else if(e.type===TYPE.ARC||e.type===TYPE.TEXT){
@@ -567,18 +636,40 @@ function build(doc0,adds,dels,edits=[],regroups=[]){
         f(0,B[0]);f(4,B[1]);f(8,B[2]);f(12,B[3]);f(16,e.arc.c.x);f(20,e.arc.c.y);f(28,e.arc.from);f(32,e.arc.to)}
       else{f(0,e.box[0].x);f(4,e.box[0].y);f(8,e.box[1].x);f(12,e.box[1].y);f(16,e.at.x);f(20,e.at.y)}
     }
-    else{
+        else{
       const d=encodeCurve(e.pts);
-      if(d.length!==e.len)throw new Error('곡선 저장 길이가 맞지 않습니다.');
-      base.set(e.baked?d:d.subarray(0,d.length-8),e.addr); // a rebuilt trimmed curve is shown in full
+      if(e.type===TYPE.CURVE)e.reData=null;
+      if(d.length!==e.len){
+        if(!e.grow)throw new Error('곡선 저장 길이가 맞지 않습니다.');
+        const tail=base.slice(e.addr+e.len-8,e.addr+e.len),nd=d.slice();if(!e.baked)nd.set(tail,nd.length-8);e.reData=()=>nd;continue}
+      base.set(e.baked?d:d.subarray(0,d.length-8),e.addr);
     }
-  }  for(const r of [...dels].sort((a,b)=>b-a)) removeRec(base,r);
+  }
+  for(const e of edits)if(e.reData)base=resizeRec(base,e.rec,e.reData(base));
+  for(const r of [...dels].sort((a,b)=>b-a)) removeRec(base,r);
   let doc=parse(base);
-  adds=adds.map(e=>e.kind==='curve'?{...e,pts:resample(e.pts,15)}:e);
-  adds=adds.map(e=>e.kind==='text'?{...e,data:encodeText(e)}:e.kind==='arc'?{...e,data:encodeArc(e.arc)}:e);
-  adds=adds.map(e=>e.kind==='seam'?{...e,sides:e.sides.map(sd=>({...sd,data:sd.curve?encodeSeamCurve(sd):encodeLine(sd.pts)}))}:e);
-  const need=adds.reduce((s,e)=>s+(e.kind==='text'||e.kind==='arc'?e.data.length:e.kind==='line'?16:e.kind==='notch'?56:e.kind==='seam'?e.sides.reduce((t,sd)=>t+sd.data.length,0)+206+94*e.sides.length:26+e.pts.length*8),0);
-  const recCount=adds.reduce((s,e)=>s+(e.kind==='seam'?e.sides.length+1:1),0),gone=[...dels];
+  {
+    const has=new Set(adds),keep=L=>{let c=0;const o=[];for(const x of L){c+=x.len;if(has.has(x.n)){o.push({...x,len:c});c=0}}return o};
+    const lineAlive=l=>l.kind?has.has(l):!dels.includes(l.rec);
+    adds=adds.map(e=>{if(e.kind!=='n5b')return e;
+      if(e.blocks)return e.blocks.every(b=>lineAlive(b.line)&&[...b.front,...b.back].every(x=>has.has(x.n)))?{...e,_src:e}:null;
+      const fr=keep(e.front),bk=keep(e.back),lineOk=e.line.kind?has.has(e.line):!dels.includes(e.line.rec);
+      if(!lineOk&&!e.line2&&(fr.length||bk.length))return {...e,line:null,dir:0,front:fr,back:bk,_src:e};
+      return lineOk&&(!e.line2||lineAlive(e.line2))&&(fr.length||bk.length)?{...e,front:fr,back:bk,_src:e}:null}).filter(Boolean);
+    const live=new Map(adds.filter(e=>e.kind==='n5b').map(e=>[e._src,e]));adds=adds.map(e=>e.kind==='notch'&&e.n5B?{...e,n5B:live.get(e.n5B)||null,_src:e}:e);
+    const re=new Map(adds.filter(e=>e._src).map(e=>[e._src,e])),reB=b=>({...b,front:b.front.map(x=>({...x,n:re.get(x.n)||x.n})),back:b.back.map(x=>({...x,n:re.get(x.n)||x.n})),line:re.get(b.line)||b.line});
+    adds=adds.map(e=>e.kind==='n5b'&&e.blocks?{...e,blocks:e.blocks.map(reB)}:e);
+    adds=adds.map(e=>e.kind==='n5b'&&!e.blocks?{...e,front:e.front.map(x=>({...x,n:re.get(x.n)||x.n})),back:e.back.map(x=>({...x,n:re.get(x.n)||x.n})),line:e.line&&(re.get(e.line)||e.line),...(e.line2?{line2:re.get(e.line2)||e.line2}:{})}:e)}
+  const adds0=adds;
+  adds=adds.map(e=>e.kind==='curve'&&!e.keepPts?{...e,pts:resample(e.pts,15)}:e);
+  adds=adds.map(e=>e.kind==='raw'?{...e,data:rawData(e)}:e);
+  adds=adds.map(e=>e.kind==='text'?{...e,data:encodeText(e)}:e.kind==='arc'?{...e,data:encodeArc(e.arc)}:e.kind==='dim'?{...e,data:encodeDim(e.dim)}:e);
+  adds=adds.map(e=>e.kind==='seam'?{...e,sides:e.sides.map((sd,j)=>({...sd,data:sd.curve?encodeSeamCurve(sd):encodeLine(sd.pts),
+    sq:sd.square?{l2:sd.square.L2sd?(sd.square.L2sd.curve?encodeSeamCurve(sd.square.L2sd):encodeLine(sd.square.L2sd.pts)):encodeLine(sd.square.L2),
+      t2:sd.square.L2sd&&sd.square.L2sd.curve?7:2,kind:sd.square.kind||3,l4:encodeSquare(sd.square,Math.max(...e.w))}:null}))}:e);
+  const seamExtra=e=>e.sides.filter(sd=>sd.sq).length;
+  const need=adds.reduce((s,e)=>s+(e.kind==='text'||e.kind==='arc'||e.kind==='dim'||e.kind==='raw'?e.data.length:e.kind==='line'?16:e.kind==='notch'?56:e.kind==='n5b'?(e.blocks?256*e.blocks.length+2:258):e.kind==='seam'?e.sides.reduce((t,sd)=>t+sd.data.length+(sd.sq?sd.sq.l2.length+80:0),0)+206+94*e.sides.length:26+e.pts.length*8),0);
+  const recCount=adds.reduce((s,e)=>s+(e.kind==='seam'?e.sides.length+1+2*seamExtra(e):1),0),gone=[...dels];
   for(const e of adds)if(e.kind==='seam'&&e.outline.some(o=>gone.includes(o.rec)))throw new Error('시접을 넣은 패턴의 외곽선이 지워졌습니다. 되돌리기로 시접을 빼 주세요.');
   doc=parse(fitRecords(doc.bytes,recCount));
   const src=doc.bytes,vs=new DataView(src.buffer,src.byteOffset,src.byteLength);
@@ -588,21 +679,40 @@ function build(doc0,adds,dels,edits=[],regroups=[]){
   const v=new DataView(out.buffer);
   if(tail>0) out.copyWithin(doc.walkEnd+need,doc.walkEnd,hEnd);
   let rec=recsEnd(v),a=doc.walkEnd;
+  const numOf=new Map();{let k=(rec-REC)/RSZ+1;adds.forEach((e,i)=>{numOf.set(e,k);numOf.set(adds0[i],k);if(adds0[i]._src)numOf.set(adds0[i]._src,k);k+=e.kind==='seam'?e.sides.length+1+2*seamExtra(e):1})}
+  const docNo=x=>(x.rec-REC)/RSZ+1-gone.filter(d=>d<x.rec).length;
   for(const e of adds){
-    if(e.kind==='seam'){ // seam lines first, then the seam record they point to (as Yuka orders them)
+    if(e.kind==='n5b'){const no=l=>!l?0:l.kind?numOf.get(l):docNo(l),fb=L=>L.map(x=>({no:numOf.get(x.n),len:x.len})),
+        data=e.blocks?encode5Bpair(e.blocks.map(b=>({line:no(b.line),dir:b.dir,front:fb(b.front),back:fb(b.back)})),e.x0):encode5B(no(e.line),e.dir,fb(e.front),fb(e.back));
+      if(e.line2){const w=new DataView(data.buffer);w.setUint16(52,no(e.line2),true);if(e.x68===5){w.setInt16(54,-1,true);w.setUint16(56,1,true)}w.setUint16(68,e.x68,true)}
+      out.set([0x5B,2,e.layer||0x2B,7,1,1,0,0],rec);v.setUint16(rec+12,Math.floor(a/4096),true);setPos(out,rec,a);v.setUint16(rec+16,data.length,true);out.set(data,a);a+=data.length;rec+=RSZ;continue}
+    if(e.kind==='seam'){
       const n=e.sides.length,first=(rec-REC)/RSZ+1,own=first+n,lay=e.layer||0x2B,L1=[];
       for(const sd of e.sides){
-        out.set([sd.curve?7:2,2,lay,3,1,1,0,0x15],rec);v.setUint16(rec+10,own,true);v.setUint16(rec+18,(rec-REC)/RSZ+1,true);L1.push((rec-REC)/RSZ+1);
+        out.set([sd.curve?7:2,2,lay,e.scol||3,1,1,0,0x15],rec);v.setUint16(rec+10,own,true);v.setUint16(rec+18,(rec-REC)/RSZ+1,true);L1.push((rec-REC)/RSZ+1);
         v.setUint16(rec+12,Math.floor(a/4096),true);setPos(out,rec,a);v.setUint16(rec+16,sd.data.length,true);out.set(sd.data,a);a+=sd.data.length;rec+=RSZ;
       }
-      const L0=e.outline.map(o=>(o.rec-REC)/RSZ+1-gone.filter(d=>d<o.rec).length),data=encodeSeam(lay,L0,L1,e.outline.map(o=>o.rev?-1:1),e.w);
+
+      const L2=[],L4=[];let k=own+1;for(let j=0;j<n;j++)if(e.sides[j].sq){L2[j]=k;L4[j]=k+1;k+=2}
+      const kind=e.sides.map((sd,i)=>e.sides[(i+1)%n].sq?e.sides[(i+1)%n].sq.kind:1);
+      const L0=e.outline.map(o=>(o.rec-REC)/RSZ+1-gone.filter(d=>d<o.rec).length);
+      for(const k of L0){const r=REC+(k-1)*RSZ;if(out[r+7]===1)out[r+7]=0}
+      const data=encodeSeam(lay,L0,L1,e.outline.map(o=>o.rev?-1:1),e.w,kind,L2,L4,e.sides.map(sd=>sd.square?sd.square.flag:0),e.scol,e.sides.map(sd=>sd.square&&sd.square.kind===17?sd.square:null));
       out.set([0x5C,2,lay,7,1,1,0,0],rec);v.setUint16(rec+12,Math.floor(a/4096),true);setPos(out,rec,a);v.setUint16(rec+16,data.length,true);
-      out.set(data,a);a+=data.length;rec+=RSZ;continue;
+      out.set(data,a);a+=data.length;rec+=RSZ;
+      for(const sd of e.sides)if(sd.sq)for(const [t,d] of [[sd.sq.t2,sd.sq.l2],[0x16,sd.sq.l4]]){
+        out.set([t,2,lay,t===0x16?3:e.scol||3,1,1,0,0x15],rec);v.setUint16(rec+10,own,true);v.setUint16(rec+18,(rec-REC)/RSZ+1,true);
+        v.setUint16(rec+12,Math.floor(a/4096),true);setPos(out,rec,a);v.setUint16(rec+16,d.length,true);out.set(d,a);a+=d.length;rec+=RSZ;
+      }
+      continue;
     }
-    const data=e.kind==='text'||e.kind==='arc'?e.data:e.kind==='line'?encodeLine(e.pts):e.kind==='notch'?encodeNotch(e):encodeCurve(e.pts);
-    out.set([e.kind==='text'?TYPE.TEXT:e.kind==='arc'?TYPE.ARC:e.kind==='line'?2:e.kind==='notch'?TYPE.NOTCH:7,2,e.layer||0x2B,e.color||7,1,1,0,e.kind==='notch'?0x21:0],rec);
+    if(e.kind==='raw'){out.set(e.head,rec);out[rec+2]=e.layer;if(e.self)v.setUint16(rec+18,(rec-REC)/RSZ+1,true);v.setUint16(rec+12,Math.floor(a/4096),true);setPos(out,rec,a);v.setUint16(rec+16,e.data.length,true);out.set(e.data,a);a+=e.data.length;rec+=RSZ;continue}
+    const data=e.kind==='text'||e.kind==='arc'||e.kind==='dim'?e.data:e.kind==='line'?encodeLine(e.pts):e.kind==='notch'?encodeNotch(e):encodeCurve(e.pts);
+    out.set([e.kind==='text'?TYPE.TEXT:e.kind==='dim'?TYPE.DIM:e.kind==='arc'?TYPE.ARC:e.kind==='line'?2:e.kind==='notch'?TYPE.NOTCH:7,2,e.layer||0x2B,e.color||7,1,e.kind==='line'||e.kind==='curve'||e.kind==='arc'?e.flag||1:1,0,e.kind==='notch'?0x21:e.link||0],rec);
     if(e.group)v.setUint16(rec+8,e.group,true);
-    if(e.kind==='notch'||e.kind==='text'||e.kind==='arc')v.setUint16(rec+18,(rec-REC)/RSZ+1,true); // notches and texts carry their own number here
+    if(e.r10)v.setUint16(rec+10,e.r10,true);
+    if(e.kind==='notch'&&e.n5B){const k=numOf.get(e.n5B)||numOf.get(e.n5B._src);if(k)v.setUint16(rec+10,k,true)}
+    if(e.kind==='notch'||e.kind==='text'||e.kind==='arc')v.setUint16(rec+18,(rec-REC)/RSZ+1,true);
     v.setUint16(rec+12,Math.floor(a/4096),true);
     setPos(out,rec,a);
     v.setUint16(rec+16,data.length,true);
@@ -611,12 +721,15 @@ function build(doc0,adds,dels,edits=[],regroups=[]){
   setRecsEnd(v,rec);setHeapEnd(v,hEnd+need);
   v.setUint16(8,v.getUint16(8,true)+recCount,true);
   if(regroups.length||adds.some(e=>e.group))bumpGroupCounter(out);
+  
   return out;
 }
 
-// App state
 const cv=document.getElementById('c'),ctx=cv.getContext('2d');
-const S={doc:null,name:'',adds:[],dels:[],hist:[],tool:'pan',draft:[],sel:null,view:{x:0,y:0,s:8},w:0,h:0,hover:null,example:false,hide:new Set(),layer:0x2B,edits:new Set(),grab:null,off:new Set(),coord:null,match:{A:[],B:[],side:'A'}};
+const S={doc:null,name:'',adds:[],dels:[],hist:[],tool:'pan',view:{x:0,y:0,s:8},w:0,h:0,example:false,hide:new Set(),layer:0x2B,edits:new Set(),grab:null,off:new Set(),coord:null};
+
+function toolState(keepCmd){return {mvCopy:false,gMove:false,casMode:false,gNext:false,areaSnap:null,ratioAsk:false,draft:[],hover:null,sel:null,hl:null,match:{A:[],B:[],side:'A'},notch:null,seam:null,seamPick:null,textAt:null,box:null,mv:{phase:'pick',sel:new Set(),cmd:keepCmd},rect:null,yc:null}}
+S.t=toolState();for(const k of Object.keys(S.t))Object.defineProperty(S,k,{get(){return S.t[k]},set(v){S.t[k]=v},enumerable:true,configurable:true});
 const $=id=>document.getElementById(id);
 
 function say(msg,warn){const n=$('notice');n.textContent=msg||'';n.hidden=!msg;n.classList.toggle('warn',!!warn)}
@@ -629,15 +742,16 @@ function cat(e){
   return e.kind==='curve'||e.type===TYPE.CURVE||e.type===TYPE.ARC?'curve':'line';
 }
 function allEls(){
-  const dead=new Set(S.dels);
-  return S.doc.els.filter(e=>!dead.has(e.rec)).concat(S.adds).filter(e=>!S.hide.has(e.layer)&&!S.off.has(cat(e)));
+  const dead=new Set(S.dels),hid=new Set(S.doc.els.filter(e=>e.type===0x5C&&e.scol===0).map(e=>(e.rec-REC)/RSZ+1));
+  return S.doc.els.filter(e=>!dead.has(e.rec)&&!(e.link===0x15&&hid.has(e.owner))).concat(S.adds.filter(e=>!(e.kind==='seam'&&e.scol===0))).filter(e=>!e.gr&&!S.hide.has(e.layer)&&!S.off.has(cat(e)));
 }
 function fit(){
-  const P=[];for(const e of allEls()){P.push(...e.pts);if(e.at)P.push(e.at);if(e.box)P.push(...e.box)} // text boxes count too
-  if(!P.length)P.push({x:0,y:0},{x:100,y:70});
-  const xs=P.map(p=>p.x),ys=P.map(p=>p.y),x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys);
-  const s=Math.min(S.w/Math.max(x1-x0,1),S.h/Math.max(y1-y0,1))*.85;
-  S.view={s,x:S.w/2-s*(x0+x1)/2,y:S.h/2+s*(y0+y1)/2};
+
+  let x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity;const add=p=>{if(!(Math.abs(p.x)<1e5&&Math.abs(p.y)<1e5))return;if(p.x<x0)x0=p.x;if(p.x>x1)x1=p.x;if(p.y<y0)y0=p.y;if(p.y>y1)y1=p.y};
+  for(const e of allEls()){for(const p of e.pts)add(p);if(e.at)add(e.at);if(e.box)e.box.forEach(add)}
+  if(x0===Infinity){x0=0;y0=0;x1=100;y1=70}
+  const W=S.split?S.w/S.panes.length:S.w,ox=S.split?S.paneActive*W:0,s=Math.min(W/Math.max(x1-x0,1),S.h/Math.max(y1-y0,1))*.85;
+  S.view={s,x:ox+W/2-s*(x0+x1)/2,y:S.h/2+s*(y0+y1)/2};if(S.split)S.panes[S.paneActive].view=S.view;
 }
 const toS=p=>({x:p.x*S.view.s+S.view.x,y:S.view.y-p.y*S.view.s});
 const toW=p=>({x:(p.x-S.view.x)/S.view.s,y:(S.view.y-p.y)/S.view.s});
@@ -646,35 +760,50 @@ function resize(){
   S.w=r.width;S.h=r.height;cv.width=r.width*d;cv.height=r.height*d;ctx.setTransform(d,0,0,d,0,0);draw();
 }
 function css(n){return getComputedStyle(document.documentElement).getPropertyValue(n)}
+
+function paneAt(x){if(!S.split)return;const n=S.panes.length,k=Math.max(0,Math.min(n-1,Math.floor(x/(S.w/n))));if(k===S.paneActive)return;S.paneActive=k;S.view=S.panes[k].view;S.hide=S.panes[k].hide;renderLayers();draw()}
 function draw(){
-  if(!S.doc)return;
+  if(!S.doc)return;if(!S.split)return drawPane();
+  const k0=S.paneActive,pn=S.panes.length,pw=S.w/pn;for(let k=0;k<pn;k++){ctx.save();ctx.beginPath();ctx.rect(k*pw,0,pw,S.h);ctx.clip();S.view=S.panes[k].view;S.hide=S.panes[k].hide;drawPane();ctx.restore()}
+  S.view=S.panes[k0].view;S.hide=S.panes[k0].hide;$('zoomText').textContent=Math.round(S.view.s*10)+'%';
+  const c=ctx;c.save();c.strokeStyle=css('--line')||'#888';c.lineWidth=2;c.beginPath();for(let k=1;k<pn;k++){c.moveTo(k*pw,0);c.lineTo(k*pw,S.h)}c.stroke();
+  c.strokeStyle=css('--mark');c.lineWidth=2;c.strokeRect(k0*pw+1,1,pw-2,S.h-2);c.restore()}
+function drawPane(){
   $('zoomText').textContent=Math.round(S.view.s*10)+'%';
   const c=ctx,V=S.view;c.fillStyle=css('--mat');c.fillRect(0,0,S.w,S.h);
-  const step=[1,5,10,50].find(g=>g*V.s>=14)||100,a=toW({x:0,y:S.h}),b=toW({x:S.w,y:0});
-  if($('gridOn').checked)for(const [g,col] of [[step,css('--grid')],[step*10,css('--grid2')]]){
+  const gz=S.gridSize,step=gz?(gz*V.s>=4?gz:Math.ceil(4/(gz*V.s))*gz):[1,5,10,50].find(g=>g*V.s>=14)||Math.max(100,Math.pow(10,Math.ceil(Math.log10(14/V.s)))),
+   a=toW({x:0,y:S.h}),b=toW({x:S.w,y:0}),O=S.gridOrg||{x:0,y:0};
+
+  if($('gridOn').checked&&S.gridMode==='dot'){c.fillStyle=css('--grid2');const st=step*V.s<8?step*10:step;
+    for(let x=O.x+Math.floor((a.x-O.x)/st)*st;x<=b.x;x+=st)for(let y=O.y+Math.floor((a.y-O.y)/st)*st;y<=b.y;y+=st){const q=toS({x,y});c.fillRect(q.x-1,q.y-1,2,2)}}
+  else if($('gridOn').checked)for(const [g,col] of [[step,css('--grid')],[step*10,css('--grid2')]]){
     c.strokeStyle=col;c.lineWidth=1;c.beginPath();
-    for(let x=Math.floor(a.x/g)*g;x<=b.x;x+=g){const p=toS({x,y:0}).x;c.moveTo(p,0);c.lineTo(p,S.h)}
-    for(let y=Math.floor(a.y/g)*g;y<=b.y;y+=g){const p=toS({x:0,y}).y;c.moveTo(0,p);c.lineTo(S.w,p)}
+    for(let x=O.x+Math.floor((a.x-O.x)/g)*g;x<=b.x;x+=g){const p=toS({x,y:0}).x;c.moveTo(p,0);c.lineTo(p,S.h)}
+    for(let y=O.y+Math.floor((a.y-O.y)/g)*g;y<=b.y;y+=g){const p=toS({x:0,y}).y;c.moveTo(0,p);c.lineTo(S.w,p)}
     c.stroke();
   }
+  const LDASH={2:[6,4],3:[10,3,2,3],4:[10,3,2,3,2,3]};
   for(const e of allEls()){
     const sel=S.sel===e,pen=css('--c'+e.color)||css('--ink'),g=S.tool==='match'?(S.match.A.includes(e)?'--c4':S.match.B.includes(e)?'--mark':''):'';
     c.strokeStyle=g?css(g):sel?css('--mark'):e.kind?css('--draw'):pen;c.globalAlpha=e.kind&&e.color===3?.5:1;c.lineWidth=g?2.8:sel?2.4:1.3;
-    if(e.pts.length){c.beginPath();shape(e).forEach((p,i)=>{const q=toS(p);i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y)});c.stroke()}
-    if(e.kind==='seam'){c.strokeStyle=css('--c3');for(const sd of e.sides){c.beginPath();seamPath(sd).forEach((p,i)=>{const q=toS(p);i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y)});c.stroke()}}
+    if(e.pts.length){c.setLineDash(LDASH[e.flag]||[]);c.beginPath();shape(e).forEach((p,i)=>{const q=toS(p);i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y)});c.stroke();c.setLineDash([])}
+    if(e.kind==='seam'){c.strokeStyle=css('--c3');for(const sd of e.sides)for(const P of [seamPath(sd),...(sd.square?[sd.square.L2]:[])]){c.beginPath();P.forEach((p,i)=>{const q=toS(p);i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y)});c.stroke()}}
+    if(e.dim)for(const P of e.dim){c.beginPath();P.forEach((p,i)=>{const q=toS(p);i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y)});c.stroke()}
     if(e.text&&e.size*V.s>=3)drawText(c,e,pen);
     c.globalAlpha=1;
   }
+  
   if(S.hl&&S.hl.pts.length){c.save();c.globalAlpha=.35;c.strokeStyle=css('--draw');c.lineWidth=7;c.lineCap='round';c.beginPath();shape(S.hl).forEach((p,i)=>{const q=toS(p);i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y)});c.stroke();c.restore()}
   if(MOVES.includes(S.tool))drawMove(c);
+  if(S.tool==='yc')drawYc(c);
   if(S.tool==='box'&&S.box&&S.hover){const a=toS(S.box),b=toS(S.hover);c.strokeStyle=css('--mark');c.lineWidth=1.8;c.setLineDash([6,4]);c.strokeRect(a.x,a.y,b.x-a.x,b.y-a.y);c.setLineDash([])}
-  if((S.tool==='circle'||S.tool==='arc3')&&S.draft.length&&S.hover){ // preview
+  if((S.tool==='circle'||S.tool==='arc3')&&S.draft.length&&S.hover){
     const D=S.draft,h=S.hover,a=S.tool==='circle'?{c:D[0],r:Math.hypot(h.x-D[0].x,h.y-D[0].y),from:0,to:0}:D.length===2?arcThrough(D[0],D[1],h):null;
     c.strokeStyle=css('--mark');c.lineWidth=1.8;c.setLineDash([6,4]);c.beginPath();
     (a&&a.r>0?arcPts(a.c,a.r,a.from,a.to):[D[D.length-1],h]).forEach((p,i)=>{const q=toS(p);i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y)});c.stroke();c.setLineDash([]);
     c.fillStyle=css('--mark');for(const p of D){const q=toS(p);c.beginPath();c.arc(q.x,q.y,4,0,7);c.fill()}
   }
-  if(S.tool==='text'&&S.textAt){ // where the text goes, and a preview
+  if(S.tool==='text'&&S.textAt){
     const q=toS(S.textAt);c.strokeStyle=css('--mark');c.lineWidth=1.5;c.beginPath();c.moveTo(q.x-8,q.y);c.lineTo(q.x+8,q.y);c.moveTo(q.x,q.y-8);c.lineTo(q.x,q.y+8);c.stroke();
     const t=$('txt').value,sz=parseFloat($('txtSize').value)||1;if(t)drawText(c,{text:t,at:S.textAt,size:sz,h:2,v:2,rot:parseFloat($('txtRot').value)||0},css('--mark'));
   }
@@ -685,14 +814,16 @@ function draw(){
   if(S.tool==='seam'&&S.seam){
     const Z=S.seam;Z.loop.forEach((l,i)=>{c.strokeStyle=css(i===Z.sel?'--mark':'--c4');c.lineWidth=i===Z.sel?3.4:2.6;c.beginPath();shape(l.e).forEach((p,k)=>{const q=toS(p);k?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y)});c.stroke()});
     c.strokeStyle=css('--c3');c.lineWidth=1.8;c.setLineDash([6,4]);
-    for(const sd of seamSides(Z)){c.beginPath();seamPath(sd).forEach((p,i)=>{const q=toS(p);i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y)});c.stroke()}
+    for(const sd of seamSides(Z))for(const P of [seamPath(sd),...(sd.square?[sd.square.L2]:[])]){c.beginPath();P.forEach((p,i)=>{const q=toS(p);i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y)});c.stroke()}
     c.setLineDash([]);
+    Z.loop.forEach((l,i)=>{const q=toS(seamCorner(Z,i)),sq=Z.corner[i]!==1;c.fillStyle=css(sq?'--mark':'--panel');c.strokeStyle=css(sq?'--mark':'--c4');c.lineWidth=1.6;
+      c.beginPath();sq?c.rect(q.x-5,q.y-5,10,10):c.arc(q.x,q.y,5,0,2*Math.PI);c.fill();c.stroke()});
   }
   if(S.tool==='notch'&&S.notch){
     c.strokeStyle=c.fillStyle=css('--mark');
     for(const s of notchSpots()){const g=notchGeom(S.notch.e,s),A=toS(g.a),B=toS(g.b),C=toS(g.c);
       c.lineWidth=2.6;c.beginPath();c.moveTo(A.x,A.y);c.lineTo(B.x,B.y);c.stroke();c.beginPath();c.arc(C.x,C.y,3.5,0,7);c.fill()}
-    const P=shape(S.notch.e),E=toS(S.notch.fromEnd?P[P.length-1]:P[0]); // the end the distance is measured from
+    const P=shape(S.notch.e),E=toS(S.notch.fromEnd?P[P.length-1]:P[0]);
     c.lineWidth=2;c.beginPath();c.arc(E.x,E.y,7,0,7);c.stroke();
   }
   if(S.draft.length){
@@ -703,6 +834,8 @@ function draw(){
   }
   if(S.tool==='edit'&&S.sel){c.fillStyle=css('--mark');for(const p of S.sel.pts){const q=toS(p);c.fillRect(q.x-5,q.y-5,10,10)}}
   if(S.snap){const q=toS(S.snap);c.strokeStyle=css('--mark');c.lineWidth=2;c.strokeRect(q.x-6,q.y-6,12,12)}
+  if(S.areaSnap&&S.areaSnap.pts.length){const A=S.areaSnap,P=A.pts.map(toS),cur=A.cur;c.strokeStyle=css('--draw');c.lineWidth=1.2;c.setLineDash([5,4]);c.beginPath();
+    if(A.kind!=='poly'){if(cur){c.rect(P[0].x,P[0].y,cur.x-P[0].x,cur.y-P[0].y)}}else{P.forEach((q,i)=>i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y));if(cur)c.lineTo(cur.x,cur.y)}c.stroke();c.setLineDash([])}
 }
 function drawText(c,e,pen){
   const V=S.view,px=e.size*V.s,q=toS(e.at),lines=e.text.split(/\r?\n/),lh=(e.lh||e.size*1.2)*V.s,total=lh*(lines.length-1)+px;
@@ -710,12 +843,13 @@ function drawText(c,e,pen){
   c.fillStyle=S.hl===e?css('--draw'):pen;c.font=px+'px '+css('--font');c.textBaseline='top';
   const top=e.v===3?0:e.v===2?-total/2:-total;
   lines.forEach((ln,i)=>{
-    const want=textWidth(ln,e.size,e.cw,e.pitch)*V.s,got=c.measureText(ln).width||1,x=e.h===1?0:e.h===3?-want:-want/2; // Yuka's character width and pitch
+    const want=textWidth(ln,e.size,e.cw,e.pitch)*V.s,got=c.measureText(ln).width||1,x=e.h===1?0:e.h===3?-want:-want/2;
     c.save();c.translate(x,top+i*lh);c.scale(want/got,1);c.fillText(ln,0,0);c.restore();
   });
   c.restore();
 }
-function spline(P){ // Catmull-Rom through the tapped points
+
+function spline(P){
   if(P.length<3)return P;
   const o=[];
   for(let i=0;i<P.length-1;i++){
@@ -727,18 +861,71 @@ function spline(P){ // Catmull-Rom through the tapped points
   }
   return o;
 }
+
+const SNAPS={end:'끝점',free:'임의점',on:'선상점',cross:'교점',mid:'중점',ratio:'비율점'};
+function setSnap(m){$('snapMode').value=m;$('snapRatioL').hidden=m!=='ratio';S.snap=null;S.ratioAsk=m==='ratio';
+  say('점 잡기: '+SNAPS[m]+(m==='ratio'?' — 비율을 치고 스페이스(지금 '+$('snapRatio').value+')':''));if(m==='ratio')$('cmd').focus();draw()}
+function snapNear(sp,skip,px){
+  let best=null;
+  for(const e of allEls()){if(e===skip||isNotch(e)||e.text||e.pts.length<2)continue;const P=shape(e);let run=0;
+    for(let i=1;i<P.length;i++){const a=toS(P[i-1]),b=toS(P[i]),dx=b.x-a.x,dy=b.y-a.y,t=Math.max(0,Math.min(1,((sp.x-a.x)*dx+(sp.y-a.y)*dy)/(dx*dx+dy*dy||1))),d=Math.hypot(a.x+t*dx-sp.x,a.y+t*dy-sp.y),L=Math.hypot(P[i].x-P[i-1].x,P[i].y-P[i-1].y);
+      if(d<(best?best.d:px))best={e,P,d,p:{x:P[i-1].x+(P[i].x-P[i-1].x)*t,y:P[i-1].y+(P[i].y-P[i-1].y)*t},s:run+L*t};run+=L}}
+  return best}
 function snapAt(sp,skip){
-  if(!$('snapOn').checked)return null;
-  let best=null,bd=18;
-  for(const e of allEls())if(e!==skip&&!isNotch(e))for(const p of e.pts.length>2?[e.pts[0],e.pts[e.pts.length-1]]:e.pts){
-    const q=toS(p),d=Math.hypot(q.x-sp.x,q.y-sp.y);if(d<bd){bd=d;best=p}
-  }
-  return best;
+  if(S.forceSnap)return S.forceSnap;
+  const m=$('snapMode').value;
+  if(m==='free')return null;
+  if(m==='end'){let best=null,bd=18;
+    for(const e of allEls())if(e!==skip&&!isNotch(e))for(const p of e.pts.length>2?[e.pts[0],e.pts[e.pts.length-1]]:e.pts){
+      const q=toS(p),d=Math.hypot(q.x-sp.x,q.y-sp.y);if(d<bd){bd=d;best=p}}
+    return best}
+  if(m==='cross'){const near=[];for(const e of allEls()){if(e===skip||isNotch(e)||e.text||e.pts.length<2)continue;const P=shape(e);
+      for(let i=1;i<P.length;i++){const a=toS(P[i-1]),b=toS(P[i]),dx=b.x-a.x,dy=b.y-a.y,t=Math.max(0,Math.min(1,((sp.x-a.x)*dx+(sp.y-a.y)*dy)/(dx*dx+dy*dy||1)));if(Math.hypot(a.x+t*dx-sp.x,a.y+t*dy-sp.y)<30){near.push(P);break}}}
+    let best=null,bd=18;
+    for(let i=0;i<near.length;i++)for(let j=i+1;j<near.length;j++){const A=near[i],B=near[j];
+      for(let a=1;a<A.length;a++)for(let b=1;b<B.length;b++){const p=A[a-1],r={x:A[a].x-p.x,y:A[a].y-p.y},q=B[b-1],u={x:B[b].x-q.x,y:B[b].y-q.y},den=r.x*u.y-r.y*u.x;if(Math.abs(den)<1e-12)continue;
+        const t=((q.x-p.x)*u.y-(q.y-p.y)*u.x)/den,v=((q.x-p.x)*r.y-(q.y-p.y)*r.x)/den;if(t<-1e-9||t>1+1e-9||v<-1e-9||v>1+1e-9)continue;
+        const X={x:p.x+r.x*t,y:p.y+r.y*t},sx=toS(X),d=Math.hypot(sx.x-sp.x,sx.y-sp.y);if(d<bd){bd=d;best=X}}}
+    return best}
+  const n=snapNear(sp,skip,18);if(!n)return null;
+  if(m==='on')return n.p;
+  const L=lenOf(n.P);if(L<1e-9)return null;
+  if(m==='mid')return ycAlong(n.P,L/2);
+  const r=Math.max(0,Math.min(1,parseFloat($('snapRatio').value)||0)),fromStart=n.s<=L/2;
+  return ycAlong(n.P,fromStart?L*r:L*(1-r));
 }
+
+function areaSnapStart(kind){S.areaSnap={kind,pts:[],cur:null,els:kind!=='zoom'&&MOVES.includes(S.tool)&&S.mv.phase==='pick'};say({in:'영역내',cross:'영역교차내',zoom:'부분확대',poly:'다각형내'}[kind]+': '+(kind==='poly'?'다각형 꼭짓점을 차례로 누르고 첫 점을 다시 누르거나 Enter (두 점이면 네모)':'원하는 자리를 둘러싸는 네모의 대각 두 점을 누르세요'));draw()}
+function areaPoly(A){return A.pts.length===2?(()=>{const[a,b]=A.pts;return[a,{x:b.x,y:a.y},b,{x:a.x,y:b.y}]})():A.pts}
+function inPoly(Q,p){let c=false;for(let i=0,j=Q.length-1;i<Q.length;j=i++){const a=Q[i],b=Q[j];if((a.y>p.y)!==(b.y>p.y)&&p.x<(b.x-a.x)*(p.y-a.y)/(b.y-a.y)+a.x)c=!c}return c}
+function areaCands(Q,mode){
+  const out=[],inside=p=>inPoly(Q,p),els=allEls().filter(e=>!isNotch(e)&&!e.text&&e.pts.length>=2);
+  if(mode==='end'){for(const e of els)for(const p of[e.pts[0],e.pts[e.pts.length-1]])if(inside(p))out.push(p);return out}
+  if(mode==='mid'){for(const e of els){const P=shape(e),L=lenOf(P);if(L>1e-9){const m=ycAlong(P,L/2);if(inside(m))out.push(m)}}return out}
+  if(mode==='cross'){const sh=els.map(e=>shape(e));for(let i=0;i<sh.length;i++)for(let j=i+1;j<sh.length;j++){const A=sh[i],B=sh[j];
+      for(let a=1;a<A.length;a++)for(let b=1;b<B.length;b++){const p=A[a-1],r={x:A[a].x-p.x,y:A[a].y-p.y},q=B[b-1],u={x:B[b].x-q.x,y:B[b].y-q.y},den=r.x*u.y-r.y*u.x;if(Math.abs(den)<1e-12)continue;
+        const t=((q.x-p.x)*u.y-(q.y-p.y)*u.x)/den,v=((q.x-p.x)*r.y-(q.y-p.y)*r.x)/den;if(t<-1e-9||t>1+1e-9||v<-1e-9||v>1+1e-9)continue;const X={x:p.x+r.x*t,y:p.y+r.y*t};if(inside(X))out.push(X)}}return out}
+  if(mode==='on'||mode==='ratio'){const c=centroid(Q);for(const e of els){const n=ycNear(shape(e),c);if(n&&inside(n.p))out.push(n.p)}return out}
+  return [centroid(Q)];
+}
+const centroid=Q=>({x:Q.reduce((s,p)=>s+p.x,0)/Q.length,y:Q.reduce((s,p)=>s+p.y,0)/Q.length});
+function areaFinish(){
+  const A=S.areaSnap,Q=areaPoly(A);S.areaSnap=null;
+  if(A.els)return areaPickEls(Q,A.kind==='cross');
+  if(S.tool==='yc'&&S.yc&&A.kind!=='zoom'){const Y=S.yc,st=Y.d.steps[Y.i];if(st&&st.areaPick){const pts=st.areaPick(Q,A.kind==='cross');if(pts.length){for(const q of pts)Y.pts.push({x:q.x,y:q.y});say((A.kind==='cross'?'[영역교차내] ':'[영역내] ')+pts.length+'개를 골랐습니다.');ycStep();return}say('그 영역 안에 고를 것이 없습니다.',true);draw();return}}
+  if(A.kind==='zoom'){let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const p of Q){x0=Math.min(x0,p.x);y0=Math.min(y0,p.y);x1=Math.max(x1,p.x);y1=Math.max(y1,p.y)}zoomTo(x0,y0,x1,y1);say('');draw();return}
+  const c=centroid(Q),C=areaCands(Q,A.kind==='cross'?'cross':$('snapMode').value).sort((a,b)=>ycD(a,c)-ycD(b,c));
+  if(!C.length){say('그 영역 안에 잡을 점이 없습니다.',true);draw();return}
+  say('');S.forceSnap=C[0];try{tap(toS(C[0]))}finally{S.forceSnap=null}
+}
+function areaTap(sp){const A=S.areaSnap,w=toW(sp);
+  if(A.kind==='poly'&&A.pts.length>=2){const f=toS(A.pts[0]);if(Math.hypot(f.x-sp.x,f.y-sp.y)<12){areaFinish();return}}
+  A.pts.push(w);if(A.kind!=='poly'&&A.pts.length===2)areaFinish();else draw()}
+function zoomTo(x0,y0,x1,y1){const V=S.view,w=Math.max(x1-x0,1e-3),h=Math.max(y1-y0,1e-3),W=S.split?S.w/S.panes.length:S.w,ox=S.split?S.paneActive*W:0;V.s=Math.max(.3,Math.min(200,Math.min(W/w,S.h/h)*0.9));V.x=ox+W/2-(x0+x1)/2*V.s;V.y=S.h/2+(y0+y1)/2*V.s}
 function pick(sp){
   let best=null,bd=16;
   for(const e of allEls()){
-    if(e.text&&e.box){const a=toS(e.box[0]),b=toS(e.box[1]);if(sp.x>=Math.min(a.x,b.x)-4&&sp.x<=Math.max(a.x,b.x)+4&&sp.y>=Math.min(a.y,b.y)-4&&sp.y<=Math.max(a.y,b.y)+4&&8<bd){bd=8;best=e}continue} // inside a text box; lines closer than 8px win
+    if(e.text&&e.box){const a=toS(e.box[0]),b=toS(e.box[1]);if(sp.x>=Math.min(a.x,b.x)-4&&sp.x<=Math.max(a.x,b.x)+4&&sp.y>=Math.min(a.y,b.y)-4&&sp.y<=Math.max(a.y,b.y)+4&&8<bd){bd=8;best=e}continue}
     for(let i=1;i<e.pts.length;i++){
       const a=toS(e.pts[i-1]),b=toS(e.pts[i]),dx=b.x-a.x,dy=b.y-a.y,t=Math.max(0,Math.min(1,((sp.x-a.x)*dx+(sp.y-a.y)*dy)/(dx*dx+dy*dy||1)));
       const d=Math.hypot(a.x+t*dx-sp.x,a.y+t*dy-sp.y);if(d<bd){bd=d;best=e}
@@ -747,14 +934,18 @@ function pick(sp){
   return best;
 }
 const lenOf=p=>p.reduce((s,q,i)=>i?s+Math.hypot(q.x-p[i-1].x,q.y-p[i-1].y):s,0);
-const elLen=e=>lenOf(shape(e)); // curves are measured along the drawn curve, not between stored points
-function readout(t){$('readout').textContent=t||(S.tool==='line'?'시작점을 누르세요':S.tool==='curve'?'곡선이 지날 점을 차례로 누르세요':S.tool==='measure'?'두 점을 누르면 거리가 나옵니다':S.tool==='offset'?'기준 선을 누르세요':S.tool==='box'?(S.box?'반대쪽 꼭짓점을 누르거나 가로·세로를 입력하세요':'사각형의 한 꼭짓점을 누르세요'):MOVES.includes(S.tool)?moveHint():S.tool==='notch'?'너치를 넣을 선을 누르세요':S.tool==='circle'?(S.draft.length?'둘레의 한 점을 누르거나 반지름을 입력하세요':'원의 중심을 누르세요'):S.tool==='arc3'?['원호의 시작점을 누르세요','원호가 지나는 점을 누르세요','원호의 끝점을 누르세요'][S.draft.length]:S.tool==='text'?(S.textAt?'글자를 입력하고 [넣기]를 누르세요 (누른 점이 글자 가운데)':'글자를 넣을 자리를 누르세요'):S.tool==='seam'?(S.seamPick?'외곽선을 한 바퀴 순서대로 누르고 [한 바퀴 완성]을 누르세요 (다시 누르면 빠짐)':'시접을 넣을 패턴의 외곽선을 누르세요'):S.tool==='seamdel'?'지울 패턴의 분홍 시접선을 누르세요':S.tool==='edit'?'고칠 선을 누르세요':S.tool==='match'?(S.match.side==='A'?'기준이 될 선을 차례로 누르세요 (다시 누르면 빠짐)':'맞출 쪽 선을 누르세요. 마지막에 누른 선으로 길이를 맞출 수 있어요'):'선을 누르면 길이가 나옵니다')}
+const elLen=e=>lenOf(shape(e));
+
+function readout(t){readout0(t);const r=$('readout');if(!S.cmdCode||S.cmdTool!==S.tool||!r.textContent)return;
+  let x=r.textContent;if(!x.startsWith('['))x='['+S.cmdCode+'] '+x;if(MOVES.includes(S.tool)&&S.mv&&S.mv.phase==='pick')x+='  [ '+S.mv.sel.size+' ]';r.textContent=x}
+function readout0(t){$('readout').textContent=t||(S.tool==='line'?'시작점을 누르세요':S.tool==='curve'?'곡선이 지날 점을 차례로 누르세요':S.tool==='measure'?'두 점을 누르면 거리가 나옵니다':S.tool==='offset'?'기준 선을 누르세요':S.tool==='box'?(S.box?'반대쪽 꼭짓점을 누르거나 가로·세로를 입력하세요':'사각형의 한 꼭짓점을 누르세요'):MOVES.includes(S.tool)?moveHint():S.tool==='notch'?'너치를 넣을 선을 누르세요':S.tool==='circle'?(S.draft.length?'둘레의 한 점을 누르거나 반지름을 입력하세요':'원의 중심을 누르세요'):S.tool==='arc3'?['원호의 시작점을 누르세요','원호가 지나는 점을 누르세요','원호의 끝점을 누르세요'][S.draft.length]:S.tool==='text'?(S.textAt?'글자를 입력하고 [넣기]를 누르세요 (누른 점이 글자 가운데)':'글자를 넣을 자리를 누르세요'):S.tool==='seam'?(S.seamPick?'외곽선을 한 바퀴 순서대로 누르고 [한 바퀴 완성]을 누르세요 (다시 누르면 빠짐)':'시접을 넣을 패턴의 외곽선을 누르세요'):S.tool==='seamdel'?'지울 패턴의 분홍 시접선을 누르세요':S.tool==='edit'?'고칠 선을 누르세요':S.tool==='match'?(S.match.side==='A'?'기준이 될 선을 차례로 누르세요 (다시 누르면 빠짐)':'맞출 쪽 선을 누르세요. 마지막에 누른 선으로 길이를 맞출 수 있어요'):'선을 누르면 길이가 나옵니다')}
 function refresh(){
   $('name').innerHTML='';$('name').textContent=S.name;
   const sm=document.createElement('small');sm.textContent=dirty()?'저장 안 됨':'';$('name').append(sm);
   $('notchPanel').hidden=!(S.tool==='notch'&&S.notch);
   $('boxPanel').hidden=!(S.tool==='box'&&S.box);
   $('movePanel').hidden=!MOVES.includes(S.tool);if(MOVES.includes(S.tool))showMove();
+  if(S.tool!=='yc')$('ycPanel').hidden=true;
   $('seamPanel').hidden=!(S.tool==='seam'&&S.seam);if(S.seam)showSeam();
   $('circlePanel').hidden=!(S.tool==='circle'&&S.draft.length===1);
   $('textPanel').hidden=!(S.tool==='text'&&S.textAt);
@@ -766,9 +957,12 @@ function refresh(){
   showMatch();
   draw();
 }
-function commit(el){el.layer=el.layer||S.layer;el.color=el.color||+$('lineKind').value;S.adds.push(el);S.hist.push({a:el});S.draft=[];S.hover=null;refresh()}
+function commit(el){el.layer=el.layer||S.layer;el.color=el.color||+$('lineKind').value;if(el.flag===1&&S.ltype>1&&!el.link&&['line','curve','arc'].includes(el.kind))el.flag=S.ltype;S.adds.push(el);S.hist.push({a:el});S.draft=[];S.hover=null;refresh()}
 function tap(sp){
+  S.ratioAsk=false;
+  if(S.areaSnap){areaTap(sp);return}
   const sn=snapAt(sp),w=sn||toW(sp);
+  if(S.tool==='yc'){ycTap(sp,w);return}
   if(S.tool==='seamdel'){
     const e=pick(sp);if(!e)return;
     const set=seamSet(e);
@@ -800,13 +994,14 @@ function tap(sp){
       const k=S.seamPick.indexOf(e);k>=0?S.seamPick.splice(k,1):S.seamPick.push(e);say('');refresh();return;
     }
     const at=S.seam?S.seam.loop.findIndex(l=>l.e===e):-1;
+    const ci=-1;
     if(at>=0){S.seam.sel=S.seam.sel===at?-1:at;if(S.seam.sel>=0)$('seamW').value=S.seam.w[at];refresh();return}
     const why=seamBlock(e);if(why){S.seam=null;say(why,true);refresh();return}
     const loop=findLoop(e);
     if(!loop){S.seam=null;S.seamPick=[e];say('한 바퀴를 자동으로 찾지 못했습니다(끝점이 1mm 넘게 떨어진 곳이 있음). 외곽선을 순서대로 직접 눌러 주세요.',true);readout();refresh();return}
     const taken=seamedOutline();if(loop.some(l=>taken.has(l.e.rec)))return say('이미 시접이 있는 패턴입니다. 시접 삭제로 지운 뒤 넣어 주세요.',true);
     const w=parseFloat($('seamW').value)>0?parseFloat($('seamW').value):1;
-    S.seam={loop,w:loop.map(()=>w),sel:-1};say('');refresh();return;
+    S.seam={loop,w:loop.map(()=>w),corner:loop.map(()=>1),sel:-1};say('');refresh();return;
   }
   if(S.tool==='notch'){
     const e=pick(sp);if(!e||isNotch(e)||e.text)return;
@@ -828,7 +1023,7 @@ function tap(sp){
     if(e&&locked(e)){S.sel=null;say('그레이딩이나 다른 요소에 연결된 선은 유까에서 고쳐 주세요.',true)}
     else{
       S.sel=e;say('');
-      if(e&&e.trim){e.pts=resample(e.pts,e.n,true);e.trim=false;e.baked=true}
+      if(e&&e.trim)bakeTrim(e);
       if(e&&e.pts.length===2)$('editLen').value=lenOf(e.pts).toFixed(2)}
     readout(e&&!locked(e)?'점을 끌어 고치세요 · 길이 '+elLen(e).toFixed(2)+' cm':undefined);refresh();return;
   }
@@ -837,6 +1032,7 @@ function tap(sp){
     if(S.sel) readout('길이 '+elLen(S.sel).toFixed(2)+' cm'+(S.sel.group?' · 그룹 '+S.sel.group:''));else readout();
     refresh();return;
   }
+  if((S.tool==='curve'||S.tool==='line')&&sameTap(S.draft,sp,w)){if(S.tool==='curve'&&S.draft.length>=2)$('done').click();return}
   S.draft.push({x:w.x,y:w.y});
   if(S.tool==='line'&&S.draft.length===2){const p=S.draft;commit({kind:'line',pts:p,flag:1});readout('길이 '+lenOf(p).toFixed(2)+' cm');return}
   if(S.tool==='measure'&&S.draft.length===2){
@@ -845,63 +1041,70 @@ function tap(sp){
   }
   refresh();
 }
-function seamSet(e){ // a pattern's seam: its lines on every size layer plus the seam record they point to
+function seamSet(e){
   if(e.kind||e.link!==0x15)return [];
-  if(!e.group){ // no size group (e.g. made by this app): the seam record and the lines that point to it
+  if(!e.group){
     const seams=S.doc.els.filter(x=>x.type===0x5C&&(x.rec-REC)/RSZ+1===e.owner);
     return seams.length?[...S.doc.els.filter(x=>x.link===0x15&&x.owner===e.owner),...seams]:[];
   }
   const same=S.doc.els.filter(x=>x.group===e.group),owners=new Set(same.filter(x=>x.link===0x15).map(x=>x.owner).filter(Boolean));
   const seams=S.doc.els.filter(x=>x.type===0x5C&&owners.has((x.rec-REC)/RSZ+1));
-  // white pattern lines can carry the seam mark too: they stay and only lose the link
+
   const lines=same.filter(x=>(x.type===0x16&&x.link===0x15)||((x.type===TYPE.LINE||x.type===TYPE.CURVE)&&x.color===3&&(x.link===0x15||x.owner)));
+
+  const v=new DataView(S.doc.bytes.buffer,S.doc.bytes.byteOffset),listed=new Set(),outl=new Set(),num=x=>(x.rec-REC)/RSZ+1;
+  for(const s of seams){const n=v.getUint16(s.addr+4,true);if(s.len!==206+94*n)continue;for(const j of [0,1,2,3,4])for(let k=0;k<n;k++){const q=v.getUint16(s.addr+6+2*(j*n+k),true);if(q)(j?listed:outl).add(q)}}
+  const have=new Set(lines);for(const x of S.doc.els)if(x.link===0x15&&listed.has(num(x))&&!outl.has(num(x))&&!have.has(x))lines.push(x);
   return seams.length?[...lines,...seams]:[];
 }
 function locked(e){
   if(e.kind)return false;
   const v=new DataView(S.doc.bytes.buffer,S.doc.bytes.byteOffset);
-  return !(e.type===TYPE.LINE||e.type===TYPE.CURVE)||e.link!==0||v.getUint16(e.rec+10,true)!==0;
+  return !(e.type===TYPE.LINE||e.type===TYPE.CURVE)||(e.link!==0&&e.link!==1)||v.getUint16(e.rec+10,true)!==0;
 }
+const seamCurve=e=>!e.kind&&e.type===TYPE.CURVE&&e.link===0x15&&e.owner>0;
 function remember(e){S.hist.push({m:e,pts:e.pts.map(p=>({...p})),was:S.edits.has(e)})}
 function changed(e){if(!e.kind)S.edits.add(e)}
-function dragPoint(e,i,to,base){ // SS moves one point; SA spreads the move to fixed ends
+function dragPoint(e,i,to,base){
   const dx=to.x-base[i].x,dy=to.y-base[i].y,n=base.length-1,whole=$('curveMode').value==='sa'&&base.length>2;
+
+  const sim=(A,P,Q)=>{const ux=P.x-A.x,uy=P.y-A.y,L=ux*ux+uy*uy||1,vx=Q.x-A.x,vy=Q.y-A.y,c=(ux*vx+uy*vy)/L,s=(ux*vy-uy*vx)/L;return p=>({x:A.x+(p.x-A.x)*c-(p.y-A.y)*s,y:A.y+(p.x-A.x)*s+(p.y-A.y)*c})};
+  const Q={x:base[i].x+dx,y:base[i].y+dy},fL=i>0?sim(base[0],base[i],Q):null,fR=i<n?sim(base[n],base[i],Q):null;
   e.pts=base.map((p,k)=>{
-    if(k===i)return {x:p.x+dx,y:p.y+dy};
-    if(!whole)return {...p};
-    const s=Math.sin(Math.PI/2*(k<i?k/i:(n-k)/(n-i))),w=s*s;
-    return {x:p.x+dx*w,y:p.y+dy*w};
+    if(k===i)return Q;
+    if(!whole||k===0||k===n)return {...p};
+    return k<i?fL(p):fR(p);
   });
 }
-function shape(e){ // curves pass smoothly through their stored points
+function shape(e){
   if(e.pts.length<3||e.trim||!(e.kind==='curve'||e.type===TYPE.CURVE))return e.pts;
   if(e.shapeOf!==e.pts){e.shapeOf=e.pts;e.smooth=spline(e.pts)}
   return e.smooth;
 }
-function setTool(t){
-  S.tool=t;S.draft=[];S.hover=null;S.sel=null;S.hl=null;if(typeof cursor==='function')cursor();S.match={A:[],B:[],side:'A'};S.notch=null;S.seam=null;S.seamPick=null;S.textAt=null;S.box=null;S.mv={phase:'pick',sel:new Set()};S.rect=null;
+function setTool(t){const keepCmd=t==='xf'&&S.tool==='xf'&&S.mv?S.mv.cmd:undefined;
+  S.tool=t;S.t=toolState(keepCmd);if(typeof cursor==='function')cursor();
   document.querySelectorAll('nav [data-tool]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.tool===t));
   readout();refresh();
 }
-// Pointer handling: one finger taps or pans, two fingers pinch.
+
 const ptrs=new Map();let drag=null;
-cv.addEventListener('pointerdown',e=>{
-  if(e.pointerType==='pen'){S.pen={down:true,at:Date.now()};for(const [id,q] of ptrs)if(q.touch)ptrs.delete(id)} // the pen wins over a resting palm
+cv.addEventListener('pointerdown',e=>{paneAt(e.offsetX);
+  if(e.pointerType==='pen'){S.pen={down:true,at:Date.now()};for(const [id,q] of ptrs)if(q.touch)ptrs.delete(id)}
   if(e.pointerType==='touch'&&penNear())return;
-  if(e.pointerType==='mouse'&&e.button===2){cancelAll();return} // right click = cancel
+  if(e.pointerType==='mouse'&&e.button===2){rightClick();return}
   if(e.pointerType==='mouse'&&(e.button===1||spaceDown)){e.preventDefault();S.panDrag={id:e.pointerId,x:e.offsetX,y:e.offsetY};try{cv.setPointerCapture(e.pointerId)}catch(err){}cursor();return}
-  if(S.tool==='edit'&&S.sel){
+    if(S.tool==='edit'&&S.sel){
     let bi=-1,bd=20;S.sel.pts.forEach((p,i)=>{const q=toS(p),d=Math.hypot(q.x-e.offsetX,q.y-e.offsetY);if(d<bd){bd=d;bi=i}});
     if(bi>=0){remember(S.sel);S.grab={i:bi,base:S.sel.pts.map(p=>({...p}))}}
   }
-  try{cv.setPointerCapture(e.pointerId)}catch(err){}ptrs.set(e.pointerId,{x:e.offsetX,y:e.offsetY,touch:e.pointerType==='touch'});drag={x:e.offsetX,y:e.offsetY,moved:false,d:0}});
+  try{cv.setPointerCapture(e.pointerId)}catch(err){}ptrs.set(e.pointerId,{x:e.offsetX,y:e.offsetY,touch:e.pointerType==='touch'});drag={x:e.offsetX,y:e.offsetY,moved:false,d:0,pen:e.pointerType==='pen'}});
 cv.addEventListener('pointermove',e=>{
   if(e.pointerType==='pen')S.pen={down:e.buttons>0,at:Date.now()};
   if(e.pointerType==='touch'&&!ptrs.has(e.pointerId))return;
   if(S.panDrag&&e.pointerId===S.panDrag.id){S.view.x+=e.offsetX-S.panDrag.x;S.view.y+=e.offsetY-S.panDrag.y;S.panDrag.x=e.offsetX;S.panDrag.y=e.offsetY;draw();return}
   const sp={x:e.offsetX,y:e.offsetY},had=ptrs.get(e.pointerId),w=toW(sp);
   $('coord').textContent='X '+w.x.toFixed(1)+'  Y '+w.y.toFixed(1);
-  if(had&&S.grab&&ptrs.size===1){
+    if(had&&S.grab&&ptrs.size===1){
     const q=S.sel;S.snap=snapAt(sp,q);dragPoint(q,S.grab.i,S.snap||toW(sp),S.grab.base);S.grab.moved=true;drag.moved=true;
     readout('길이 '+elLen(q).toFixed(2)+' cm');draw();return;
   }
@@ -909,28 +1112,30 @@ cv.addEventListener('pointermove',e=>{
     if(ptrs.size===2){
       const [a,b]=[...ptrs.values()],d0=Math.hypot(a.x-b.x,a.y-b.y),m0x=(a.x+b.x)/2,m0y=(a.y+b.y)/2;had.x=sp.x;had.y=sp.y;
       const [c,f]=[...ptrs.values()],d1=Math.hypot(c.x-f.x,c.y-f.y),mx=(c.x+f.x)/2,my=(c.y+f.y)/2;
-      S.view.x+=mx-m0x;S.view.y+=my-m0y;S.rect=null; // two fingers also slide the view
+      S.view.x+=mx-m0x;S.view.y+=my-m0y;S.rect=null;
       zoom(d1/(d0||1),mx,my);drag.moved=true;return;
     }
     const dx=sp.x-had.x,dy=sp.y-had.y;had.x=sp.x;had.y=sp.y;
-    drag.d+=Math.abs(dx)+Math.abs(dy);
-    if(drag.d>6&&MOVES.includes(S.tool)&&S.mv.phase==='pick'){drag.moved=true;S.rect={a:{x:drag.x,y:drag.y},b:sp};draw();return} // one finger draws a selection box
-    if(drag.d>6){drag.moved=true;S.view.x+=dx;S.view.y+=dy;draw()}
+    drag.d=drag.pen?Math.max(drag.d,Math.hypot(sp.x-drag.x,sp.y-drag.y)):drag.d+Math.abs(dx)+Math.abs(dy);
+    const lim=drag.pen?16:6;
+    if(drag.d>lim&&MOVES.includes(S.tool)&&S.mv.phase==='pick'){drag.moved=true;S.rect={a:{x:drag.x,y:drag.y},b:sp};draw();return}
+    if(drag.d>lim){drag.moved=true;S.view.x+=dx;S.view.y+=dy;draw()}
     return;
   }
+  if(S.areaSnap){S.areaSnap.cur=sp;draw();return}
   if(e.pointerType!=='touch'){const nh=hoverPicks()?pick(sp):null;if(nh!==S.hl){S.hl=nh;draw()}}
-  if(S.tool==='box'||S.tool==='circle'||S.tool==='arc3'||(MOVES.includes(S.tool)&&S.mv.phase!=='pick')){S.snap=snapAt(sp);S.hover=S.snap||toW(sp);draw();return}
+  if(S.tool==='yc'||S.tool==='box'||S.tool==='circle'||S.tool==='arc3'||(MOVES.includes(S.tool)&&S.mv.phase!=='pick')){S.snap=snapAt(sp);S.hover=S.snap||toW(sp);draw();return}
   if(S.tool!=='pan'&&S.tool!=='offset'&&S.tool!=='match'){S.snap=snapAt(sp);S.hover=S.draft.length?(S.snap||toW(sp)):null;draw()}
 });
 function up(e){
   if(e.pointerType==='pen'&&S.pen){S.pen.down=false;S.pen.at=Date.now()}
   if(S.panDrag&&e.pointerId===S.panDrag.id){S.panDrag=null;cursor();return}
-  if(!ptrs.has(e.pointerId))return; // an ignored palm touch
+  if(!ptrs.has(e.pointerId))return;
   if(S.grab){if(S.grab.moved){changed(S.sel);if(S.sel.pts.length===2)$('editLen').value=lenOf(S.sel.pts).toFixed(2)}else S.hist.pop();S.grab=null;S.snap=null;refresh()}
   if(S.rect&&ptrs.size===1){rectSelect(S.rect);S.rect=null}
-  const was=ptrs.size,d=drag;ptrs.delete(e.pointerId);if(was===1&&d&&!d.moved)tap({x:e.offsetX,y:e.offsetY})}
+  const was=ptrs.size,d=drag;ptrs.delete(e.pointerId);if(was===1&&d&&!d.moved)tap(d.pen?{x:d.x,y:d.y}:{x:e.offsetX,y:e.offsetY})}
 cv.addEventListener('pointerup',up);
-cv.addEventListener('pointercancel',e=>{ // a lost pointer must not leave a point or a box hanging
+cv.addEventListener('pointercancel',e=>{
   if(e.pointerType==='pen'&&S.pen)S.pen.down=false;
   if(S.grab&&ptrs.size===1){if(S.grab.moved)changed(S.sel);else S.hist.pop();S.grab=null;S.snap=null}
   if(S.panDrag&&e.pointerId===S.panDrag.id){S.panDrag=null;cursor()}
@@ -938,21 +1143,23 @@ cv.addEventListener('pointercancel',e=>{ // a lost pointer must not leave a poin
 });
 cv.addEventListener('pointerleave',e=>{if(e.pointerType!=='touch'&&S.hl){S.hl=null;draw()}});
 cv.addEventListener('contextmenu',e=>e.preventDefault());
-const penNear=()=>!!S.pen&&(S.pen.down||Date.now()-S.pen.at<800); // pen touching or hovering: ignore touches (palm)
+const penNear=()=>!!S.pen&&(S.pen.down||Date.now()-S.pen.at<800);
 const hoverPicks=()=>['pan','edit','offset','match','notch','seam','seamdel'].includes(S.tool)||(MOVES.includes(S.tool)&&(S.mv.phase==='pick'||S.mv.phase==='group'));
 function cursor(){cv.classList.toggle('grabbing',!!S.panDrag);cv.classList.toggle('grab',!S.panDrag&&spaceDown);cv.classList.toggle('draw',!S.panDrag&&!spaceDown&&S.tool!=='pan')}
-function cancelAll(){S.hl=null;S.panDrag=null;say('');setTool(S.tool)}
+function cancelAll(){S.hl=null;S.panDrag=null;say('');if(S.tool==='yc'&&S.yc){ycStart(S.yc.code);refresh();return}setTool(S.tool)}
 function zoom(k,mx,my){const V=S.view,s=Math.max(.3,Math.min(200,V.s*k));k=s/V.s;V.x=mx-(mx-V.x)*k;V.y=my-(my-V.y)*k;V.s=s;draw()}
-cv.addEventListener('wheel',e=>{
+cv.addEventListener('wheel',e=>{paneAt(e.offsetX);
   e.preventDefault();
-  const wheel=e.deltaMode===1||(e.deltaX===0&&Math.abs(e.deltaY)>=50&&Number.isInteger(e.deltaY)); // a mouse wheel notch
+  const wheel=e.deltaMode===1||(e.deltaX===0&&Math.abs(e.deltaY)>=50&&Number.isInteger(e.deltaY));
   if(e.ctrlKey||wheel){const dy=e.deltaMode===1?e.deltaY*40:e.deltaY;zoom(Math.exp(-dy*(wheel?0.0015:0.01)),e.offsetX,e.offsetY)}
-  else{S.view.x-=e.deltaX;S.view.y-=e.deltaY;draw()} // trackpad: two fingers slide the view
+  else{S.view.x-=e.deltaX;S.view.y-=e.deltaY;draw()}
 },{passive:false});
 
 function load(bytes,name,example){
-  S.doc=parse(bytes);S.name=name;S.regroup=new Set();S.adds=[];S.dels=[];S.hist=newHist();S.redo=[];S.ver=0;S.savedVer=0;S.hl=null;S.edits=new Set();S.sel=null;S.draft=[];S.example=example;S.match={A:[],B:[],side:'A'};S.notch=null;S.seam=null;S.seamPick=null;S.textAt=null;S.box=null;S.mv={phase:'pick',sel:new Set()};S.rect=null;
-  S.hide=new Set();renderLayers();fit();refresh();
+  S.doc=parse(bytes);S.name=name;S.file=null;S.fh=null;S.regroup=new Set();S.adds=[];S.dels=[];S.hist=newHist();S.redo=[];S.ver=0;S.savedVer=0;S.edits=new Set();S.example=example;
+  const ycCode=S.tool==='yc'&&S.yc?S.yc.code:null;{const o=S.t;S.t=toolState(o.mv&&o.mv.cmd);S.mvCopy=o.mvCopy;S.gMove=o.gMove;S.casMode=o.casMode}
+  S.split=false;S.panes=null;S.paneActive=0;S.hide=new Set();renderLayers();fit();refresh();
+  if(ycCode)ycStart(ycCode);
   document.querySelector('[data-tab=draw]').click();
 }
 function renderLayers(){
@@ -970,15 +1177,26 @@ function renderLayers(){
     cell(vis);cell('레이어 '+n);cell(String(count[n]||0));cell(act);box.append(row);
   }
 }
-function offsetPts(p,d){
-  return p.map((q,i)=>{const a=p[Math.max(0,i-1)],b=p[Math.min(p.length-1,i+1)],L=Math.hypot(b.x-a.x,b.y-a.y)||1;return {x:q.x-(b.y-a.y)/L*d,y:q.y+(b.x-a.x)/L*d}});
+function offsetPts(p,d,d2){
+  const T=d2===undefined?0:lenOf(p);let run=0;
+  return p.map((q,i)=>{if(i)run+=Math.hypot(q.x-p[i-1].x,q.y-p[i-1].y);const w=d2===undefined?d:d+(d2-d)*(T?run/T:0),a=p[Math.max(0,i-1)],b=p[Math.min(p.length-1,i+1)],L=Math.hypot(b.x-a.x,b.y-a.y)||1;return {x:q.x-(b.y-a.y)/L*w,y:q.y+(b.x-a.x)/L*w}});
 }
+
+function plPts(e,d){const line=!ycCurve(e);
+  if(line){const[a,b]=[e.pts[0],e.pts[e.pts.length-1]],L=ycD(a,b)||1,n={x:-(b.y-a.y)/L*d,y:(b.x-a.x)/L*d};return [{x:a.x+n.x,y:a.y+n.y},{x:b.x+n.x,y:b.y+n.y}]}
+  const C=e.trim?(e.ctrl||resample(e.pts,Math.min(15,Math.max(3,e.pts.length)),true)):e.pts,P=spline(C),m=P.length,step=(m-1)/(C.length-1),u=(a,b)=>{const L=ycD(a,b)||1;return {x:(b.x-a.x)/L,y:(b.y-a.y)/L}};
+  return C.map((p,k)=>{const i=Math.round(k*step);let t;if(i<=0)t=u(P[0],P[1]);else if(i>=m-1)t=u(P[m-2],P[m-1]);else{const a=u(P[i-1],P[i]),b=u(P[i],P[i+1]);t=u({x:0,y:0},{x:a.x+b.x,y:a.y+b.y})}
+    return {x:p.x-t.y*d,y:p.y+t.x*d}})}
+
+function plEl(e,d){const pts=plPts(e,d);if(!ycCurve(e))return {kind:'line',pts};
+  if(e.trim&&e.ctrl&&e.ft)return {kind:'curve',keepPts:true,pts:resample(cutCurve(spline(pts),e.ft[0],e.ft[1],pts),pts.length,true)};
+  return {kind:'curve',keepPts:true,pts}}
 function makeOffset(sign){
   const e=S.sel,d=parseFloat($('gap').value);
   if(!e)return;if(!(d>0))return say('간격을 cm로 입력해 주세요.',true);
-  commit({kind:e.pts.length>2?'curve':'line',pts:offsetPts(e.pts,d*sign),flag:1});say('');
+  if(e.arc||!e.pts||e.pts.length<2)return say('직선이나 곡선을 눌러 주세요.',true);commit({...plEl(e,d*sign),flag:1});say('');
 }
-// 박스: a rectangle from one corner, by a second corner or typed width and height.
+
 function makeBox(a,b){
   const P=[a,{x:b.x,y:a.y},b,{x:a.x,y:b.y}],made=[];
   if(Math.abs(b.x-a.x)<1e-6||Math.abs(b.y-a.y)<1e-6)return say('가로와 세로가 0보다 커야 합니다.',true);
@@ -988,35 +1206,60 @@ function makeBox(a,b){
 $('boxApply').onclick=()=>{
   const a=S.box,W=parseFloat($('boxW').value),H=parseFloat($('boxH').value);if(!a)return;
   if(!(W>0&&H>0))return say('가로와 세로를 cm로 입력해 주세요.',true);
-  const h=S.hover||{x:a.x+1,y:a.y-1}; // grows towards where the finger last was
+  const h=S.hover||{x:a.x+1,y:a.y-1};
   makeBox(a,{x:a.x+(h.x<a.x?-W:W),y:a.y+(h.y<a.y?-H:H)});
 };
-// 무브 / 시무브 / MVRT: pick lines, a base point, then where it goes (MVRT then turns them).
-const MOVES=['move','cmove','mvrt','sg','ag'];
+
+const MOVES=['move','cmove','mvrt','sg','ag','xf','dl'];
 const movable=e=>e.kind==='line'||e.kind==='curve'||e.kind==='notch'||e.kind==='text'||e.kind==='arc'||[TYPE.LINE,TYPE.CURVE,TYPE.NOTCH,TYPE.TEXT].includes(e.type)||(e.type===TYPE.ARC&&!!e.arc);
 const copyable=e=>e.kind==='line'||e.kind==='curve'||e.kind==='notch'||e.kind==='arc'||[TYPE.LINE,TYPE.CURVE,TYPE.NOTCH].includes(e.type)||(e.type===TYPE.ARC&&!!e.arc);
 function moveHint(){
   const M=S.mv;
+  if(S.tool==='xf'&&M.cmd&&M.phase!=='pick')return xfHint();
+  if(S.tool==='xf'&&M.cmd)return M.cmd.name+': 대상을 누르거나 끌어 네모로 고르고 [다음]';
   if(S.tool==='sg'&&M.phase==='pick')return '그룹으로 묶을 선을 고르고 [그룹 만들기]를 누르세요';
-  if(S.tool==='ag'&&M.phase==='pick')return '그룹에 넣을 선을 고르고 [다음]을 누르세요';
-  if(M.phase==='group')return '넣을 그룹의 선을 하나 누르세요';
+  if(S.tool==='ag'&&M.phase==='pick')return M.agGroup?'[ag] 추가할 요소를 고르고 오른클릭(또는 [다음])':'그룹에 넣을 선을 고르고 [다음]을 누르세요';
+  if(S.tool==='dl')return '지정삭제: 지울 선을 고르고 오른클릭(또는 [지우기]) · g 스페이스 = 그룹째 · F4 = 네모 안';
+  if(M.phase==='group')return M.agFirst?'[ag] 원래 그룹의 요소를 누르세요':'넣을 그룹의 선을 하나 누르세요';
   return M.phase==='pick'?'옮길 선을 누르거나 손가락으로 끌어 네모로 고르세요 (오른쪽으로 끌면 다 들어간 것, 왼쪽은 걸친 것까지)'
     :M.phase==='base'?'기준점을 누르세요':M.phase==='target'?'옮길 자리를 누르거나 X·Y 거리를 입력하세요':'회전 각도를 입력하세요 (반시계 +)';
 }
 function showMove(){
   const M=S.mv,n=M.sel.size;
-  $('mvInfo').textContent=n+'개 고름';
-  $('mvNext').hidden=M.phase!=='pick';$('mvNext').textContent=S.tool==='sg'?'그룹 만들기':'다음';$('mvAll').hidden=!n;
+  $('mvInfo').textContent=n+'개 고름';$('mvGroup').parentElement.hidden=byCmd();
+  $('mvNext').hidden=M.phase!=='pick';$('mvNext').textContent=S.tool==='sg'?'그룹 만들기':S.tool==='dl'?'지우기':'다음';$('mvAll').hidden=!n;
   $('mvXY').hidden=M.phase!=='target';$('mvR').hidden=M.phase!=='rot';
 }
+const byCmd=()=>!!S.cmdCode&&S.cmdTool===S.tool;
 function pickToggle(e){
   if(!e)return;
   if(!movable(e))return say('이 요소는 옮길 수 없습니다.',true);
-  const on=!S.mv.sel.has(e),set=$('mvGroup').checked&&e.group&&!e.kind?allEls().filter(x=>x.group===e.group&&x.layer===e.layer&&!x.kind&&movable(x)):[e];
+
+  const on=!S.mv.sel.has(e),set=$('mvGroup').checked&&!byCmd()&&e.group&&!e.kind?allEls().filter(x=>x.group===e.group&&x.layer===e.layer&&!x.kind&&movable(x)):[e];
   for(const x of set)on?S.mv.sel.add(x):S.mv.sel.delete(x);
   say(set.length>1?'그룹 '+e.group+' ('+set.length+'개)':'');
 }
-// SG / AG: a group is the number at record +8; elements with the same number belong together.
+
+function areaPickEls(Q,cross){let n=0;
+  for(const e of allEls()){if(!movable(e))continue;const P=e.text?[e.at]:shape(e);if(!P.length)continue;
+    if(cross?P.some(p=>inPoly(Q,p)):P.every(p=>inPoly(Q,p))){if(!S.mv.sel.has(e))n++;S.mv.sel.add(e)}}
+  say((cross?'[영역교차내] ':'[영역내] ')+n+'개 더 골랐습니다.');readout();refresh();
+}
+
+function rightClick(){
+  S.hl=null;S.panDrag=null;
+  if(S.areaSnap){S.areaSnap=null;say('');draw();return}
+  if(S.gNext){S.gNext=false;say('');return}
+  if(MOVES.includes(S.tool)&&S.mv.phase==='pick'){if(S.mv.sel.size)return $('mvNext').click();setTool('pan');say('');readout();refresh();return}
+  if(S.tool==='curve'&&S.draft.length>=2)return $('done').click();
+  if(S.tool==='yc'&&S.yc){const Y=S.yc,st=Y.d.steps[Y.i];
+    if(st&&st.t==='multi'&&Y.pts.length-(st.rel?Y.mb||0:0)>=(st.min??2))return $('ycDone').click();
+    if(Y.i===0&&!Y.pts.length&&!Y.els.length){setTool('pan');say('');readout();refresh();return}
+    ycStart(Y.code);say('');refresh();return}
+  if(S.tool!=='pan'&&!S.draft.length&&!S.sel){setTool('pan');say('');readout();refresh();return}
+  cancelAll();
+}
+
 function setGroup(els,g){
   const rg=[];
   for(const e of els){rg.push({e,old:e.group,was:e.kind?null:S.regroup.has(e)});e.group=g;if(!e.kind)S.regroup.add(e)}
@@ -1039,13 +1282,15 @@ function rectSelect(R){
 }
 function moveTap(sp,w){
   const M=S.mv;
-  if(M.phase==='pick'){pickToggle(pick(sp));refresh();return}
+  if(M.phase==='pick'){pickToggle(pick(sp));readout();refresh();return}
   if(M.phase==='group'){
     const t=pick(sp);if(!t)return;
     if(!t.group)return say('그룹이 없는 선입니다. SG로 먼저 그룹을 만들어 주세요.',true);
+    if(M.agFirst){M.agGroup=t.group;M.phase='pick';say('');readout();refresh();return}
     const els=[...M.sel];setGroup(els,t.group);
     say('그룹 '+t.group+'에 '+els.length+'개를 넣었습니다. 되돌리기로 돌아갈 수 있습니다.');S.mv={phase:'pick',sel:new Set()};readout();refresh();return;
   }
+  if(S.tool==='xf'){xfTap(sp,w);return}
   if(M.phase==='base'){M.base=w;M.phase='target';$('mvX').value='';$('mvY').value='';readout();refresh();return}
   if(M.phase==='target'){moveTo(w.x-M.base.x,w.y-M.base.y);return}
 }
@@ -1054,78 +1299,100 @@ function moveTo(dx,dy){
   if(S.tool==='mvrt'){M.phase='rot';$('mvAng').value=0;readout();refresh();return}
   applyMove(0);
 }
-const xform=(M,deg)=>{ // move by (dx,dy), then turn around the new base point
+const xform=(M,deg)=>{
   const r=deg*Math.PI/180,c=Math.cos(r),s=Math.sin(r),px=M.base.x+M.dx,py=M.base.y+M.dy;
   return p=>{const x=p.x+M.dx-px,y=p.y+M.dy-py;return {x:px+x*c-y*s,y:py+x*s+y*c}};
 };
-function moved(e,T,deg){ // the element's new shape, without touching the original
+function moved(e,T,deg){
   const o={pts:e.pts.map(T)};
   if(e.at)o.at=T(e.at);
   if(e.arc){const f=(e.arc.from||e.arc.to)?deg:0;o.arc={c:T(e.arc.c),r:e.arc.r,from:f?normAng(e.arc.from+f):e.arc.from,to:f?normAng(e.arc.to+f):e.arc.to};o.pts=arcPts(o.arc.c,o.arc.r,o.arc.from,o.arc.to)}
-  if(e.box){const d={x:o.at.x-e.at.x,y:o.at.y-e.at.y};o.box=e.box.map(p=>({x:p.x+d.x,y:p.y+d.y}))} // text keeps its direction
+  if(e.box){const d={x:o.at.x-e.at.x,y:o.at.y-e.at.y};o.box=e.box.map(p=>({x:p.x+d.x,y:p.y+d.y}))}
   return o;
 }
-function applyMove(deg){
-  const M=S.mv,T=xform(M,deg),copy=S.tool==='cmove',sel=[...M.sel];let skip=0;
+function applyMove(deg,Tover,mir,scl){
+  const M=S.mv,T=Tover||xform(M,deg),copy=S.tool==='cmove'||(S.tool==='mvrt'&&!!S.mvCopy)||(S.tool==='xf'&&!!(M.cmd&&M.cmd.copy)),sel=[...M.sel];let skip=0;
+  const moved=(e,T,deg)=>movedXS(e,T,deg,mir,scl);
   if(copy){
     const made=[];
     for(const e of sel){
       if(!copyable(e)){skip++;continue}
-      const o=moved(e,T,deg),kind=e.kind||(e.type===TYPE.NOTCH?'notch':e.type===TYPE.LINE?'line':e.type===TYPE.ARC?'arc':'curve');
-      commit({kind,pts:kind==='curve'&&o.pts.length>15?resample(o.pts,15,true):o.pts,at:o.at,arc:o.arc,layer:e.layer,color:e.color,flag:1});made.push(S.hist.pop().a);
+            const o=moved(e,T,deg),kind=e.kind||(e.type===TYPE.NOTCH?'notch':e.type===TYPE.LINE?'line':e.type===TYPE.ARC?'arc':'curve');
+      commit({kind,pts:kind==='curve'&&o.pts.length>15?resample(o.pts,15,true):o.pts,...(kind==='curve'&&o.pts.length<=15?{keepPts:true}:{}),at:o.at,arc:o.arc,layer:e.layer,color:e.color,flag:1});made.push(S.hist.pop().a);
     }
     S.hist.push({as:made});
   }else{
     const mv=[];
     for(const e of sel){
-      if(e.trim){e.pts=resample(e.pts,e.n,true);e.trim=false;e.baked=true}
+            if(e.trim){e.pts=resample(e.pts,e.n,true);e.trim=false;e.baked=true}
       mv.push({e,was:S.edits.has(e),snap:{pts:e.pts,at:e.at,arc:e.arc,box:e.box}});
       Object.assign(e,moved(e,T,deg));changed(e);
     }
     S.hist.push({mv});
   }
   say((copy?'복사했습니다 ':'옮겼습니다 ')+(sel.length-skip)+'개'+(skip?' (원호·글자 '+skip+'개는 복사하지 않음)':'')+'. 되돌리기로 돌아갈 수 있습니다.',!!skip);
-  S.mv={phase:'pick',sel:copy?new Set():M.sel};readout();refresh();
+  S.mv={phase:'pick',sel:copy||byCmd()?new Set():M.sel,cmd:M.cmd};
+  readout();refresh();
 }
 function drawMove(c){
   const M=S.mv;
   c.strokeStyle=css('--mark');c.lineWidth=2.4;
   for(const e of M.sel){if(!e.pts.length)continue;c.beginPath();shape(e).forEach((p,i)=>{const q=toS(p);i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y)});c.stroke()}
-  if(M.phase==='target'||M.phase==='rot'){ // ghost of the result
+  if(M.phase==='target'||M.phase==='rot'){
     const G=M.phase==='rot'?{...M}:{...M,dx:(S.hover||M.base).x-M.base.x,dy:(S.hover||M.base).y-M.base.y};
     const T=xform(G,M.phase==='rot'?parseFloat($('mvAng').value)||0:0);
     c.setLineDash([6,4]);c.lineWidth=1.6;
     for(const e of M.sel){const o=moved(e,T,0),P=e.pts.length>2&&(e.kind==='curve'||e.type===TYPE.CURVE)?spline(o.pts):o.pts;if(!P.length)continue;c.beginPath();P.forEach((p,i)=>{const q=toS(p);i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y)});c.stroke()}
     c.setLineDash([]);
   }
+  if(S.tool==='xf'){const P=xfPreview();if(P){
+    c.setLineDash([6,4]);c.lineWidth=1.6;
+    for(const e of M.sel){const o=movedXS(e,P.T,P.deg||0,P.mir,P.scl),Q=e.pts.length>2&&(e.kind==='curve'||e.type===TYPE.CURVE)?spline(o.pts):o.pts;if(!Q.length)continue;c.beginPath();Q.forEach((p,i)=>{const q=toS(p);i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y)});c.stroke()}
+    if(P.axis){const a=toS(P.axis[0]),b=toS(P.axis[1]);c.strokeStyle=css('--draw');c.beginPath();c.moveTo(a.x,a.y);c.lineTo(b.x,b.y);c.stroke()}
+    c.setLineDash([])}}
   if(M.base){const q=toS(M.base);c.fillStyle=css('--mark');c.beginPath();c.arc(q.x,q.y,4,0,7);c.fill()}
   if(S.rect){const a=S.rect.a,b=S.rect.b;c.strokeStyle=css('--draw');c.lineWidth=1.2;c.setLineDash(b.x>=a.x?[]:[5,4]);c.strokeRect(a.x,a.y,b.x-a.x,b.y-a.y);c.setLineDash([])}
 }
 $('mvNext').onclick=()=>{if(!S.mv.sel.size)return say('먼저 선을 골라 주세요.',true);
   if(S.tool==='sg'){const g=newGroupNo(),els=[...S.mv.sel];setGroup(els,g);say('그룹 '+g+'으로 '+els.length+'개를 묶었습니다. 되돌리기로 돌아갈 수 있습니다.');S.mv={phase:'pick',sel:new Set()};readout();refresh();return}
-  if(S.tool==='ag'){S.mv.phase='group';say('');readout();refresh();return}
+  if(S.tool==='ag'){const M=S.mv;if(M.agGroup){const els=[...M.sel];setGroup(els,M.agGroup);say('그룹 '+M.agGroup+'에 '+els.length+'개를 넣었습니다. 되돌리기로 돌아갈 수 있습니다.');S.mv={phase:'group',sel:new Set(),agFirst:true};readout();refresh();return}
+    S.mv.phase='group';say('');readout();refresh();return}
+  if(S.tool==='xf')return xfNext();
 S.mv.phase='base';S.mv.base=null;say('');readout();refresh()};
-$('mvAll').onclick=()=>{S.mv={phase:'pick',sel:new Set()};say('');readout();refresh()};
+$('mvAll').onclick=()=>{S.mv={phase:'pick',sel:new Set(),cmd:S.mv.cmd};say('');readout();refresh()};
 $('mvApply').onclick=()=>{const x=parseFloat($('mvX').value)||0,y=parseFloat($('mvY').value)||0;if(!x&&!y)return say('X·Y 거리를 cm로 입력해 주세요.',true);moveTo(x,y)};
 $('mvAng').oninput=()=>draw();
 $('mvRot').onclick=()=>applyMove(parseFloat($('mvAng').value)||0);
-// Seam allowance: find a pattern's closed outline, offset each side outwards and let neighbours meet.
-const outlineOK=e=>!e.kind&&(e.type===TYPE.LINE||e.type===TYPE.CURVE)&&e.link===0&&e.color!==3&&e.pts.length>=2;
+
+function movedXS(e,T,deg,mir,scl){const o=movedX(e,T,deg,mir);if(scl&&o.arc){o.arc.r=e.arc.r*scl;o.pts=arcPts(o.arc.c,o.arc.r,o.arc.from,o.arc.to)}return o}
+function movedX(e,T,deg,mir){
+  if(mir===undefined)return moved(e,T,deg);
+  const o={pts:e.pts.map(T)};if(e.at)o.at=T(e.at);
+  if(e.arc){const full=!e.arc.from&&!e.arc.to;o.arc={c:T(e.arc.c),r:e.arc.r,from:full?0:normAng(2*mir-e.arc.to),to:full?0:normAng(2*mir-e.arc.from)};o.pts=arcPts(o.arc.c,o.arc.r,o.arc.from,o.arc.to)}
+  if(e.box){const d={x:o.at.x-e.at.x,y:o.at.y-e.at.y};o.box=e.box.map(p=>({x:p.x+d.x,y:p.y+d.y}))}
+  return o;
+}
+function xfNext(){setTool('pan')}
+function xfTap(sp,w){setTool('pan')}
+function xfPreview(){return null}
+function xfHint(){return ''}
+
+const outlineOK=e=>!e.kind&&(e.type===TYPE.LINE||e.type===TYPE.CURVE)&&(e.link===0||e.link===1)&&e.color!==3&&e.pts.length>=2;
 function seamBlock(e){
   if(e.kind)return '새로 그린 선은 저장하고 다시 연 뒤에 시접을 넣을 수 있습니다.';
   if(!outlineOK(e))return '패턴 외곽선(흰 직선·곡선)을 눌러 주세요.';
   return '';
 }
-function seamedOutline(){ // outline elements that already belong to a seam (list L0 of every 5C)
+function seamedOutline(){
   const v=new DataView(S.doc.bytes.buffer,S.doc.bytes.byteOffset),idx=new Set(),dead=new Set(S.dels),out=new Set();
   for(const x of S.doc.els)if(x.type===0x5C&&!dead.has(x.rec)){const n=v.getUint16(x.addr+4,true);if(x.len===206+94*n)for(let i=0;i<n;i++)idx.add(v.getUint16(x.addr+6+2*i,true))}
   for(const x of S.doc.els)if(idx.has((x.rec-REC)/RSZ+1))out.add(x.rec);
   return out;
 }
-const near=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y)<0.1; // Yuka outlines may leave hairline gaps
+const near=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y)<0.1;
 const loopArea=loop=>{const P=loop.flatMap(l=>{const q=shape(l.e);return l.rev?q.slice().reverse():q});let A=0;for(let i=0;i<P.length;i++){const p=P[i],q=P[(i+1)%P.length];A+=p.x*q.y-q.x*p.y}return A/2};
-function findLoop(e0){ // walk end to end; at forks try the sharpest turn first and back up from dead ends
-  const pool=allEls().filter(x=>outlineOK(x)&&x.layer===e0.layer&&!S.dels.includes(x.rec)),found=[];
+function findLoop(e0,ok=outlineOK,within=null){
+  const pool=(within||allEls()).filter(x=>ok(x)&&x.layer===e0.layer&&!S.dels.includes(x.rec)),found=[];
   for(const turn of [1,-1]){
     const loop=[{e:e0,rev:false}],used=new Set([e0]);let budget=4000;
     const step=()=>{
@@ -1145,23 +1412,23 @@ function findLoop(e0){ // walk end to end; at forks try the sharpest turn first 
   }
   if(!found.length)return null;
   let loop=found.sort((a,b)=>Math.abs(loopArea(b))-Math.abs(loopArea(a)))[0];
-  if(loopArea(loop)>0)loop=loop.slice().reverse().map(l=>({e:l.e,rev:!l.rev})); // Yuka goes round clockwise
+  if(loopArea(loop)>0)loop=loop.slice().reverse().map(l=>({e:l.e,rev:!l.rev}));
   return loop;
 }
-// Outline picked by hand, in order: each piece is turned so it starts where the previous one ended (gaps allowed).
+
 function loopFromPicks(els){
   const D=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y),ends=e=>[e.pts[0],e.pts[e.pts.length-1]];
   const [a0,a1]=ends(els[0]),[b0,b1]=ends(els[1]);
   const loop=[{e:els[0],rev:Math.min(D(a0,b0),D(a0,b1))<Math.min(D(a1,b0),D(a1,b1))}];
   for(let i=1;i<els.length;i++){const pv=loop[i-1],pe=pv.rev?pv.e.pts[0]:pv.e.pts[pv.e.pts.length-1],[s0,s1]=ends(els[i]);loop.push({e:els[i],rev:D(s1,pe)<D(s0,pe)})}
-  return loopArea(loop)>0?loop.slice().reverse().map(l=>({e:l.e,rev:!l.rev})):loop; // Yuka goes round clockwise
+  return loopArea(loop)>0?loop.slice().reverse().map(l=>({e:l.e,rev:!l.rev})):loop;
 }
 $('spDone').onclick=()=>{
   const els=S.seamPick;if(!els||els.length<2)return say('외곽선을 2개 이상 순서대로 골라 주세요.',true);
   const loop=loopFromPicks(els),taken=seamedOutline();
   if(loop.some(l=>taken.has(l.e.rec)))return say('이미 시접이 있는 외곽선이 들어 있습니다. 시접 삭제로 지운 뒤 넣어 주세요.',true);
   const w=parseFloat($('seamW').value)>0?parseFloat($('seamW').value):1;
-  S.seam={loop,w:loop.map(()=>w),sel:-1};S.seamPick=null;say('');readout();refresh();
+  S.seam={loop,w:loop.map(()=>w),corner:loop.map(()=>1),sel:-1};S.seamPick=null;say('');readout();refresh();
 };
 function makeArc(a){
   if(!(a.r>0.01))return say('반지름이 너무 작습니다.',true);
@@ -1182,20 +1449,27 @@ $('txtAdd').onclick=()=>{
 $('spReset').onclick=()=>{S.seamPick=[];say('');refresh()};
 $('seamManual').onclick=()=>{S.seam=null;S.seamPick=[];say('');readout();refresh()};
 function seamSides(Z){
-  // As Yuka does: a curve's seam is its drawn shape moved out by the width, kept in at most 15 points.
-  // Corners (연장): both seam lines run on straight past their ends to where they meet. A straight line
-  // gets the meeting point as its end; a curve keeps its points and gets from/to (distances along it, below 0 or past its length).
-  const key=Z.w.join();if(Z.cache&&Z.cacheKey===key)return Z.cache;
+
+  const corner=Z.corner||Z.loop.map(()=>1),key=Z.w.join()+'|'+corner.join()+'|'+(Z.cs||[]).join();if(Z.cache&&Z.cacheKey===key)return Z.cache;
   const n=Z.loop.length,sides=Z.loop.map((l,i)=>{
     const P=l.rev?l.e.pts.slice().reverse():l.e.pts,curve=P.length>2,D=curve&&!l.e.trim?spline(P):P;
-    const pts=offsetPts(D,Z.w[i]); // clockwise, so the left side is outside
+    const pts=offsetPts(D,Z.w[i]);
     if(!curve)return {pts,curve,base:P};
     const q=fitSeamCurve(pts,P.length);return {pts:q,curve,base:P,from:0,to:lenOf(spline(q))};
   });
   for(let i=0;i<n;i++){
     const SA=sides[i],SB=sides[(i+1)%n],path=sd=>sd.curve?spline(sd.pts):sd.pts;
     const da=endDir(SA.pts,true),db=endDir(SB.pts,false);
-    if(-(da.x*db.x+da.y*db.y)>Math.cos(3*Math.PI/180))continue; // runs almost straight on (under 3°): Yuka leaves both ends as they are
+    if(Math.abs(corner[i])===3){
+      const squareB=(corner[i]===3)!==(i===n-1),sq=seamSquare(SA,SB,path,da,db,Math.max(Z.w[i],Z.w[(i+1)%n]),squareB);
+      if(sq){sq.flag=(i===n-1)===squareB?1:0;sq.kind=3;SB.square=sq;continue}}
+    if(Math.abs(corner[i])>=170){
+      const ct=seamCut(SA,SB,path,da,db,Math.max(Z.w[i],Z.w[(i+1)%n]),corner[i],Z.cs&&Z.cs[i]!=null?Z.cs[i]:1);
+      if(ct){SB.square=ct;continue}}
+    if(Math.abs(corner[i])===2){
+      const foldB=(corner[i]===2)!==(i===n-1),fd=seamFold(SA,SB,path,da,db,Math.max(Z.w[i],Z.w[(i+1)%n]),foldB);
+      if(fd){fd.flag=(i===n-1)===foldB?1:0;fd.kind=2;SB.square=fd;continue}}
+    if(-(da.x*db.x+da.y*db.y)>Math.cos(3*Math.PI/180))continue;
     const X=seamMeet(path(SA),path(SB),SA.base[SA.base.length-1],4*Math.max(Z.w[i],Z.w[(i+1)%n])+0.5,da,db);
     if(!X)continue;
     if(SA.curve)SA.to=X.a;else SA.pts[SA.pts.length-1]={...X.p};
@@ -1203,9 +1477,8 @@ function seamSides(Z){
   }
   Z.cacheKey=key;Z.cache=sides;return sides;
 }
-// Where seam line A (ending at corner c) and B (starting there) meet, each run on straight up to R past its end.
-// Gives the point and the distance along A and along B (below 0 = before B's start).
-function seamMeet(A,B,c,R,da,db){ // da, db: which way A and B run on past their ends
+
+function seamMeet(A,B,c,R,da,db){
   const a=A[A.length-1],b=B[0],SA=[],SB=[];let run=0;
   for(let i=1;i<A.length;i++){const d=Math.hypot(A[i].x-A[i-1].x,A[i].y-A[i-1].y);SA.push({p:A[i-1],q:A[i],s:run,L:d});run+=d}
   SA.push({p:a,q:{x:a.x+da.x*R,y:a.y+da.y*R},s:run,L:R});
@@ -1223,20 +1496,109 @@ function seamMeet(A,B,c,R,da,db){ // da, db: which way A and B run on past their
     }}
   return best;
 }
-// A seam side as drawn: curves follow their points from 'from' to 'to'.
+
+function seamSquare(SA,SB,path,da,db,w,squareB){
+  const CA=SA.base[SA.base.length-1],tA=endDir(SA.base,true),tB=endDir(SB.base,false);
+  const A=path(SA),B=path(SB),An=A[A.length-1],B0=B[0],R=4*w+0.5;
+  if(squareB){
+    const X=lineCut(A,da,null,R,CA,tB,CA);if(!X)return null;
+    const nB={x:B0.x-CA.x,y:B0.y-CA.y},Y=lineCut(B,null,db,R,X.p,nB,B0);if(!Y)return null;
+    if(SA.curve)SA.to=X.s;else SA.pts[SA.pts.length-1]={...X.p};
+    if(SB.curve)SB.from=Y.s;else SB.pts[0]={...Y.p};
+    return {L2:[{...X.p},{...Y.p}],c:{...CA},f4:{...X.p},f8:{...B0},bOut:true};
+  }
+  const Y=lineCut(B,null,db,R,CA,tA,CA);if(!Y)return null;
+  const nA={x:An.x-CA.x,y:An.y-CA.y},X=lineCut(A,da,null,R,Y.p,nA,An);if(!X)return null;
+  if(SA.curve)SA.to=X.s;else SA.pts[SA.pts.length-1]={...X.p};
+  if(SB.curve)SB.from=Y.s;else SB.pts[0]={...Y.p};
+  return {L2:[{...X.p},{...Y.p}],c:{...CA},f4:{...An},f8:{...Y.p},bOut:false};
+}
+
+const mirrorAt=(C,u)=>p=>{const dx=p.x-C.x,dy=p.y-C.y,t=dx*u.x+dy*u.y;return {x:C.x+2*t*u.x-dx,y:C.y+2*t*u.y-dy}};
+const mirrorDir=(d,u)=>{const t=d.x*u.x+d.y*u.y;return {x:2*t*u.x-d.x,y:2*t*u.y-d.y}};
+function seamFold(SA,SB,path,da,db,w,foldB){
+  const CA=SA.base[SA.base.length-1],tA=endDir(SA.base,true),tB=endDir(SB.base,false);
+  const A=path(SA),B=path(SB),An=A[A.length-1],B0=B[0],R=4*w+0.5,R2=12*w+2;
+  if(foldB){
+    const X=lineCut(A,da,null,R,CA,tB,CA);if(!X)return null;
+    const m=mirrorAt(CA,tB),Y=seamMeet(A.map(m),B,CA,R2,mirrorDir(da,tB),db);if(!Y)return null;
+    const L2sd=SA.curve?{curve:true,pts:SA.pts.map(m),from:Y.a,to:X.s}:{curve:false,pts:[{...Y.p},{...X.p}]};
+    if(SA.curve)SA.to=X.s;else SA.pts[SA.pts.length-1]={...X.p};
+    if(SB.curve)SB.from=Y.b;else SB.pts[0]={...Y.p};
+    return {L2:seamPath(L2sd),L2sd,c:{...CA},f4:{...X.p},f8:{...B0},bOut:true};
+  }
+  const Y=lineCut(B,null,db,R,CA,tA,CA);if(!Y)return null;
+  const m=mirrorAt(CA,tA),X=seamMeet(A,B.map(m),CA,R2,da,mirrorDir(db,tA));if(!X)return null;
+  const L2sd=SB.curve?{curve:true,pts:SB.pts.map(m),from:Y.s,to:X.b}:{curve:false,pts:[{...Y.p},{...X.p}]};
+  if(SA.curve)SA.to=X.a;else SA.pts[SA.pts.length-1]={...X.p};
+  if(SB.curve)SB.from=Y.s;else SB.pts[0]={...Y.p};
+  return {L2:seamPath(L2sd),L2sd,c:{...CA},f4:{...An},f8:{...Y.p},bOut:false};
+}
+
+function seamCut(SA,SB,path,da,db,w,k,s){
+  const CA=SA.base[SA.base.length-1],tA=endDir(SA.base,true),tB=endDir(SB.base,false);
+  const A=path(SA),B=path(SB),An=A[A.length-1],B0=B[0],R=4*w+0.5+Math.abs(s),perp=u=>({x:-u.y,y:u.x});
+  const done=(X,Y,L2,opt)=>{if(SA.curve)SA.to=X.s;else SA.pts[SA.pts.length-1]={...X.p};if(SB.curve)SB.from=Y.s;else SB.pts[0]={...Y.p};
+    return {L2,c:{...CA},f4:{...An},f8:{...B0},bOut:k>0,kind:17,opt,s,flag:0,aflag:k>0?1:0}};
+  if(Math.abs(k)===173){
+    const t=k===173?tB:tA,p0={x:CA.x+t.x*s,y:CA.y+t.y*s},dir=perp(t);
+    const X=lineCut(A,da,null,R,p0,dir,An),Y=lineCut(B,null,db,R,p0,dir,B0);if(!X||!Y)return null;
+    return done(X,Y,[{...Y.p},{...X.p}],3);
+  }
+  const M=seamMeet(A,B,CA,R,da,db);if(!M)return null;
+  if(k===171||Math.abs(k)===172){
+    const d=Math.hypot(M.p.x-CA.x,M.p.y-CA.y)||1,u={x:(M.p.x-CA.x)/d,y:(M.p.y-CA.y)/d},D=k===171?s:s+d/2,p0={x:CA.x+u.x*D,y:CA.y+u.y*D},dir=perp(u);
+    const X=lineCut(A,da,null,R,p0,dir,p0),Y=lineCut(B,null,db,R,p0,dir,p0);if(!X||!Y)return null;
+    return done(X,Y,[{...Y.p},{...X.p}],k===171?1:2);
+  }
+  if(k===174){
+    const back=(P,end,dist)=>{const q=end?P[0]:P[P.length-1],L=Math.hypot(q.x-M.p.x,q.y-M.p.y)||1;return {x:M.p.x+(q.x-M.p.x)/L*dist,y:M.p.y+(q.y-M.p.y)/L*dist}};
+    const X=SA.curve?{s:M.a-s,p:null}:{s:0,p:back(A,true,s)},Y=SB.curve?{s:M.b+s,p:null}:{s:0,p:back(B,false,s)};
+    if(SA.curve)SA.to=X.s;else SA.pts[SA.pts.length-1]=X.p;if(SB.curve)SB.from=Y.s;else SB.pts[0]=Y.p;
+    const a=seamPath(SA),b=seamPath(SB),pa=a[a.length-1],pb=b[0];
+    return {L2:[{...pa},{...pb}],c:{...CA},f4:{...An},f8:{...B0},bOut:true,kind:17,opt:4,s,flag:0,aflag:1};
+  }
+  return null;
+}
+
+function lineCut(P,d1,d0,R,p,dir,near){
+  const segs=[];let run=0;
+  if(d0)segs.push({a:{x:P[0].x+d0.x*R,y:P[0].y+d0.y*R},b:P[0],s:-R,L:R});
+  for(let i=1;i<P.length;i++){const L=Math.hypot(P[i].x-P[i-1].x,P[i].y-P[i-1].y);segs.push({a:P[i-1],b:P[i],s:run,L});run+=L}
+  if(d1)segs.push({a:P[P.length-1],b:{x:P[P.length-1].x+d1.x*R,y:P[P.length-1].y+d1.y*R},s:run,L:R});
+  let best=null;
+  for(const g of segs){
+    const rx=g.b.x-g.a.x,ry=g.b.y-g.a.y,den=rx*dir.y-ry*dir.x;if(Math.abs(den)<1e-12)continue;
+    const t=((p.x-g.a.x)*dir.y-(p.y-g.a.y)*dir.x)/den;if(t<-1e-9||t>1+1e-9)continue;
+    const q={x:g.a.x+rx*t,y:g.a.y+ry*t},d=Math.hypot(q.x-near.x,q.y-near.y);
+    if(d<=R&&(!best||d<best.d))best={p:q,s:g.s+t*g.L,d};
+  }
+  return best;
+}
+
+function encodeSquare(q,w){
+  const b=new DataView(new ArrayBuffer(80)),f=(o,x)=>b.setFloat32(o,x,true),u=(o,x)=>b.setUint16(o,x,true),P=[q.c,q.f4,q.f8,...q.L2];
+  f(0,Math.min(...P.map(p=>p.x))-w);f(4,Math.min(...P.map(p=>p.y))-w);f(8,Math.max(...P.map(p=>p.x))+w);f(12,Math.max(...P.map(p=>p.y))+w);
+  f(16,q.f4.x);f(20,q.f4.y);f(24,q.c.x);f(28,q.c.y);f(32,q.f8.x);f(36,q.f8.y);f(40,q.c.x);f(44,q.c.y);
+  u(48,1);u(50,1);u(52,q.bOut?2:1);u(54,q.bOut?1:2);u(76,q.bOut?1:0);u(78,5);
+  return new Uint8Array(b.buffer);
+}
+
 const seamPath=sd=>sd.curve?cutCurve(spline(sd.pts),sd.from,sd.to,sd.pts):sd.pts;
-// Yuka curves hold at most 15 points (its seam curves use 4–15): store few points whose curve follows the offset shape.
+
 function fitSeamCurve(D,from){
   const far=q=>{const C=spline(q);let m=0;for(const p of D){let b=1e9;for(let i=1;i<C.length;i++){const a=C[i-1],c=C[i],dx=c.x-a.x,dy=c.y-a.y,t=Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy||1)));b=Math.min(b,Math.hypot(a.x+t*dx-p.x,a.y+t*dy-p.y))}m=Math.max(m,b)}return m};
   let best=null,err=1e9;
-  if(from<=15&&D.length===8*(from-1)+1){best=D.filter((p,i)=>i%8===0);err=far(best);if(err<0.02)return best} // the offset at the curve's own points
+  if(from<=15&&D.length===8*(from-1)+1){best=D.filter((p,i)=>i%8===0);err=far(best);if(err<0.02)return best}
   for(let n=Math.max(4,Math.min(15,from));n<=15;n++){const q=resample(D,n,true),e=far(q);if(e<err){best=q;err=e}if(e<0.02)break}
   return best;
 }
 function showSeam(){
-  const Z=S.seam;$('seamWhat').textContent=Z.sel>=0?Z.sel+1+'번 변 ('+elLen(Z.loop[Z.sel].e).toFixed(1)+' cm)':'변 '+Z.loop.length+'개 · 폭 '+[...new Set(Z.w)].join('/')+' cm';
-  readout(Z.sel>=0?'이 변만 폭을 바꿀 수 있어요. 같은 변을 다시 누르면 선택이 풀립니다':'변을 누르면 그 변만 폭을 따로 줄 수 있어요 (밑단 등)');
+  const Z=S.seam,sq=Z.corner.filter(k=>k!==1).length;
+  $('seamWhat').textContent=(Z.sel>=0?Z.sel+1+'번 변 ('+elLen(Z.loop[Z.sel].e).toFixed(1)+' cm)':'변 '+Z.loop.length+'개 · 폭 '+[...new Set(Z.w)].join('/')+' cm')+(sq?' · 모서리 '+sq+'곳(직각 '+Z.corner.filter(k=>Math.abs(k)===3).length+', 반전 '+Z.corner.filter(k=>Math.abs(k)===2).length+', 각자름 '+Z.corner.filter(k=>Math.abs(k)>=170).length+')':'');
+  readout(Z.sel>=0?'이 변만 폭을 바꿀 수 있어요. 같은 변을 다시 누르면 선택이 풀립니다':'변을 누르면 그 변만 폭을, 모서리(점)를 누를 때마다 연장 → 직각 → 직각(반대쪽) → 반전 → 반전(반대쪽)으로 바뀌어요');
 }
+const seamCorner=(Z,i)=>{const l=Z.loop[i];return l.rev?l.e.pts[0]:l.e.pts[l.e.pts.length-1]};
 $('seamW').oninput=()=>{const Z=S.seam,w=parseFloat($('seamW').value);if(!Z||!(w>0))return;if(Z.sel>=0)Z.w[Z.sel]=w;else Z.w=Z.w.map(()=>w);showSeam();draw()};
 $('seamAll').onclick=()=>{const Z=S.seam,w=parseFloat($('seamW').value);if(!Z||!(w>0))return;Z.w=Z.w.map(()=>w);Z.sel=-1;refresh()};
 $('seamAdd').onclick=()=>{
@@ -1244,7 +1606,7 @@ $('seamAdd').onclick=()=>{
   commit({kind:'seam',pts:[],sides,outline:Z.loop.map(l=>({rec:l.e.rec,rev:l.rev})),w:Z.w.slice(),layer:Z.loop[0].e.layer,color:3});
   say('시접을 넣었습니다(변 '+sides.length+'개). 되돌리기로 뺄 수 있습니다.');S.seam=null;refresh();
 };
-// Notches: a 2 cm tick across the line at a set distance from one of its ends.
+
 const NOTCH=2;
 function notchGeom(e,s){
   const P=shape(e);let run=0;
@@ -1269,7 +1631,7 @@ $('notchAt').oninput=()=>{
   const L=elLen(N.e);if(x>L)return say('선 길이('+L.toFixed(2)+' cm)보다 깁니다.',true);
   say('');N.s=N.fromEnd?L-x:x;draw();
 };
-// Where the notches go: the first at the typed distance, the rest further from the same end.
+
 function notchSpots(){
   const N=S.notch;if(!N)return [];
   const L=elLen(N.e),k=Math.max(1,Math.min(10,parseInt($('notchN').value)||1)),gap=parseFloat($('notchGap').value)||0,o=[];
@@ -1285,14 +1647,14 @@ $('notchAdd').onclick=()=>{
   say('너치를 '+made.length+'개 넣었습니다.'+(made.length<want?' 선 끝을 넘는 '+(want-made.length)+'개는 뺐습니다.':'')+' 다른 선을 누르면 또 넣을 수 있습니다.',made.length<want);
   S.notch=null;refresh();
 };
-// Length matching: add up one group of lines (e.g. armhole) and another (e.g. sleeve cap) and compare.
+
 function matchGroups(){const vis=new Set(allEls());return {A:S.match.A.filter(e=>vis.has(e)),B:S.match.B.filter(e=>vis.has(e))}}
 const sumLen=g=>g.reduce((s,e)=>s+elLen(e),0);
-function matchLine(){ // the line that "마지막 선으로 맞추기" changes: the last one tapped on the 맞출 쪽 side
+function matchLine(){
   const {A,B}=matchGroups(),e=B[B.length-1],curve=e&&e.pts.length>2&&(e.kind==='curve'||e.type===TYPE.CURVE);
   return A.length&&e&&(e.pts.length===2||curve)&&!locked(e)?e:null;
 }
-// Stretch a curve from one end along its own direction; the move spreads SA-style so the far end stays put.
+
 function stretchCurve(base,i,L){
   const n=base.length-1,o=i?n-1:1,tx=base[i].x-base[o].x,ty=base[i].y-base[o].y,tl=Math.hypot(tx,ty)||1;
   const at=t=>base.map((p,k)=>{const s=Math.sin(Math.PI/2*(i?k/n:(n-k)/n)),w=s*s;return {x:p.x+tx/tl*t*w,y:p.y+ty/tl*t*w}});
@@ -1301,7 +1663,7 @@ function stretchCurve(base,i,L){
   for(let k=0;k<30&&Math.abs(f1)>1e-4&&f1!==f0;k++){const t2=t1-f1*(t1-t0)/(f1-f0);t0=t1;f0=f1;t1=t2;f1=f(t1)}
   return Math.abs(f1)<0.005?at(t1):null;
 }
-// Shorten a curve by cutting it along its drawn shape, keeping the same number of stored points.
+
 function trimCurve(base,i,L){
   const P=i?base:base.slice().reverse(),dense=spline(P),n=P.length;
   const cut=c=>{const o=[dense[0]];let run=0;
@@ -1327,7 +1689,7 @@ function fixMatch(){
   const e=matchLine();if(!e)return say('맞출 쪽에서 마지막에 누른 선이 고칠 수 있는 직선이나 곡선이어야 합니다.',true);
   const {A,B}=matchGroups(),L=elLen(e)+sumLen(A)-sumLen(B);
   if(!(L>0.01))return say('이 선만으로는 맞출 수 없습니다. 차이가 선 길이보다 큽니다.',true);
-  // keep the end that touches another line of the group, move the free end
+
   const near=p=>B.some(x=>x!==e&&x.pts.length&&[x.pts[0],x.pts[x.pts.length-1]].some(q=>Math.hypot(q.x-p.x,q.y-p.y)<0.05));
   if(e.pts.length>2){
     if(e.trim){e.pts=resample(e.pts,e.n,true);e.trim=false;e.baked=true}
@@ -1345,11 +1707,18 @@ $('matchA').onclick=()=>{S.match.side='A';readout();refresh()};
 $('matchB').onclick=()=>{S.match.side='B';readout();refresh()};
 $('matchClear').onclick=()=>{S.match={A:[],B:[],side:'A'};say('');readout();refresh()};
 $('matchFix').onclick=fixMatch;
-document.querySelectorAll('nav [data-tool]').forEach(b=>b.onclick=()=>setTool(b.dataset.tool));
+document.querySelectorAll('nav [data-tool]').forEach(b=>b.onclick=()=>{S.cmdCode=null;setTool(b.dataset.tool)});
 $('new').onclick=()=>{load(blank(),'새 패턴');say('')};
+async function openFile(){
+  if(!window.showOpenFilePicker)return $('file').click();
+  let h;try{[h]=await showOpenFilePicker({types:[{description:'유카 패턴',accept:{'application/octet-stream':['.pax','.001','.002','.003','.004','.005']}}]})}catch(err){return}
+  try{const f=await h.getFile();load(new Uint8Array(await f.arrayBuffer()),f.name.replace(/\.(pax|pan)(\.\d+)?$|\.\d+$/,''));S.file=f.name;S.fh=h;recentAdd(h);say('')}catch(err){say(err.message,true)}
+}
+$('file').closest('label').addEventListener('click',e=>{if(window.showOpenFilePicker){e.preventDefault();openFile()}});
+if(!window.showOpenFilePicker)$('file').removeAttribute('accept');
 $('file').onchange=async e=>{
   const f=e.target.files[0];e.target.value='';if(!f)return;
-  try{load(new Uint8Array(await f.arrayBuffer()),f.name.replace(/\.pax(\.\d+)?$|\.\d+$/,''));say('')}
+  try{load(new Uint8Array(await f.arrayBuffer()),f.name.replace(/\.(pax|pan)(\.\d+)?$|\.\d+$/,''));S.file=f.name;say('')}
   catch(err){say(err.message,true)}
 };
 $('apply').onclick=()=>{
@@ -1361,16 +1730,31 @@ $('apply').onclick=()=>{
 $('done').onclick=()=>{if(S.draft.length>=2)commit({kind:'curve',pts:resample(spline(S.draft),15),flag:1})};
 $('del').onclick=()=>{
   const e=S.sel;if(!e)return;
-  if(!e.kind&&(e.link===0x15||S.doc.refs.has((e.rec-REC)/RSZ+1)||![TYPE.LINE,TYPE.CURVE,TYPE.TEXT,TYPE.ARC].includes(e.type)))
-    return say(e.link===0x15?'시접선은 시접 삭제 도구로 지워 주세요.':'너치나 시접에 연결된 요소입니다. 유까에서 지워 주세요.',true);
-  if(e.kind){S.adds.splice(S.adds.indexOf(e),1);S.hist.push({r:e})}else{S.dels.push(e.rec);S.hist.push({d:e.rec})}
+  if(!e.kind&&(e.link===0x15||!delOK(e)))
+    return say(e.link===0x15?'시접선은 시접 삭제 도구로 지워 주세요.':'너치에 연결된 요소입니다. 유까에서 지워 주세요.',true);
+  if(e.kind){S.adds.splice(S.adds.indexOf(e),1);S.hist.push({r:e})}else{const mv=seamOutlineDel(e);S.dels.push(e.rec);S.hist.push(mv.length?{ds:[e.rec],mv}:{d:e.rec})}
   S.sel=null;refresh();
 };
-// Undo/redo: revert(h) undoes one step and returns the record that undoes it again.
+function seamSidesOf(e){const v=new DataView(S.doc.bytes.buffer,S.doc.bytes.byteOffset),no=(e.rec-REC)/RSZ+1,out=[];
+  for(const x of S.doc.els){if(x.type!==0x5C||S.dels.includes(x.rec))continue;const n=v.getUint16(x.addr+4,true);if(x.len!==206+94*n)continue;
+    for(let i=0;i<n;i++)if(v.getUint16(x.addr+6+2*i,true)===no)out.push({s5:x,i,n})}return out}
+function delOK(e){
+  if(![TYPE.LINE,TYPE.CURVE,TYPE.TEXT,TYPE.ARC].includes(e.type))return false;const no=(e.rec-REC)/RSZ+1;if(!S.doc.refs.has(no))return true;
+  const v=new DataView(S.doc.bytes.buffer,S.doc.bytes.byteOffset);let other=false,by5B=false;
+  for(const x of S.doc.els)if(x.type===0x5B&&!S.dels.includes(x.rec))for(let b=0;b+258<=x.len;b+=256){if(v.getUint16(x.addr+b+6,true)===1&&v.getUint16(x.addr+b+8,true)===no)by5B=true}
+  for(const x of S.doc.els){if(x.type!==0x5C||S.dels.includes(x.rec))continue;const n=v.getUint16(x.addr+4,true);if(x.len!==206+94*n)continue;
+    for(const j of [1,2,4])for(let i=0;i<n;i++)if(v.getUint16(x.addr+6+(j*n+i)*2,true)===no)other=true}
+  return !other&&(by5B||seamSidesOf(e).length>0)}
+function seamOutlineDel(e){
+  const mv=[];for(const {s5,i,n} of seamSidesOf(e)){if(!mv.some(m=>m.e===s5))mv.push({e:s5,was:S.edits.has(s5),snap:{patch16:s5.patch16}});
+    const h=6+24*n+56;s5.patch16=[...(s5.patch16||[]).filter(([o])=>o!==h+68*i+2&&o!==h+68*((i+1)%n)+2),[h+68*i+2,1],[h+68*((i+1)%n)+2,1]];S.edits.add(s5)}
+  return mv}
+
 function newHist(){const a=[];a.push=function(...x){S.ver=(S.ver||0)+1;if(!S.redoing)S.redo=[];return Array.prototype.push.apply(this,x)};return a}
 const dirty=()=>!!S.doc&&S.ver!==S.savedVer;
 function revert(h){
   const inv={},mem=(e,was)=>{if(!e.kind)was?S.edits.add(e):S.edits.delete(e)};
+  if(h.multi){inv.multi=h.multi.slice().reverse().map(revert);return inv}
   if(h.a){S.adds.splice(S.adds.indexOf(h.a),1);inv.r=h.a}
   if(h.r){S.adds.push(h.r);inv.a=h.r}
   if(h.as){for(const x of h.as)S.adds.splice(S.adds.indexOf(x),1);inv.ras=h.as}
@@ -1379,35 +1763,44 @@ function revert(h){
   if(h.rd){S.dels.push(h.rd);inv.d=h.rd}
   if(h.ds){S.dels=S.dels.filter(x=>!h.ds.includes(x));inv.rds=h.ds}
   if(h.rds){S.dels.push(...h.rds);inv.ds=h.rds}
-  if(h.mv){inv.mv=h.mv.map(k=>({e:k.e,was:!k.e.kind&&S.edits.has(k.e),snap:{pts:k.e.pts,at:k.e.at,arc:k.e.arc,box:k.e.box}}));for(const k of h.mv){Object.assign(k.e,k.snap);mem(k.e,k.was)}}
+  if(h.mv){inv.mv=h.mv.map(k=>({e:k.e,was:!k.e.kind&&S.edits.has(k.e),snap:Object.fromEntries(Object.keys(k.snap).map(x=>[x,k.e[x]]))}));for(const k of h.mv){Object.assign(k.e,k.snap);mem(k.e,k.was)}}
   if(h.rg){inv.rg=h.rg.map(k=>({e:k.e,old:k.e.group,was:k.e.kind?null:S.regroup.has(k.e)}));for(const k of h.rg){k.e.group=k.old;if(k.was===false)S.regroup.delete(k.e);if(k.was===true)S.regroup.add(k.e)}}
+  if(h.sc){inv.sc=h.sc.map(k=>({e:k.e,key:k.key,old:k.e[k.key],was:k.e.kind?null:S.regroup.has(k.e)}));for(const k of h.sc){k.e[k.key]=k.old;if(k.was===false)S.regroup.delete(k.e);if(k.was===true)S.regroup.add(k.e)}}
+  if(h.rl){inv.rl=h.rl.map(k=>({e:k.e,old:k.e.flag,was:k.e.kind?null:S.regroup.has(k.e)}));for(const k of h.rl){k.e.flag=k.old;if(k.was===false)S.regroup.delete(k.e);if(k.was===true)S.regroup.add(k.e)}}
+  if(h.rc){inv.rc=h.rc.map(k=>({e:k.e,old:k.e.color,was:k.e.kind?null:S.regroup.has(k.e)}));for(const k of h.rc){k.e.color=k.old;if(k.was===false)S.regroup.delete(k.e);if(k.was===true)S.regroup.add(k.e)}}
+  
   if(h.m){inv.m=h.m;inv.pts=h.m.pts.map(q=>({...q}));inv.was=S.edits.has(h.m);h.m.pts=h.pts;mem(h.m,h.was);if(S.sel===h.m&&h.pts.length===2)$('editLen').value=lenOf(h.pts).toFixed(2)}
   return inv;
 }
-$('undo').onclick=()=>{const h=S.hist.pop();if(!h)return;S.redo.push(revert(h));S.ver++;S.hl=null;refresh()};
-$('redo').onclick=()=>{const h=S.redo&&S.redo.pop();if(!h)return;S.redoing=true;S.hist.push(revert(h));S.redoing=false;S.hl=null;refresh()};
-// Closing the tab or the DeX window with unsaved changes asks first.
-addEventListener('beforeunload',e=>{if(dirty()){e.preventDefault();e.returnValue=''}});
-// Phones and tablets: share sheet ("파일에 저장"); PC: normal download.
-const MOBILE=/iPad|iPhone|Android/.test(navigator.userAgent)||(navigator.maxTouchPoints>1&&/Macintosh/.test(navigator.userAgent));
-function download(blob,fname){
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=fname;
-  document.body.append(a);a.click();a.remove();
-  setTimeout(()=>URL.revokeObjectURL(a.href),5000);
-  say('새 파일로 저장했습니다. 원본은 그대로입니다.');
+
+function cmdReset(){
+  const live=e=>e&&(e.kind?S.adds.includes(e):!S.dels.includes(e.rec));let again=false;S.areaSnap=null;S.gNext=false;
+  if(S.tool==='yc'&&S.yc){if(S.yc.els.some(e=>!live(e))){ycRestart();again=true}}
+  else if(MOVES.includes(S.tool)){if(S.mv.phase!=='pick'){if([...S.mv.sel].some(e=>!live(e))){setTool(S.tool);again=true}}else for(const e of [...S.mv.sel])if(!live(e))S.mv.sel.delete(e)}
+  else if((S.notch&&!live(S.notch.e))||(S.seam&&S.seam.loop.some(l=>!live(l.e)))||(S.seamPick&&S.seamPick.some(e=>!live(e)))){setTool(S.tool);again=true}
+  if(S.sel&&!live(S.sel))S.sel=null;S.match.A=S.match.A.filter(live);S.match.B=S.match.B.filter(live);
+  if(again)say('고른 선이 되돌리기로 없어져서, 하던 명령을 처음부터 다시 합니다.');
 }
-$('save').onclick=()=>{
-  let out;
-  try{out=build(S.doc,S.adds,S.dels,[...S.edits].filter(e=>!S.dels.includes(e.rec)),[...S.regroup].filter(e=>!S.dels.includes(e.rec)).map(e=>({rec:e.rec,group:e.group})));S.savedVer=S.ver;refresh()}
-  catch(err){return say(err.message,true)}
-  const fname=S.name.replace(/[^\w가-힣-]/g,'_')+'_edit.pax',blob=new Blob([out],{type:'application/octet-stream'});
-  let file=null;try{file=new File([blob],fname,{type:'application/octet-stream'})}catch(e){}
-  if(MOBILE&&file&&navigator.canShare&&navigator.canShare({files:[file]})){
-    navigator.share({files:[file]})
-      .then(()=>say('새 파일로 저장했습니다. 원본은 그대로입니다.'))
-      .catch(err=>{if(err&&err.name==='AbortError')say('저장을 취소했습니다.');else download(blob,fname)});
-  }else download(blob,fname);
-};
+
+function doUndo(){const h=S.hist.pop();if(!h)return;S.redo.push(revert(h));S.ver++;S.hl=null;cmdReset();readout();refresh()}
+function doRedo(){const h=S.redo&&S.redo.pop();if(!h)return;S.redoing=true;try{S.hist.push(revert(h))}finally{S.redoing=false}S.hl=null;cmdReset();readout();refresh()}
+$('undo').onclick=doUndo;$('redo').onclick=doRedo;
+
+addEventListener('beforeunload',e=>{if(dirty()){e.preventDefault();e.returnValue=''}});
+
+const YUKA_NAME_MAX=16,nameBytes=s=>[...s].reduce((n,c)=>n+(c.charCodeAt(0)<128?1:2),0);
+function yukaStem(base){let b=[...base];while(b.length&&nameBytes(b.join('')+'_edit')>YUKA_NAME_MAX)b.pop();return (b.join('')||'p')+'_edit'}
+function saveFile(format){
+  try{
+    let out=build(S.doc,S.adds,S.dels,[...S.edits].filter(e=>!S.dels.includes(e.rec)),[...S.regroup].filter(e=>!S.dels.includes(e.rec)).map(e=>({rec:e.rec,addr:e.addr,group:e.group,color:e.color,flag:e.flag,scol:e.type===0x5C?e.scol:null})));S.savedVer=S.ver;refresh();
+    const now=new DataView(out.buffer).getUint16(10,true);
+    const a=document.createElement('a'),stem=yukaStem(S.name.replace(/[^\w가-힣-]/g,'_'));
+    a.href=URL.createObjectURL(new Blob([out]));a.download=stem+'.'+(isPan(new DataView(out.buffer).getUint16(10,true))?'pan':'pax');a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+    say('새 파일로 저장했습니다('+stem+'). 원본은 그대로입니다.'+(stem!==S.name.replace(/[^\w가-힣-]/g,'_')+'_edit'?' 유카 파일 목록에 보이게 이름을 16바이트(한글 8자)로 줄였습니다.':''));
+  }catch(err){say(err.message,true)}
+}
+$('save').onclick=()=>saveFile();
 $('editApply').onclick=()=>{
   const e=S.sel,L=parseFloat($('editLen').value);if(!e||e.pts.length!==2)return;
   if(!(L>0))return say('길이를 cm로 입력해 주세요.',true);
@@ -1421,66 +1814,270 @@ document.querySelectorAll('#tabs [data-tab]').forEach(b=>b.onclick=()=>{
 });
 document.querySelectorAll('[data-click]').forEach(b=>b.onclick=()=>$(b.dataset.click).click());
 document.querySelectorAll('[data-cat]').forEach(b=>b.onchange=()=>{b.checked?S.off.delete(b.dataset.cat):S.off.add(b.dataset.cat);S.sel=null;refresh()});
-$('snapOn').onchange=()=>{S.snap=null;draw()};$('gridOn').onchange=draw;
+$('snapMode').onchange=()=>setSnap($('snapMode').value);
+$('areaSnap').onchange=()=>{const v=$('areaSnap').value;$('areaSnap').value='';if(v)areaSnapStart(v)};$('gridOn').onchange=draw;
 $('fitBtn').onclick=()=>{fit();draw()};
 $('zoomIn').onclick=()=>zoom(1.25,S.w/2,S.h/2);$('zoomOut').onclick=()=>zoom(.8,S.w/2,S.h/2);
 function togglePanel(btn,cls){const w=$('work'),off=w.classList.toggle(cls);btn.setAttribute('aria-pressed',!off);resize()}
 $('toggleLeft').onclick=()=>togglePanel($('toggleLeft'),'noLeft');
 $('toggleRight').onclick=()=>togglePanel($('toggleRight'),'noRight');
-if(innerWidth<=900){$('toggleLeft').click();$('toggleRight').click()}
+$('toggleLeft').click();
+if(innerWidth<=900)$('toggleRight').click()
+
+const YUKA="파일|파일|파일열기|call\n파일|파일|새파일|new\n파일|파일|저장|save\n파일|곡선저장|길이조정|mach\n기호|문자|문자입력|t\n기호|문자|영역문자|tb\n기호|문자|임의문자|td\n시접||영역시접|nu\n시접||부분시접|cma\n시접|합복확인|시접삭제|nud\n선의종류||곡선|crv\n선의종류||2점선|l\n선의종류||3점원|a3\n선의종류||사각BOX|box\n선의종류|기타|반지름원|cc\n곡선수정|유사처리|SS수정|ss\n곡선수정|유사처리|SA수정|sa\n이동|이동|2점방향|mv\n이동|이동|이동회전|mvrt\n이동|이동|임의이동|dm\n이동|복사이동|2점방향|cmv\n이동|복사이동|이동회전|cmvrt\n이동|복사이동|임의이동|cdm\n그룹||설정|sg\n그룹||추가|ag\n그룹||2점이동|mg\n그룹||이동회전|mrg\n그룹||임의이동|dmg\n그룹||전undo|bga\n그룹||지시undo|bg\n복사||복사|cop\n표시|GRID|삭제|gof\n표시|GRID|점표시|gds\n표시|GRID|점|gdf\n표시|GRID|선표시|gls\n표시|GRID|선|glf\n표시|GRID|크기|gs\n표시|GRID|원점변경|gog\n표시|화면변경|1화면|1q\n표시|화면변경|2화면|2q\n표시|화면변경|3화면|3q\n표시|화면변경|전체화면|full\n표시|DRAW화면|임의화면|fr".split("\n").map(l=>{const [m,g,n,c]=l.split("|");return {m,g,n,c:c.split(",").map(s=>s.trim()).filter(Boolean)}});
+const tool=t=>()=>document.querySelector('[data-tool='+t+']').click();
+const press=id=>()=>$(id).click();
+
+const ACT={
+  call:()=>openFile(),new:press('new'),save:press('save'),
+  crv:tool('curve'),l:tool('line'),box:tool('box'),
+  cc:tool('circle'),a3:tool('arc3'),
+  mv:tool('move'),cmv:tool('cmove'),mvrt:tool('mvrt'),
+  sg:tool('sg'),ag:()=>{tool('ag')();S.mv.phase='group';S.mv.agFirst=true;readout();refresh()},
+  nu:tool('seam'),nud:tool('seamdel'),
+  cma:()=>{tool('seam')();readout('시접: 외곽선을 하나 누르세요. 한 바퀴를 못 찾으면 차례로 직접 고릅니다')},
+  t:tool('text'),tb:tool('text'),td:tool('text'),
+  u:()=>doUndo(),
+  ss:()=>{$('curveMode').value='ss';tool('edit')();readout('SS: 곡선을 누르고 점 하나를 옮기세요')},
+  sa:()=>{$('curveMode').value='sa';tool('edit')();readout('SA: 곡선을 누르고 점을 끌면 전체가 자연스럽게 따라옵니다')},
+  dim:tool('measure'),
+  mach:tool('match'),
+  bga:press('undo'),bg:press('undo'),
+  full:()=>{fit();draw()},
+};
+
+const XF={};
+for(const [code,[name,copy,kind,opt]] of Object.entries(XF))ACT[code]=()=>{setTool('xf');S.mv.cmd={code,name,copy:!!copy,kind,opt};readout();refresh()};
+{const m=ACT.mvrt;ACT.mvrt=()=>{m();S.mvCopy=false;S.gMove=false};ACT.cmvrt=()=>{m();S.mvCopy=true;say('복사 이동회전: 옮길 선을 고르세요(원본은 남음)')}}
+ACT.dm=ACT.mv;ACT.cdm=ACT.cmv;ACT.cop=ACT.cmv;ACT.mg=ACT.mv;ACT.mrg=ACT.mvrt;ACT.dmg=ACT.mv;
+
+const YC={};
+const ycD=(a,b)=>Math.hypot(b.x-a.x,b.y-a.y);
+const ycCurve=e=>e.pts.length>2&&(e.kind==='curve'||e.type===TYPE.CURVE);
+
+function bakeTrim(e){if(!e.trim)return;const P=bakedPts(e);e.pts=P;e.trim=false;e.baked=true;if(!e.kind&&P.length!==e.n)e.grow=true}
+
+function ycNear(P,w){let best=null;let run=0;
+  for(let i=1;i<P.length;i++){const a=P[i-1],b=P[i],dx=b.x-a.x,dy=b.y-a.y,L=Math.hypot(dx,dy)||1e-9,t=Math.max(0,Math.min(1,((w.x-a.x)*dx+(w.y-a.y)*dy)/(L*L))),p={x:a.x+dx*t,y:a.y+dy*t},d=ycD(p,w);
+    if(!best||d<best.d)best={p,u:{x:dx/L,y:dy/L},s:run+t*L,d,i};run+=L}
+  return best}
+const ycLineOnly=e=>e&&e.pts.length===2&&!isNotch(e)&&!e.text&&!e.arc;
+function ycStart(code){const d=YC[code];setTool('yc');S.yc={code,d,i:0,pts:[],els:[],taps:[],nums:[]};ycStep()}
+function ycRestart(){const Y=S.yc;S.yc={code:Y.code,d:Y.d,i:Y.i0||0,i0:Y.i0,n0:Y.n0,pts:[],els:[],taps:[],nums:(Y.n0||[]).slice()};S.hl=null;ycStep()}
+function ycStep(){
+  const Y=S.yc,st=Y.d.steps[Y.i];
+  $('ycPanel').hidden=!(st&&(st.t==='num'||st.t==='multi'));
+  if(st&&st.t==='num'){$('ycLabel').textContent=st.label;$('ycNum').value=typeof st.def==='function'?st.def(Y):st.def??'';$('ycNum').hidden=false;$('ycGo').hidden=false;$('ycDone').hidden=true;setTimeout(()=>{$('ycNum').focus();$('ycNum').select()},0)}
+  if(st&&st.t==='multi'){$('ycLabel').textContent=Y.pts.length+'점';$('ycNum').hidden=true;$('ycGo').hidden=true;$('ycDone').hidden=false}
+  readout(st?Y.d.name+': '+(typeof st.hint==='function'?st.hint(Y):st.hint):'');draw();
+}
+function ycNext(){const Y=S.yc;{const cs=Y.d.steps[Y.i];if(cs&&cs.t==='multi'&&cs.cut)Y[cs.cut]=Y.pts.length;Y.mb=Y.pts.length}Y.i++;while(Y.i<Y.d.steps.length&&Y.d.steps[Y.i].skip&&Y.d.steps[Y.i].skip(Y))Y.i++;
+  if(Y.i<Y.d.steps.length)return ycStep();
+  const h0=S.hist.length,r0=S.redo,v0=S.ver;try{say('');Y.d.run(Y);if(Y.d.done)say(Y.d.done(Y));}catch(err){while(S.hist.length>h0)revert(S.hist.pop());S.redo=r0;S.ver=v0;say(err.message,true)}
+  if(S.hist.length>h0+1){const part=S.hist.splice(h0);S.hist.push({multi:part})}
+  if(Y.d.again!=null&&S.tool==='yc'){S.yc={code:Y.code,d:Y.d,i:Y.d.again,i0:Y.d.again,n0:Y.nums.slice(),pts:[],els:[],taps:[],nums:Y.nums.slice()};ycStep()}
+  else ycStart(Y.code);refresh();
+}
+function sameTap(P,sp,w){if(!P.length)return false;const L=P[P.length-1],q=toS(L);return (sp&&Math.hypot(q.x-sp.x,q.y-sp.y)<10)||Math.hypot(L.x-w.x,L.y-w.y)<1e-6}
+function ycTap(sp,w){
+  const Y=S.yc,st=Y&&Y.d.steps[Y.i];if(!st)return;
+  if(st.t==='multi'&&sameTap(Y.pts,sp,w)){if(Y.pts.length-(st.rel?Y.mb||0:0)>=(st.min??2))$('ycDone').click();return}
+  if(st.t==='pt'||st.t==='multi'){Y.pts.push({x:w.x,y:w.y});if(st.t==='pt')return ycNext();ycStep();return}
+  if(st.t==='area'){(Y.areaPts=Y.areaPts||[]).push({x:w.x,y:w.y});if(Y.areaPts.length<2){ycStep();return}Y.area=Y.areaPts.slice(0,2);return ycNext()}
+  if(st.t==='el'){
+    const e=pick(sp);if(!e)return;
+    if(isNotch(e)||e.text)return say('선을 눌러 주세요.',true);
+    if(st.need==='line'&&!ycLineOnly(e))return say('직선을 눌러 주세요.',true);
+    if(st.need==='curve'&&!ycCurve(e))return say('곡선을 눌러 주세요.',true);
+    if(st.need==='circle'&&!e.arc)return say('원·원호를 눌러 주세요.',true);
+    if(st.need!=='any'&&st.need!=='circle'&&e.arc)return say('원·원호는 이 명령에 쓸 수 없습니다.',true);
+    if(st.edit&&!e.kind&&locked(e)&&!(st.seam&&seamCurve(e)))return say('그레이딩이나 다른 요소에 연결된 선은 유카에서 고쳐 주세요.',true);
+    Y.els.push(e);Y.taps.push(toW(sp));say('');return ycNext();
+  }
+}
+$('ycGo').onclick=()=>{const Y=S.yc,st=Y&&Y.d.steps[Y.i];if(!st||st.t!=='num')return;const v=parseFloat($('ycNum').value);
+  if(!isFinite(v)||(st.pos&&!(v>0)))return say(st.label+'을(를) 입력해 주세요.',true);Y.nums.push(v);say('');ycNext()};
+$('ycDone').onclick=()=>{const Y=S.yc,st=Y&&Y.d.steps[Y.i];if(!st||st.t!=='multi')return;if(Y.pts.length-(st.rel?Y.mb||0:0)<(st.min??2))return say('점을 '+(st.min??2)+'개 이상 눌러 주세요.',true);ycNext()};
+$('ycNum').oninput=()=>draw();
+function drawYc(c){
+  const Y=S.yc;if(!Y)return;c.fillStyle=css('--mark');
+  for(const p of Y.pts){const q=toS(p);c.beginPath();c.arc(q.x,q.y,4,0,7);c.fill()}
+  if(Y.areaPts&&Y.areaPts.length){const a=toS(Y.areaPts[0]),b=toS(Y.areaPts[1]||S.hover||Y.areaPts[0]);c.strokeStyle=css('--draw');c.lineWidth=1.2;c.setLineDash([5,4]);c.strokeRect(a.x,a.y,b.x-a.x,b.y-a.y);c.setLineDash([])}
+  c.strokeStyle=css('--mark');c.lineWidth=2.4;
+  for(const e of Y.els){const P=shape(e);if(!P.length)continue;c.beginPath();P.forEach((p,i)=>{const q=toS(p);i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y)});c.stroke()}
+  if(!Y.d.preview)return;let L=null;try{L=Y.d.preview(Y,S.hover,parseFloat($('ycNum').value))}catch(err){}
+  if(!L)return;c.setLineDash([6,4]);c.lineWidth=1.6;c.strokeStyle=css('--draw');
+  for(const P of L){if(!P||P.length<2)continue;c.beginPath();P.forEach((p,i)=>{const q=toS(p);i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y)});c.stroke()}
+  c.setLineDash([]);
+}
+
+const ycAlong=(A,s)=>{const c=cutCurve(A,0,Math.max(0,Math.min(lenOf(A),s)));return c[c.length-1]};;;;;;;;
+const bakedPts=e=>resample(e.pts,e.n,true);
+for(const code of Object.keys(YC))ACT[code]=()=>ycStart(code);
+
+const RECENT_DB='pi-recent';
+function recentDb(){return new Promise((ok,no)=>{const r=indexedDB.open(RECENT_DB,1);r.onupgradeneeded=()=>r.result.createObjectStore('f');r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)})}
+async function recentGet(){try{const db=await recentDb();return await new Promise(ok=>{const q=db.transaction('f').objectStore('f').get('list');q.onsuccess=()=>ok(q.result||[]);q.onerror=()=>ok([])})}catch(e){return []}}
+async function recentAdd(h){if(!h||!window.indexedDB)return;try{const L=await recentGet(),out=[{h,name:h.name,t:Date.now()}];
+  for(const x of L){if(out.length>=10)break;try{if(await x.h.isSameEntry(h))continue}catch(e){}out.push(x)}
+  const db=await recentDb();db.transaction('f','readwrite').objectStore('f').put(out,'list')}catch(e){}}
+ACT.bf=async()=>{const L=await recentGet();if(!L.length)return say('아직 최근 파일이 없습니다. 열기로 한 번 열면 여기에 남습니다.',true);
+  let d=$('recentDlg');if(!d){d=document.createElement('dialog');d.id='recentDlg';document.body.appendChild(d)}
+  d.innerHTML='<b>최근 파일</b><div></div><button value="x">닫기</button>';const box=d.querySelector('div');box.style.cssText='display:flex;flex-direction:column;gap:4px;margin:8px 0;min-width:260px';
+  L.forEach(x=>{const b=document.createElement('button');b.textContent=x.name+'  ·  '+new Date(x.t).toLocaleString();b.style.textAlign='left';
+    b.onclick=async()=>{d.close();try{if((await x.h.queryPermission({mode:'readwrite'}))!=='granted'&&(await x.h.requestPermission({mode:'readwrite'}))!=='granted')return say('파일을 열 권한이 없습니다.',true);
+      const f=await x.h.getFile();load(new Uint8Array(await f.arrayBuffer()),f.name.replace(/\.(pax|pan)(\.\d+)?$|\.\d+$/,''));S.file=f.name;S.fh=x.h;recentAdd(x.h);say('')}catch(err){say('열 수 없습니다: '+err.message,true)}};box.appendChild(b)});
+  d.querySelector('button[value=x]').onclick=()=>d.close();d.showModal()};
+ACT.gof=()=>{$('gridOn').checked=false;draw()};
+ACT.gls=ACT.glf=()=>{$('gridOn').checked=true;S.gridMode='line';draw()};ACT.gds=ACT.gdf=()=>{$('gridOn').checked=true;S.gridMode='dot';draw()};
+ACT.gs=()=>{const v=prompt('GRID 크기(cm). 비우면 화면 배율에 맞춰 자동',S.gridSize||'');if(v===null)return;const n=parseFloat(v);S.gridSize=n>0?n:null;$('gridOn').checked=true;say(n>0?'GRID '+n+'cm':'GRID 자동');draw()};
+YC.gog={name:'GRID 원점변경',steps:[{t:'pt',hint:'GRID 원점이 될 점을 누르세요'}],run:Y=>{S.gridOrg={...Y.pts[0]};$('gridOn').checked=true},done:()=>'GRID 원점을 바꿨습니다.'};ACT.gog=()=>ycStart('gog');
+
+function splitPanes(n){if(!S.doc)return;if(S.split){const P=S.panes[S.paneActive],ox=S.paneActive*S.w/S.panes.length;S.split=false;S.view={...P.view,x:P.view.x-ox};S.hide=P.hide;S.panes=null}
+  const v=S.view;S.split=true;S.panes=[...Array(n)].map(()=>({view:{...v},hide:new Set(S.hide)}));
+  for(let k=n-1;k>=0;k--){S.paneActive=k;S.view=S.panes[k].view;S.hide=S.panes[k].hide;fit()}
+  renderLayers();draw();say(n+'화면: 누른 쪽이 작업 화면(레이어 창에서 그 화면의 사이즈를 고름). 1q로 1화면.')}
+ACT['2q']=()=>splitPanes(2);ACT['3q']=()=>splitPanes(3);
+ACT['1q']=()=>{if(!S.split)return;const n=S.panes.length,P=S.panes[S.paneActive],ox=S.paneActive*S.w/n;S.split=false;S.view={...P.view,x:P.view.x-ox+(S.w-S.w/n)/2};S.hide=P.hide;S.panes=null;renderLayers();draw();say('1화면')};
+ACT.full=()=>{fit();draw()};ACT.fr=()=>areaSnapStart('zoom');
+const yukaByCode=new Map();for(const y of YUKA)for(const c of y.c)if(!yukaByCode.has(c))yukaByCode.set(c,y);
+
+const NUMIN=[['ycGo',['ycNum']],['apply',['len']],['editApply',['editLen']],['sideA',['gap']],['notchAdd',['notchAt','notchN','notchGap']],
+  ['seamAdd',['seamW']],['circleApply',['circleR']],['txtAdd',['txtSize','txtRot']],['boxApply',['boxW','boxH']],
+  ['mvApply',['mvX','mvY']],['mvRot',['mvAng']],['mvDistGo',['mvDist']],['exGoS',['exA','exB']]];
+const shown=id=>{const el=$(id);return !!el&&!el.hidden&&el.offsetParent!==null};
+function numTarget(){for(const [b,ids] of NUMIN){const f=ids.filter(shown);if(f.length&&shown(b))return {b,ids:f}}return null}
+function numHint(){const t=numTarget(),c=$('cmd');
+  const N={notchAt:'위치 cm, 개수, 간격',boxW:'가로, 세로 cm',mvX:'X, Y cm',txtSize:'크기 cm, 각도 °'};
+  c.placeholder=t?(t.ids.length>1&&N[t.ids[0]]||document.querySelector('label[for='+t.ids[0]+']')?.textContent||'값'):'명령 (예: mv)'}
+
+function calc(t){t=String(t).trim().replace(/×/g,'*').replace(/÷/g,'/');if(!/\d/.test(t)||!/^[\d.+\-*/() ]+$/.test(t))return NaN;
+  try{const v=Function('"use strict";return ('+t+')')();return typeof v==='number'&&Number.isFinite(v)?v:NaN}catch(e){return NaN}}
+const calcFmt=v=>(+v.toFixed(4)).toString();
+function numVals(t){const a=String(t).trim().replace(/\s*([*/+()×÷])\s*/g,'$1').split(/[\s,]+/).filter(Boolean);const v=a.map(calc);return a.length&&v.every(Number.isFinite)?{v,expr:a.some(x=>/[*/+()×÷]|.-/.test(x))}:null}
+function runNum(text){
+  const t=numTarget();if(!t)return false;
+  const nv0=numVals(text),vs=nv0?nv0.v.map(calcFmt):text.split(/[\s,]+/);if(vs.length>t.ids.length){say('값은 '+t.ids.length+'개까지 넣을 수 있습니다.',true);return true}
+  vs.forEach((v,i)=>{const el=$(t.ids[i]);el.value=v;el.dispatchEvent(new Event('input',{bubbles:true}))});
+  $(t.b).click();return true;
+}
+function runCmd(raw){
+  const c=$('cmd');let code=String(raw||'').trim().toLowerCase();c.value='';c.blur();
+  if(!code)return;
+  if(S.ratioAsk){S.ratioAsk=false;if(/^\d*\.?\d+$/.test(code)){const r=parseFloat(code);if(r>1)return say('비율은 0~1로 넣어 주세요(예: 0.3).',true);$('snapRatio').value=r;return say('비율점: 비율 '+r)}}
+
+  if(/^[*/+]/.test(code)&&S.calcLast!=null)code=calcFmt(S.calcLast)+code;
+  const nv=numVals(code);
+  if(nv){S.calcLast=nv.v[nv.v.length-1];if(!runNum(code)){if(nv.expr){say(code+' = '+nv.v.map(calcFmt).join(', '));readout('[수치:'+nv.v.map(calcFmt).join(', ')+']')}else say('지금은 숫자를 넣을 칸이 없습니다. 명령을 먼저 고르세요.',true)}numHint();return}
+  const y=yukaByCode.get(code)||YUKA.find(v=>v.n===code),key=y&&!ACT[code]?y.c.find(k=>ACT[k]):code;
+  closeYMenu();
+  if(ACT[key]){say('');S.cmdCode=null;ACT[key]();S.cmdCode=code;S.cmdTool=S.tool;readout(($('readout').textContent||'').replace(/^\[[^\]]*\] /,'').replace(/  \[ \d+ \]$/,'')+(y?'  ('+y.n+')':''));return}
+  if(y)return say(y.m+' › '+(y.g&&y.g!==y.m?y.g+' › ':'')+y.n+'('+y.c.join(', ')+')은 아직 준비 중입니다.',true);
+  say('"'+code+'"는 유카 명령에 없습니다.',true);
+}
+
+const YMENUS=[...new Set(YUKA.map(y=>y.m))];
+function closeYMenu(){$('ydrop').hidden=true;document.querySelectorAll('.ytop').forEach(b=>b.setAttribute('aria-pressed','false'))}
+function openYMenu(m,btn){
+  const d=$('ydrop'),open=!d.hidden&&btn.getAttribute('aria-pressed')==='true';closeYMenu();if(open)return;
+  btn.setAttribute('aria-pressed','true');d.textContent='';
+  const groups=new Map();for(const y of YUKA)if(y.m===m){const g=y.g||m;if(!groups.has(g))groups.set(g,[]);groups.get(g).push(y)}
+  for(const [g,list] of groups){
+    const col=document.createElement('div');col.className='yg';
+    const h=document.createElement('b');h.textContent=g;col.append(h);
+    for(const y of list){
+      const b=document.createElement('button'),ok=y.c.some(k=>ACT[k]);b.disabled=!ok;
+      b.title=ok?'':'준비 중';b.append(y.n);const s=document.createElement('small');s.textContent=y.c.join(', ');b.append(s);
+      b.onclick=()=>runCmd(y.c.find(k=>ACT[k]));col.append(b);
+    }
+    d.append(col);
+  }
+  const r=btn.getBoundingClientRect();d.hidden=false;
+  d.style.left=Math.max(4,Math.min(r.left,innerWidth-d.offsetWidth-4))+'px';d.style.top=(r.bottom+4)+'px';
+}
+(()=>{
+  const box=$('ymenus');
+  for(const m of YMENUS){
+    const b=document.createElement('button'),n=YUKA.filter(y=>y.m===m),ok=n.filter(y=>y.c.some(k=>ACT[k])).length;
+    b.className='tool ytop';b.setAttribute('aria-pressed','false');b.textContent=m;b.title=ok+' / '+n.length+'개 됨';
+    b.onclick=e=>{e.stopPropagation();openYMenu(m,b)};box.append(b);
+  }
+  const dl=$('cmdList');
+  for(const y of YUKA)for(const c of y.c){const o=document.createElement('option');o.value=c;o.label=y.n+' · '+y.m+(y.c.some(k=>ACT[k])?'':' (준비 중)');dl.append(o)}
+  const d=document.createElement('div');d.id='ydrop';d.hidden=true;document.body.append(d);
+  d.addEventListener('click',e=>e.stopPropagation());
+  addEventListener('click',()=>{if(!d.hidden)closeYMenu()});
+  $('cmd').addEventListener('focus',numHint);
+  $('cmd').addEventListener('input',e=>{const v=e.target.value;if(/\s$/.test(v)&&v.trim())runCmd(v.trim())});
+  $('cmd').addEventListener('change',e=>{if(yukaByCode.has(e.target.value.trim().toLowerCase()))runCmd(e.target.value)});
+})();
+
+for(const el of document.querySelectorAll('input[type=number]')){el.type='text';el.inputMode='decimal';el.autocomplete='off';el.classList.add('numcalc')}
+function calcInput(el){if(!el||!el.classList||!el.classList.contains('numcalc'))return;const t=el.value.trim();if(!/[*/+()×÷]|\d-/.test(t))return;
+  const v=calc(t);if(!Number.isFinite(v))return say('"'+t+'"를 계산할 수 없습니다.',true);el.value=calcFmt(v);el.dispatchEvent(new Event('input',{bubbles:true}));say(t+' = '+calcFmt(v))}
+addEventListener('keydown',e=>{if(e.key==='Enter')calcInput(e.target)},true);
+addEventListener('change',e=>calcInput(e.target),true);
 let lastKey='',lastAt=0,spaceDown=false;
-// Enter in a box applies it (DeX keyboard).
-const ENTER={len:'apply',editLen:'editApply',gap:'sideA',notchAt:'notchAdd',notchN:'notchAdd',notchGap:'notchAdd',seamW:'seamAdd',txt:'txtAdd',circleR:'circleApply',txtSize:'txtAdd',txtRot:'txtAdd',boxW:'boxApply',boxH:'boxApply',mvX:'mvApply',mvY:'mvApply',mvAng:'mvRot'};
+
+const ENTER={len:'apply',editLen:'editApply',gap:'sideA',notchAt:'notchAdd',notchN:'notchAdd',notchGap:'notchAdd',seamW:'seamAdd',txt:'txtAdd',circleR:'circleApply',txtSize:'txtAdd',txtRot:'txtAdd',boxW:'boxApply',boxH:'boxApply',mvX:'mvApply',mvY:'mvApply',mvAng:'mvRot',mvDist:'mvDistGo',ycNum:'ycGo'};
 addEventListener('keydown',e=>{
+  if(/^F(4|5|6|11)$/.test(e.key)&&!e.ctrlKey&&!e.altKey&&!e.shiftKey){e.preventDefault();areaSnapStart({F4:'in',F5:'cross',F6:'zoom',F11:'poly'}[e.key]);return}
+  if(S.areaSnap&&e.key==='Escape'){S.areaSnap=null;say('');draw();return}
+  if(S.areaSnap&&e.key==='Enter'&&S.areaSnap.kind==='poly'&&S.areaSnap.pts.length>=2){e.preventDefault();areaFinish();return}
+  if(/^F[123]$/.test(e.key)&&!e.ctrlKey&&!e.altKey){e.preventDefault();setSnap(e.shiftKey?['cross','mid','ratio'][+e.key[1]-1]:['end','free','on'][+e.key[1]-1]);return}
   const typing=e.target.matches&&e.target.matches('input,select,textarea'),ctrl=e.ctrlKey||e.metaKey,k=(e.key||'').toLowerCase();
   if(ctrl&&k==='s'){e.preventDefault();$('save').click();return}
-  if(ctrl&&k==='o'){e.preventDefault();$('file').click();return}
+  if(ctrl&&k==='o'){e.preventDefault();openFile();return}
   if(typing){
-    if(e.key==='Enter'){const b=ENTER[e.target.id];if(b&&$(b).offsetParent!==null){e.preventDefault();$(b).click()}}
+    if(e.target.id==='cmd'){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();if(e.key==='Enter'||e.target.value.trim())runCmd(e.target.value)}
+      else if(e.key==='Escape'){e.target.value='';e.target.blur()}
+      return;
+    }
+
+    const sp=e.key===' '&&e.target.classList.contains('numcalc')&&ENTER[e.target.id];if(sp){e.preventDefault();if(!e.target.value.trim())return;calcInput(e.target)}
+    if(e.key==='Enter'||sp){const b=ENTER[e.target.id];if(b&&$(b).offsetParent!==null){e.preventDefault();$(b).click()}}
     else if(e.key==='Escape')e.target.blur();
     return;
   }
-  if(ctrl&&(k==='y'||(k==='z'&&e.shiftKey))){e.preventDefault();$('redo').click();return}
-  if(ctrl&&k==='z'){e.preventDefault();$('undo').click();return}
+  if(ctrl&&(k==='y'||(k==='z'&&e.shiftKey))){e.preventDefault();doRedo();return}
+  if(ctrl&&k==='z'){e.preventDefault();doUndo();return}
   if(ctrl&&k==='0'){e.preventDefault();fit();draw();return}
   if(e.key===' '){e.preventDefault();if(!spaceDown){spaceDown=true;cursor()}return}
+  if(e.key==='Backspace'&&MOVES.includes(S.tool)&&S.mv.phase==='pick'&&S.mv.sel.size){e.preventDefault();const last=[...S.mv.sel].pop();S.mv.sel.delete(last);say('마지막에 고른 것을 뺐습니다. ['+S.mv.sel.size+']');readout();refresh();return}
   if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();if(!$('del').disabled)$('del').click();return}
-  if(e.key==='Escape'){cancelAll();return}
+  if(e.key==='Escape'){if(!$('ydrop').hidden){closeYMenu();return}cancelAll();return}
   if(e.key==='Home'){fit();draw();return}
   if(e.key==='+'||e.key==='='){zoom(1.25,S.w/2,S.h/2);return}
+  if(e.key==='-'&&numTarget()){e.preventDefault();const c=$('cmd');numHint();c.focus();c.value+='-';return}
   if(e.key==='-'||e.key==='_'){zoom(.8,S.w/2,S.h/2);return}
   const arrow={ArrowLeft:[60,0],ArrowRight:[-60,0],ArrowUp:[0,60],ArrowDown:[0,-60]}[e.key];
   if(arrow){e.preventDefault();S.view.x+=arrow[0];S.view.y+=arrow[1];draw();return}
   if(ctrl||e.altKey||k.length!==1)return;
-  // Yuka-style two-letter keys
-  const now=Date.now(),seq=now-lastAt<1000?lastKey+k:'';lastKey=k;lastAt=now;
-  if(seq==='ss'||seq==='sa'){lastKey='';$('curveMode').value=seq;document.querySelector('[data-tool=edit]').click();readout(seq==='ss'?'SS: 곡선을 누르고 점 하나를 옮기세요':'SA: 곡선을 누르고 점을 끌면 전체가 자연스럽게 따라옵니다');return}
-  if(seq==='sg'||seq==='ag'){lastKey='';document.querySelector('[data-tool='+seq+']').click();return}
+
+  if(/[a-z0-9\\/*(.]/.test(k)||(','.includes(k)&&numTarget())){e.preventDefault();const c=$('cmd');numHint();c.focus();c.value+=k;return}
 });
 addEventListener('keyup',e=>{if(e.key===' '){spaceDown=false;cursor()}});
 addEventListener('blur',()=>{if(spaceDown){spaceDown=false;cursor()}});
 let wideNow=innerWidth>900;
 addEventListener('resize',()=>{
   const wide=innerWidth>900,w=$('work');
-  if(wide!==wideNow){wideNow=wide;for(const [btn,cls] of [['toggleLeft','noLeft'],['toggleRight','noRight']])if(w.classList.contains(cls)===wide)$(btn).click()}
+  if(wide!==wideNow){wideNow=wide;for(const [btn,cls] of [['toggleRight','noRight']])if(w.classList.contains(cls)===wide)$(btn).click()}
   resize();
 });
+
 window.__pax={parse,build,blank};
-// iPad/iPhone grey out unknown extensions like .pax in the file picker, so allow any file there;
-// parse() still rejects anything that isn't a Yuka file.
-if(/iPad|iPhone/.test(navigator.userAgent)||(navigator.maxTouchPoints>1&&/Macintosh/.test(navigator.userAgent)))$('file').removeAttribute('accept');
-// Offline + install support. A new version takes over on its own; then offer a reload
-// (not forced, so unsaved work is never lost).
+window.__load=load;
+
 if('serviceWorker' in navigator&&location.protocol!=='file:'){
   const hadController=!!navigator.serviceWorker.controller;
   navigator.serviceWorker.addEventListener('controllerchange',()=>{
-    if(!hadController)return; // very first install: nothing to refresh
+    if(!hadController)return;
     const n=$('notice');say('새 버전이 준비됐습니다. 여기를 누르면 새로고침합니다. (저장 안 한 작업은 먼저 저장하세요)');
     n.style.cursor='pointer';n.onclick=()=>location.reload();
   });
   navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
-// Opens on an empty pattern.
 load(blank(),'새 패턴');
 addEventListener('load',()=>{resize();fit();refresh();readout()});
 resize();fit();refresh();readout();
