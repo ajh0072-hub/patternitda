@@ -255,6 +255,10 @@ canvas.draw{cursor:crosshair}canvas.grab{cursor:grab}canvas.grabbing{cursor:grab
       <label for="boxH">세로 cm</label><input id="boxH" type="number" inputmode="decimal" step="0.1" min="0">
       <button id="boxApply">적용</button>
     </div>
+    <div id="molPanel" class="float" hidden style="flex-wrap:wrap">
+      <label for="molFile">등록문자</label><select id="molFile"></select><span id="molWords" style="display:contents"></span>
+      <label for="molSize">높이</label><input id="molSize" type="number" inputmode="decimal" step="0.1" value="2" style="width:48px"><button id="molEdit">고치기</button>
+    </div>
     <div id="ycPanel" class="float" hidden>
       <label for="ycNum" id="ycLabel"></label><input id="ycNum" type="number" inputmode="decimal" step="0.1"><button id="ycGo">다음</button><button id="ycDone">완료</button>
     </div>
@@ -282,7 +286,7 @@ canvas.draw{cursor:crosshair}canvas.grab{cursor:grab}canvas.grabbing{cursor:grab
     </div>
     <div id="seamPanel" class="float" hidden>
       <output id="seamWhat"></output><label for="seamW">폭 cm</label><input id="seamW" type="number" inputmode="decimal" step="0.1" min="0.1" value="1">
-      <button id="seamAll">모든 변에</button><button id="seamAdd">시접 넣기</button><button id="seamManual">직접 고르기</button>
+      <button id="seamAll">모든 변에</button><button id="seamSq">모서리 직각</button><label for="seamCorner">모서리</label><select id="seamCorner" title="모서리 점을 누르면 무엇으로 바꿀지"><option value="">연장·직각·반전 차례로</option><option value="171">각자름 끝점</option><option value="172">각자름 연장</option><option value="173">각자름 직각</option><option value="174">각자름 교점</option></select><label for="seamCs">S</label><input id="seamCs" type="number" inputmode="decimal" step="0.1" value="1" style="width:48px" title="각자름 거리 cm"><button id="seamAdd">시접 넣기</button><button id="seamManual">직접 고르기</button>
     </div>
     <div id="notchPanel" class="float" hidden>
       <button id="notchEnd">시작점</button><label for="notchAt">에서 cm</label><input id="notchAt" type="number" inputmode="decimal" step="0.1" min="0">
@@ -764,6 +768,14 @@ function resize(){
 }
 function css(n){return getComputedStyle(document.documentElement).getPropertyValue(n)}
 
+function drawSeamW(c){
+  if(!S.seamW||!S.doc)return;const rn=x=>(x.rec-REC)/RSZ+1,v=new DataView(S.doc.bytes.buffer,S.doc.bytes.byteOffset),lab=[];
+  for(const s5 of S.doc.els.filter(e=>e.type===0x5C&&!S.dels.includes(e.rec)&&e.scol!==0)){try{const I=seamInfo(s5,true);I.L1.forEach((k,i)=>{const l=S.doc.els.find(x=>rn(x)===k);if(!l||!l.pts.length)return;
+    const a=v.getFloat32(s5.addr+6+16*I.n+8*i,true),b=v.getFloat32(s5.addr+6+16*I.n+8*i+4,true);lab.push([ycAlong(l.pts,lenOf(l.pts)/2),a,b])})}catch(err){}}
+  for(const e of S.adds.filter(e=>e.kind==='seam'&&e.scol!==0))e.sides.forEach((sd,i)=>{const P=seamPath(sd);lab.push([ycAlong(P,lenOf(P)/2),e.w[i],e.w[i]])});
+  const f=x=>(+x.toFixed(2)).toString().replace(/^(\d+)$/,'$1.0');c.save();c.fillStyle=css('--c3');c.font='bold 11px sans-serif';c.textAlign='center';
+  for(const [p,a,b] of lab){const q=toS(p);c.fillText(Math.abs(a-b)<1e-4?f(a):f(a)+'/'+f(b),q.x,q.y-3)}c.restore()}
+
 function paneAt(x){if(!S.split)return;const n=S.panes.length,k=Math.max(0,Math.min(n-1,Math.floor(x/(S.w/n))));if(k===S.paneActive)return;S.paneActive=k;S.view=S.panes[k].view;S.hide=S.panes[k].hide;renderLayers();draw()}
 function draw(){
   if(!S.doc)return;if(!S.split)return drawPane();
@@ -785,6 +797,7 @@ function drawPane(){
     for(let y=O.y+Math.floor((a.y-O.y)/g)*g;y<=b.y;y+=g){const p=toS({x:0,y}).y;c.moveTo(0,p);c.lineTo(S.w,p)}
     c.stroke();
   }
+  drawRef(c);
   const LDASH={2:[6,4],3:[10,3,2,3],4:[10,3,2,3,2,3]};
   for(const e of allEls()){
     const sel=S.sel===e,pen=css('--c'+e.color)||css('--ink'),g=S.tool==='match'?(S.match.A.includes(e)?'--c4':S.match.B.includes(e)?'--mark':''):'';
@@ -795,7 +808,7 @@ function drawPane(){
     if(e.text&&e.size*V.s>=3)drawText(c,e,pen);
     c.globalAlpha=1;
   }
-  
+  drawSeamW(c);
   if(S.hl&&S.hl.pts.length){c.save();c.globalAlpha=.35;c.strokeStyle=css('--draw');c.lineWidth=7;c.lineCap='round';c.beginPath();shape(S.hl).forEach((p,i)=>{const q=toS(p);i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y)});c.stroke();c.restore()}
   if(MOVES.includes(S.tool))drawMove(c);
   if(S.tool==='yc')drawYc(c);
@@ -950,6 +963,7 @@ function refresh(){
   $('boxPanel').hidden=!(S.tool==='box'&&S.box);
   $('movePanel').hidden=!MOVES.includes(S.tool);if(MOVES.includes(S.tool))showMove();
   if(S.tool!=='yc')$('ycPanel').hidden=true;
+  if(S.tool!=='mol')$('molPanel').hidden=true;
   $('seamPanel').hidden=!(S.tool==='seam'&&S.seam);if(S.seam)showSeam();
   $('circlePanel').hidden=!(S.tool==='circle'&&S.draft.length===1);
   $('textPanel').hidden=!(S.tool==='text'&&S.textAt);
@@ -967,6 +981,7 @@ function tap(sp){
   if(S.areaSnap){areaTap(sp);return}
   const sn=snapAt(sp),w=sn||toW(sp);
   if(S.tool==='yc'){ycTap(sp,w);return}
+  if(S.tool==='mol'){molTap(w);return}
   if(S.tool==='seamdel'){
     const e=pick(sp);if(!e)return;
     const set=seamSet(e);
@@ -992,13 +1007,19 @@ function tap(sp){
   if(S.tool==='text'){S.textAt={x:w.x,y:w.y};readout();refresh();setTimeout(()=>$('txt').focus(),0);return}
   if(S.tool==='seam'){
     const e=pick(sp);if(!e)return;
+    if(S.casMode&&!S.seam&&!S.seamPick){const why=seamReopen(e);if(why)return say(why,true);S.casMode=false;showSeam();say('[cas] 모서리 점을 눌러 바꾸고 [시접 넣기]. 옵션 줄 "모서리"에서 각자름을 고를 수 있어요.');refresh();return}
     if(S.seamPick){
       const why=seamBlock(e);if(why)return say(why,true);
       if(S.seamPick.length&&e.layer!==S.seamPick[0].layer)return say('같은 레이어의 외곽선만 고를 수 있습니다.',true);
       const k=S.seamPick.indexOf(e);k>=0?S.seamPick.splice(k,1):S.seamPick.push(e);say('');refresh();return;
     }
     const at=S.seam?S.seam.loop.findIndex(l=>l.e===e):-1;
-    const ci=-1;
+    const ci=S.seam?seamCornerAt(sp):-1;
+    if(ci>=0){const k=S.seam.corner[ci],cut=+$('seamCorner').value;
+      if(cut){const cs=parseFloat($('seamCs').value);if(!Number.isFinite(cs)||!cs)return say('각자름 거리 S를 넣어 주세요(cm).',true);
+        S.seam.cs=S.seam.cs||S.seam.loop.map(()=>1);S.seam.cs[ci]=cs;S.seam.corner[ci]=k===cut?(cut===173||cut===172?-cut:1):k===-cut?1:cut}
+      else S.seam.corner[ci]=k===1?3:k===3?-3:k===-3?2:k===2?-2:1;
+      showSeam();refresh();return}
     if(at>=0){S.seam.sel=S.seam.sel===at?-1:at;if(S.seam.sel>=0)$('seamW').value=S.seam.w[at];refresh();return}
     const why=seamBlock(e);if(why){S.seam=null;say(why,true);refresh();return}
     const loop=findLoop(e);
@@ -1407,13 +1428,22 @@ function xfNext(){
   if(k==='color'){const els=[...M.sel],rc=[];for(const e of els){rc.push({e,old:e.color,was:e.kind?null:S.regroup.has(e)});e.color=M.cmd.opt;if(!e.kind)S.regroup.add(e)}
     S.hist.push({rc});say(els.length+'개를 '+M.cmd.name.replace(' 색변경','')+'으로 바꿨습니다.');S.mv={phase:'pick',sel:new Set(),cmd:M.cmd};readout();refresh();return}
 
+  if(k==='lcop'){const ls=[...new Set(S.doc.els.map(e=>e.layer))].filter(n=>n<200).sort((a,b)=>a-b),ans=prompt('복사할 사이즈(레이어 번호)를 쉼표로 적어 주세요. 이 파일의 레이어: '+ls.join(', '),'');
+    const to=(ans||'').split(/[,\s]+/).map(Number).filter(n=>Number.isInteger(n)&&n>0&&n<200);if(!to.length)return say('레이어 번호를 적어 주세요.',true);
+    const made=[];let skip=0;for(const L of to)for(const e of M.sel){if(!copyable(e)){skip++;continue}const o=movedXS(e,p=>({...p}),0),kind=e.kind||(e.type===TYPE.NOTCH?'notch':e.type===TYPE.LINE?'line':e.type===TYPE.ARC?'arc':'curve');
+      commit({kind,pts:kind==='curve'&&o.pts.length>15?resample(o.pts,15,true):o.pts,...(kind==='curve'&&o.pts.length<=15?{keepPts:true}:{}),at:o.at,arc:o.arc,layer:L,color:e.color,flag:1});made.push(S.hist.pop().a)}
+    if(made.length)S.hist.push({as:made});say(made.length+'개를 사이즈 '+to.join(',')+'에 복사했습니다.'+(skip?' (복사 못 한 것 '+skip+'개)':''));S.mv={phase:'pick',sel:new Set(),cmd:M.cmd};readout();refresh();return}
   if(k==='dir'){M.phase='dist';$('mvDist').value='';readout();refresh();setTimeout(()=>$('mvDist').focus(),0);return}
   if(k==='rot'&&M.cmd.opt==='mid'){M.base=selMid();M.dx=M.dy=0;M.phase='rot';$('mvAng').value=0;readout();refresh();return}
-  M.phase={rot:'center',rot3:'center',mir2:'m1',mirv:'m1',mirh:'m1',mirl:'mline',fix:'fline',exr:'center',exs:'center',ex2:'e2a1'}[k];readout();refresh();
+  M.phase={chk:'aBase',rot:'center',rot3:'center',mir2:'m1',mirv:'m1',mirh:'m1',mirl:'mline',fix:'fline',exr:'center',exs:'center',ex2:'e2a1',cka:'kaS'}[k];readout();refresh();
 }
 function xfTap(sp,w){
   if(!S.mv.cmd){setTool('pan');return}
   const M=S.mv,k=M.cmd.kind;
+  if(k==='chk'&&/^a/.test(M.phase))return chkTap(sp,w);
+  if(M.phase==='kaS'||M.phase==='kaT'){const e=pick(sp);if(!e||e.text||isNotch(e)||shape(e).length<2)return say('선을 눌러 주세요.',true);
+    if(M.phase==='kaS'){M.kaS=chkPath(e,w);M.phase='kaT';readout();refresh();return}
+    M.kaT=chkPath(e,w);M.phase='dist';$('mvDist').value='3';readout();refresh();setTimeout(()=>{$('mvDist').focus();$('mvDist').select()},0);return}
 
   if(k==='ex2'&&/^e2/.test(M.phase)){
     if(M.phase==='e2a1'){M.a1=w;M.phase='e2a2'}else if(M.phase==='e2a2'){if(Math.hypot(w.x-M.a1.x,w.y-M.a1.y)<1e-6)return say('첫 점과 다른 점을 눌러 주세요.',true);M.a2=w;M.phase='e2b1'}
@@ -1446,6 +1476,29 @@ function xfTap(sp,w){
   }
 }
 
+function chkPath(e,w){const P=shape(e),a=P[0],b=P[P.length-1];const Q=Math.hypot(w.x-a.x,w.y-a.y)<=Math.hypot(w.x-b.x,w.y-b.y)?P:P.slice().reverse();
+  const s=[0];for(let i=1;i<Q.length;i++)s.push(s[i-1]+Math.hypot(Q[i].x-Q[i-1].x,Q[i].y-Q[i-1].y));return {P:Q,s,L:s[s.length-1]}}
+function chkAt2(C,t){
+  const {P,s,L}=C;let i=1;while(i<P.length-1&&s[i]<t)i++;const a=P[i-1],b=P[i],d=Math.hypot(b.x-a.x,b.y-a.y)||1,u={x:(b.x-a.x)/d,y:(b.y-a.y)/d},k=t-s[i-1];
+  return {p:{x:a.x+u.x*k,y:a.y+u.y*k},u}}
+function chkProj(C,w){const {P,s}=C;let best=null;for(let i=1;i<P.length;i++){const a=P[i-1],b=P[i],dx=b.x-a.x,dy=b.y-a.y,L2=dx*dx+dy*dy||1,t=Math.max(0,Math.min(1,((w.x-a.x)*dx+(w.y-a.y)*dy)/L2)),
+  d=Math.hypot(a.x+dx*t-w.x,a.y+dy*t-w.y);if(!best||d<best.d)best={d,s:s[i-1]+t*Math.sqrt(L2)}}return best?best.s:0}
+function chkAt(h){const M=S.mv;if(!h||!M.aB||!M.aC)return null;const t=chkProj(M.aC,h)-M.aS2,b=chkAt2(M.aB,M.aS1+t),c=chkAt2(M.aC,M.aS2+t);
+  const r=Math.atan2(c.u.y,c.u.x)-Math.atan2(b.u.y,b.u.x),co=Math.cos(r),si=Math.sin(r),R=p=>{const x=p.x-b.p.x,y=p.y-b.p.y;return {x:c.p.x+x*co-y*si,y:c.p.y+x*si+y*co}};
+  if(!M.aMir)return {T:R,deg:r*180/Math.PI,c};const m=mirrorT(c.p,{x:c.p.x+c.u.x,y:c.p.y+c.u.y});return {T:p=>m(R(p)),deg:r*180/Math.PI,c,mir:Math.atan2(c.u.y,c.u.x)*180/Math.PI}}
+function chkTap(sp,w){const M=S.mv;
+  if(M.phase==='aBase'||M.phase==='aCor'){const e=pick(sp);if(!e||e.text||isNotch(e)||shape(e).length<2)return say('선을 눌러 주세요.',true);
+    if(M.phase==='aBase'){M.aB=chkPath(e,toW(sp));M.aBe=e;M.phase='aS1'}else{M.aC=chkPath(e,toW(sp));M.phase='aS2'}readout();refresh();return}
+  if(M.phase==='aS1'){M.aS1=chkProj(M.aB,w);M.phase='aCor';readout();refresh();return}
+  if(M.phase==='aS2'){M.aS2=chkProj(M.aC,w);M.aMir=false;M.phase='aWalk';readout();refresh();return}
+  if(M.phase==='aWalk'){M.aAt={...w};M.phase='aAsk';readout();refresh();return}
+  if(M.phase==='aAsk'){M.aAt={...w};refresh()}}
+function chkAnswer(c){const M=S.mv;if(!(S.tool==='xf'&&M.cmd&&M.cmd.kind==='chk'&&M.phase==='aAsk'))return false;
+  if(c==='m'){M.aMir=!M.aMir;refresh();return true}
+  if(c==='n'){S.mv={phase:'pick',sel:new Set(),cmd:M.cmd};say('원래대로 돌아갔습니다.');readout();refresh();return true}
+  if(c==='y'||c==='c'){const f=chkAt(M.aAt);if(!f)return true;const cmd=M.cmd;M.cmd={...cmd,copy:c==='c'};applyMove(f.deg,f.T,f.mir);if(S.mv.cmd)S.mv.cmd=cmd;return true}
+  return false}
+
 function exFrom(h){const M=S.mv,r0=Math.hypot(M.a.x-M.base.x,M.a.y-M.base.y),r=Math.hypot(h.x-M.base.x,h.y-M.base.y);if(r0<1e-9||r<1e-9)return null;
   let d=degOf(M.base,h)-degOf(M.base,M.a);d=((d%360)+540)%360-180;return {s:r/r0,d}}
 function exVals(){const s=parseFloat($('exScale').value),d=parseFloat($('exAng').value)||0;return s>0?{s,d}:null}
@@ -1453,8 +1506,10 @@ const exT=(C,s,d)=>{const r=d*Math.PI/180,c=Math.cos(r)*s,n=Math.sin(r)*s;return
 function exApply(s,d){if(!(s>0))return say('배율은 0보다 커야 합니다.',true);const M=S.mv;applyMove(d,exT(M.base,s,d),undefined,s)}
 function xfPreview(){
   const M=S.mv,k=M.cmd&&M.cmd.kind,h=S.hover;if(!k)return null;
+  if(k==='chk'&&(M.phase==='aWalk'||M.phase==='aAsk')){const f=chkAt(M.phase==='aAsk'?M.aAt:h);return f&&{T:f.T,deg:f.deg}}
   if(M.phase==='exr'){const v=M.typed?exVals():h&&exFrom(h);if(!v)return null;if(!M.typed){$('exScale').value=v.s.toFixed(3);$('exAng').value=v.d.toFixed(1)}return {T:exT(M.base,v.s,v.d),deg:v.d,scl:v.s}}
   if(M.phase==='exn'){const f=exsVals();return f&&{T:f.T,scl:f.scl}}
+  if(M.phase==='dist'&&k==='cka'){const v=parseFloat($('mvDist').value);return ckaT(M,v>0?v:3)}
   if(M.phase==='dist'){const v=parseFloat($('mvDist').value);if(!(v>0))return null;const u=XFDIR[M.cmd.opt];return {T:p=>({x:p.x+u[0]*v,y:p.y+u[1]*v})}}
   if(M.phase==='r2'&&h){const d=degOf(M.base,h)-degOf(M.base,M.a);return {T:xform({...M,dx:0,dy:0},d),deg:d}}
   if(M.phase==='m1'&&h&&(k==='mirv'||k==='mirh')){const b=k==='mirv'?{x:h.x,y:h.y+1}:{x:h.x+1,y:h.y};return {T:mirrorT(h,b),mir:k==='mirv'?90:0,axis:[{x:h.x-(k==='mirh'?50:0),y:h.y-(k==='mirv'?50:0)},{x:h.x+(k==='mirh'?50:0),y:h.y+(k==='mirv'?50:0)}]}}
@@ -1463,10 +1518,14 @@ function xfPreview(){
 }
 function xfHint(){
   const M=S.mv,c=M.cmd,n=c.name+': ';
-  return n+({dist:(c.opt==='u'?'위':c.opt==='d'?'아래':c.opt==='l'?'왼쪽':'오른쪽')+'으로 옮길 거리를 cm로 입력하세요',center:c.kind==='exs'?'축소확대 중심점을 누르세요':'회전 중심점을 누르세요',exn:c.opt==='b'?'폭 수정율(가로)·길이 수정율(세로)을 입력하세요':'비율을 입력하세요 (1.5 = 1.5배)',rot:'회전 각도를 입력하세요 (반시계 +)',r1:'돌리기 전 방향의 점을 누르세요',exh:'손잡이로 잡을 점을 누르세요(중심에서 떨어진 곳)',exr:'손잡이를 움직여 크기·각도를 맞추고 누르세요(배율·각도 칸에 입력해도 됨)',r2:'돌린 뒤 방향의 점을 누르세요',
+  if(M.phase==='dist'&&c.kind==='cka')return n+'겹침 위치를 cm로 입력하세요 (비우면 3.0)';
+  return n+({kaS:'이동전의 기준선을 단점(맞출 끝) 가까이 누르세요',kaT:'이동후의 기준선을 단점(맞출 끝) 가까이 누르세요',dist:(c.opt==='u'?'위':c.opt==='d'?'아래':c.opt==='l'?'왼쪽':'오른쪽')+'으로 옮길 거리를 cm로 입력하세요',center:c.kind==='exs'?'축소확대 중심점을 누르세요':'회전 중심점을 누르세요',exn:c.opt==='b'?'폭 수정율(가로)·길이 수정율(세로)을 입력하세요':'비율을 입력하세요 (1.5 = 1.5배)',aBase:'이동측의 기준선을 단점(시작할 끝) 가까이 누르세요',aS1:'이동측 접점시작위치를 누르세요(기준선 위의 점)',aCor:'대응할 선을 단점(시작할 끝) 가까이 누르세요',aS2:'대응측 접점시작위치를 누르세요',aWalk:'대응선 위를 따라 움직여 맞출 점을 누르세요',aAsk:'이대로 종료(y) · 복사(c) · 원래대로(n) · 반전(m)',rot:'회전 각도를 입력하세요 (반시계 +)',r1:'돌리기 전 방향의 점을 누르세요',exh:'손잡이로 잡을 점을 누르세요(중심에서 떨어진 곳)',exr:'손잡이를 움직여 크기·각도를 맞추고 누르세요(배율·각도 칸에 입력해도 됨)',r2:'돌린 뒤 방향의 점을 누르세요',
     m1:c.kind==='mir2'?'반전 축의 첫 점을 누르세요':(c.kind==='mirv'?'세로':'가로')+' 반전 축이 지날 점을 누르세요',m2:'반전 축의 두 번째 점을 누르세요',e2a1:'이동 전의 기준점(첫째)을 누르세요',e2a2:'이동 전의 기준점(둘째)을 누르세요',e2b1:'이동 후의 기준점(첫째)을 누르세요',e2b2:'이동 후의 기준점(둘째)을 누르세요',mline:'반전 축이 될 선을 누르세요',fline:(c.opt==='v'?'세로':'가로')+'로 세울 선을 누르세요'}[M.phase]||'');
 }
-$('mvDistGo').onclick=()=>{const M=S.mv,v=parseFloat($('mvDist').value);if(!(v>0))return say('거리를 cm로 입력해 주세요.',true);const u=XFDIR[M.cmd.opt];applyMove(0,p=>({x:p.x+u[0]*v,y:p.y+u[1]*v}))};
+
+function ckaT(M,L){const a=chkAt2(M.kaS,L).p,b=chkAt2(M.kaT,L).p,A=M.kaS.P[0],B=M.kaT.P[0],d=degOf(B,b)-degOf(A,a),r=d*Math.PI/180,c=Math.cos(r),n=Math.sin(r);
+  return {T:p=>{const x=p.x-A.x,y=p.y-A.y;return {x:B.x+x*c-y*n,y:B.y+x*n+y*c}},deg:d}}
+$('mvDistGo').onclick=()=>{const M=S.mv,v=parseFloat($('mvDist').value);if(M.cmd&&M.cmd.kind==='cka'){const f=ckaT(M,v>0?v:3);return applyMove(f.deg,f.T)}if(!(v>0))return say('거리를 cm로 입력해 주세요.',true);const u=XFDIR[M.cmd.opt];applyMove(0,p=>({x:p.x+u[0]*v,y:p.y+u[1]*v}))};
 $('mvDist').oninput=()=>draw();
 $('exScale').oninput=$('exAng').oninput=()=>{S.mv.typed=true;draw()};
 
@@ -1694,12 +1753,47 @@ function fitSeamCurve(D,from){
   for(let n=Math.max(4,Math.min(15,from));n<=15;n++){const q=resample(D,n,true),e=far(q);if(e<err){best=q;err=e}if(e<0.02)break}
   return best;
 }
+
+function seamReopen(e){
+  const rn=x=>(x.rec-REC)/RSZ+1,v=new DataView(S.doc.bytes.buffer,S.doc.bytes.byteOffset),dead=new Set(S.dels);
+  let s5=!e.kind&&e.link===0x15&&e.owner?S.doc.els.find(x=>x.type===0x5C&&rn(x)===e.owner&&!dead.has(x.rec)):null;
+  if(!s5){const no=rn(e);s5=S.doc.els.find(x=>{if(x.type!==0x5C||dead.has(x.rec))return false;const n=v.getUint16(x.addr+4,true);for(let i=0;i<n;i++)if(v.getUint16(x.addr+6+2*i,true)===no)return true;return false})}
+  if(!s5)return S.adds.some(a=>a.kind==='seam'&&a.outline.some(o=>o.rec===e.rec))?'방금 앱으로 넣은 시접은 되돌리기로 빼고 다시 넣어 주세요.':'이 선에 붙은 시접을 못 찾았습니다.';
+  const n=v.getUint16(s5.addr+4,true),at=(j,k)=>v.getUint16(s5.addr+6+2*(j*n+k),true),h=s5.addr+6+24*n,B=k=>h+56+68*k;
+  const byN=k=>S.doc.els.find(x=>rn(x)===k);
+  const loop=[...Array(n)].map((_,i)=>({e:byN(at(0,i)),rev:at(7,i)===0xFFFF}));
+  if(loop.some(l=>!l.e||dead.has(l.e.rec)))return '시접의 외곽선 중 지워진 것이 있습니다.';
+  const w=[...Array(n)].map((_,i)=>+v.getFloat32(s5.addr+6+16*n+8*i,true).toFixed(4)||1),cs=loop.map(()=>1),warn=[];
+  const corner=[...Array(n)].map((_,i)=>{const k=i<n-1?v.getUint16(B(i)+14,true):v.getUint16(h+2,true),j=(i+1)%n,f=v.getUint16(B(j)+12,true);
+    if(k===2||k===3)return f?-k:k;
+    if(k===17){const opt=v.getUint16(B(j)+4,true),A=i<n-1?B(i):h-12;cs[i]=v.getFloat32(A+32,true)||1;if(opt===1)return 171;if(opt===4)return 174;if(opt===3||opt===2)return (v.getUint16(A+12,true)?1:-1)*(170+opt);warn.push(i+1)}
+    return 1});
+  const ds=[s5.rec,...[1,2,4].flatMap(j=>[...Array(n)].map((_,i)=>at(j,i)).filter(Boolean).map(k=>byN(k)).filter(Boolean).map(x=>x.rec))];
+  for(const r of ds)S.dels.push(r);S.hist.push({ds});
+  S.seam={loop,w,corner,cs,sel:-1};if(warn.length)setTimeout(()=>say('모서리 '+warn.join(',')+'의 각자름은 앱이 모르는 종류라 연장으로 바꿨습니다.',true),0);
+  return null;
+}
 function showSeam(){
   const Z=S.seam,sq=Z.corner.filter(k=>k!==1).length;
   $('seamWhat').textContent=(Z.sel>=0?Z.sel+1+'번 변 ('+elLen(Z.loop[Z.sel].e).toFixed(1)+' cm)':'변 '+Z.loop.length+'개 · 폭 '+[...new Set(Z.w)].join('/')+' cm')+(sq?' · 모서리 '+sq+'곳(직각 '+Z.corner.filter(k=>Math.abs(k)===3).length+', 반전 '+Z.corner.filter(k=>Math.abs(k)===2).length+', 각자름 '+Z.corner.filter(k=>Math.abs(k)>=170).length+')':'');
   readout(Z.sel>=0?'이 변만 폭을 바꿀 수 있어요. 같은 변을 다시 누르면 선택이 풀립니다':'변을 누르면 그 변만 폭을, 모서리(점)를 누를 때마다 연장 → 직각 → 직각(반대쪽) → 반전 → 반전(반대쪽)으로 바뀌어요');
 }
 const seamCorner=(Z,i)=>{const l=Z.loop[i];return l.rev?l.e.pts[0]:l.e.pts[l.e.pts.length-1]};
+function seamCornerAt(sp){
+  const Z=S.seam;let best=-1,bd=14;
+  Z.loop.forEach((l,i)=>{const q=toS(seamCorner(Z,i)),d=Math.hypot(q.x-sp.x,q.y-sp.y);if(d<bd){bd=d;best=i}});
+  return best;
+}
+
+$('seamSq').onclick=()=>{
+  const Z=S.seam;if(!Z)return;const n=Z.loop.length;
+  const sharp=Z.loop.map((l,i)=>{const B=Z.loop[(i+1)%n],P=l.rev?l.e.pts.slice().reverse():l.e.pts,Q=B.rev?B.e.pts.slice().reverse():B.e.pts;
+    const a=endDir(P,true),b=endDir(Q,false);return Math.atan2(a.x*b.y-a.y*b.x,-(a.x*b.x+a.y*b.y))*180/Math.PI>15});
+  const all=sharp.every((s,i)=>!s||Z.corner[i]!==1);
+  Z.corner=sharp.map(s=>all?1:s?3:1);
+  if(!all&&!sharp.some(s=>s))say('15° 넘게 꺾인 모서리가 없습니다. 모서리 점을 하나씩 눌러도 됩니다.',true);
+  showSeam();refresh();
+};
 $('seamW').oninput=()=>{const Z=S.seam,w=parseFloat($('seamW').value);if(!Z||!(w>0))return;if(Z.sel>=0)Z.w[Z.sel]=w;else Z.w=Z.w.map(()=>w);showSeam();draw()};
 $('seamAll').onclick=()=>{const Z=S.seam,w=parseFloat($('seamW').value);if(!Z||!(w>0))return;Z.w=Z.w.map(()=>w);Z.sel=-1;refresh()};
 $('seamAdd').onclick=()=>{
@@ -1935,7 +2029,7 @@ $('toggleRight').onclick=()=>togglePanel($('toggleRight'),'noRight');
 $('toggleLeft').click();
 if(innerWidth<=900)$('toggleRight').click()
 
-const YUKA="파일|파일|파일열기|call\n파일|파일|새파일|new\n파일|파일|저장|save\n파일|곡선저장|길이조정|mach\n입력|TRACE|수직보정|hv\n입력|TRACE|수평보정|hh\n기호|문자|문자입력|t\n기호|문자|영역문자|tb\n기호|문자|임의문자|td\n기호|[수정]|지정변경|tr\n기호|[수정]|지시변경|tm\n기호|[수정]|메모편집|meme\n기호|[수정]|영역변경|tmb\n기호|[수정]|배율변경|tms\n기호|[수정]|경사변경|tma\n시접||영역시접|nu\n시접||부분시접|cma\n시접|합복확인|시접삭제|nud\n선의종류||곡선|crv\n선의종류||평행|pl\n선의종류||연속평행|plm\n선의종류||2점선|l\n선의종류||연속선|lc\n선의종류||수평선|lh\n선의종류||수직선|lv\n선의종류||직각선|lq\n선의종류||3점원|a3\n선의종류||사각BOX|box\n선의종류||임의사각|fbox\n선의종류|기타|연장선|lt\n선의종류|기타|각도선|la\n선의종류|기타|반지름원|cc\n선의종류|기타|지름원|cd\n선의종류|기타|반경중심|crc\n선의종류|기타|임의평행|pp\n수정|단점이동|임의이동|e2\n수정|단점이동|상방향|eu\n수정|단점이동|하방향|ed\n수정|단점이동|좌방향|el\n수정|단점이동|우방향|er\n수정|축소확대|축소확대|ex\n수정|축소확대|폭방향|exx\n수정|축소확대|길이방향|exy\n수정|축소확대|양측방향|exa\n수정|축소확대|2점방향|ex2\n수정|축소확대|회전|exr\n수정|축소확대|복사회전|cexr\n곡선수정|유사처리|SS수정|ss\n곡선수정|유사처리|SA수정|sa\n이동|이동|2점방향|mv\n이동|이동|상방향|mvu\n이동|이동|하방향|mvd\n이동|이동|좌방향|mvl\n이동|이동|우방향|mvr\n이동|이동|이동회전|mvrt\n이동|이동|임의이동|dm\n이동|복사이동|2점방향|cmv\n이동|복사이동|상방향|cmvu\n이동|복사이동|하방향|cmvd\n이동|복사이동|좌방향|cmvl\n이동|복사이동|우방향|cmvr\n이동|복사이동|이동회전|cmvrt\n이동|복사이동|임의이동|cdm\n회전|회전|각도지정|rt\n회전|회전|회전량|re\n회전|회전|3점지정|rt3\n회전|회전|임의회전|dr\n회전|복사회전|각도지정|crt\n회전|복사회전|회전량|cre\n회전|복사회전|3점지정|crt3\n회전|복사회전|임의회전|cdr\n회전|보정|수직보정|hv\n회전|보정|수평보정|hh\n반전|반전|2점반전|mir\n반전|반전|수직반전|vm\n반전|반전|수평반전|hm\n반전|반전|선반전|ml\n반전|복사반전|2점반전|cmir\n반전|복사반전|수직반전|cvm, cv\n반전|복사반전|수평반전|chm\n반전|복사반전|선반전|cml\n그룹||설정|sg\n그룹||추가|ag\n그룹||해제|rg\n그룹||2점이동|mg\n그룹||이동회전|mrg\n그룹||임의이동|dmg\n그룹||전undo|bga\n그룹||지시undo|bg\n삭제||지정삭제|d\n삭제||전체삭제|dela\n복사||복사|cop\n표시|GRID|삭제|gof\n표시|GRID|점표시|gds\n표시|GRID|점|gdf\n표시|GRID|선표시|gls\n표시|GRID|선|glf\n표시|GRID|크기|gs\n표시|GRID|원점변경|gog\n표시|화면변경|1화면|1q\n표시|화면변경|2화면|2q\n표시|화면변경|3화면|3q\n표시|화면변경|전체화면|full\n표시|DRAW화면|임의화면|fr\n속성|색지정|파란색|blue\n속성|색지정|빨간색|red\n속성|색지정|보라색|purp\n속성|색지정|초록색|gree\n속성|색지정|하늘색|mizu\n속성|색지정|노란색|yell\n속성|색지정|흰색|whit\n속성|색변경|파란색|cblu\n속성|색변경|빨간색|cred\n속성|색변경|보라색|cpur\n속성|색변경|초록색|cgre\n속성|색변경|하늘색|cmiz\n속성|색변경|노란색|cyel\n속성|색변경|흰색|cwhi\n속성|선지정|실선|soli\n속성|선지정|점선|dash\n속성|선지정|1점파선|ds1\n속성|선지정|2점파선|ds2\n속성|선변경|실선|csol\n속성|선변경|점선|cdas\n속성|선변경|1점파선|cds1\n속성|선변경|2점파선|cds2".split("\n").map(l=>{const [m,g,n,c]=l.split("|");return {m,g,n,c:c.split(",").map(s=>s.trim()).filter(Boolean)}});
+const YUKA="파일|파일|파일열기|call\n파일|파일|참조열기|ref\n파일|파일|새파일|new\n파일|파일|저장|save\n파일|곡선저장|길이조정|mach\n입력|TRACE|수직보정|hv\n입력|TRACE|수평보정|hh\n패턴||외주름|khda\n패턴||맞주름|bhda\n패턴||핀턱|phda\n패턴|[절개]|양측절개|bten\n패턴|[절개]|편측절개|kten\n패턴|다트|다트|dart\n패턴|다트|접어보기|ta\n패턴|다트|다트접기|dara\n패턴|[분산]|회전|drt\n패턴|분할분리|2점방향|b2\n패턴|분할분리|상방향|bu\n패턴|분할분리|하방향|bd\n패턴|분할분리|좌방향|bl\n패턴|분할분리|우방향|br\n패턴|분할분리|직각절개|bq\n패턴|분할분리|각도절개|ba\n패턴|분할분리|3점절개|b3\n패턴|분할분리|편측절개|be\n패턴|분할분리|양측절개|bb\n패턴|등분분할|상방향|beu\n패턴|등분분할|하방향|bed\n패턴|등분분할|좌방향|bel\n패턴|등분분할|우방향|ber\n패턴|등분분할|직각절개|beq\n패턴|등분분할|각도절개|bea\n패턴|등분분할|편측절개|bee\n패턴|등분분할|양측절개|beb\n패턴|지정분할|상방향|bsu\n패턴|지정분할|하방향|bsd\n패턴|지정분할|좌방향|bsl\n패턴|지정분할|우방향|bsr\n패턴|지정분할|직각절개|bsq\n패턴|지정분할|각도절개|bsa\n패턴|지정분할|편측절개|bse\n패턴|지정분할|양측절개|bsb\n패턴|지정분할|부속분리|bx\n패턴|지정분할|선자르기|c\n기호|1-기호|직각결선|qz\n기호|1-기호|평행결선|paz\n기호|1-기호|임의결선|zim\n기호|1-기호|결선연장|zm\n기호|1-기호|결선변경|zc\n기호|1-기호|스티치|st\n기호|1-기호|W스티치|wst\n기호|1-기호|이세표시|gaz\n기호|1-기호|사선|ht\n기호|1-기호|화살표|arw\n기호|1-기호|골표시|w\n기호|2-기호|상SNAP|snpo\n기호|2-기호|하SNAP|snpm\n기호|2-기호|구멍표시|hol\n기호|2-기호|＋표시|k+\n기호|CUT시작점|너치|aij\n기호|CUT시작점|봉제너치|ana\n기호|CUT시작점|자동너치|ajs\n기호|CUT시작점|연장너치|anb\n기호|CUT시작점|2분각너치|an2\n기호|CUT시작점|너치수정|ajm\n기호|CUT시작점|너치연동|are\n기호|CUT시작점|연동on/off|amr\n기호|CUT시작점|너치화|agn\n기호|CUT시작점|너치해제|ajpm\n기호|3-기호|늘임표시|noba\n기호|3-기호|이세|is\n기호|3-기호|심지|sim\n기호|3-기호|DRILL홀|dril\n기호|3-기호|털방향|jz\n기호|3-기호|바이어스|jn\n기호|3-기호|역BIAS|jr\n기호|문자|문자입력|t\n기호|문자|영역문자|tb\n기호|문자|임의문자|td\n기호|[수정]|지정변경|tr\n기호|[수정]|지시변경|tm\n기호|[수정]|메모편집|meme\n기호|[수정]|영역변경|tmb\n기호|[수정]|배율변경|tms\n기호|[수정]|경사변경|tma\n기호|[신배치]|배치문자|mol\n기호|[신배치]|저장문자|mof\n시접||영역시접|nu\n시접||부분시접|cma\n시접||동폭시접|nh\n시접|지정시접|각변경|cas\n시접|폭변경|폭입력|nt\n시접|폭변경|폭표시ON/OFF|no\n시접|합복확인|시접삭제|nud\n시접|색지정|비표시|cna\n시접|빨간색|보라색|cpa\n시접|노란색|흰색|cwa\n시접|색변경|비표시|cn\n시접|빨간색|보라색|cp\n시접|노란색|흰색|cw\n선의종류||곡선|crv\n선의종류||평행|pl\n선의종류||연속평행|plm\n선의종류||2점선|l\n선의종류||연속선|lc\n선의종류||수평선|lh\n선의종류||수직선|lv\n선의종류||직각선|lq\n선의종류||3점원|a3\n선의종류||사각BOX|box\n선의종류||임의사각|fbox\n선의종류|기타|연장선|lt\n선의종류|기타|각도선|la\n선의종류|기타|접선|ld\n선의종류|기타|2접선|ld2\n선의종류|기타|중간곡선|cct\n선의종류|기타|반지름원|cc\n선의종류|기타|지름원|cd\n선의종류|기타|반경중심|crc\n선의종류|기타|임의평행|pp\n수정||양측수정|b\n수정||편측수정|k\n수정||각수정|fil\n수정||2각수정|dfil\n수정||선수정|cl\n수정||선자르기|c\n수정|단점이동|임의이동|e2\n수정|단점이동|상방향|eu\n수정|단점이동|하방향|ed\n수정|단점이동|좌방향|el\n수정|단점이동|우방향|er\n수정|축소확대|축소확대|ex\n수정|축소확대|폭방향|exx\n수정|축소확대|길이방향|exy\n수정|축소확대|양측방향|exa\n수정|축소확대|2점방향|ex2\n수정|축소확대|회전|exr\n수정|축소확대|복사회전|cexr\n곡선수정|유사처리|2점유사|sg2\n곡선수정|유사처리|유사이동|sr\n곡선수정|유사처리|S수정|s\n곡선수정|유사처리|SS수정|ss\n곡선수정|유사처리|SA수정|sa\n곡선수정|유사처리|점추가|pa\n곡선수정|유사처리|점삭제|pde\n곡선수정|유사처리|선합치기|rc\n이동|이동|2점방향|mv\n이동|이동|상방향|mvu\n이동|이동|하방향|mvd\n이동|이동|좌방향|mvl\n이동|이동|우방향|mvr\n이동|이동|이동회전|mvrt\n이동|이동|임의이동|dm\n이동|복사이동|2점방향|cmv\n이동|복사이동|상방향|cmvu\n이동|복사이동|하방향|cmvd\n이동|복사이동|좌방향|cmvl\n이동|복사이동|우방향|cmvr\n이동|복사이동|이동회전|cmvrt\n이동|복사이동|임의이동|cdm\n회전|회전|각도지정|rt\n회전|회전|회전량|re\n회전|회전|3점지정|rt3\n회전|회전|임의회전|dr\n회전|복사회전|각도지정|crt\n회전|복사회전|회전량|cre\n회전|복사회전|3점지정|crt3\n회전|복사회전|임의회전|cdr\n회전|보정|수직보정|hv\n회전|보정|수평보정|hh\n반전|반전|2점반전|mir\n반전|반전|수직반전|vm\n반전|반전|수평반전|hm\n반전|반전|선반전|ml\n반전|복사반전|2점반전|cmir\n반전|복사반전|수직반전|cvm, cv\n반전|복사반전|수평반전|chm\n반전|복사반전|선반전|cml\n그룹||설정|sg\n그룹||추가|ag\n그룹||해제|rg\n그룹||2점이동|mg\n그룹||이동회전|mrg\n그룹||임의이동|dmg\n그룹||전undo|bga\n그룹||지시undo|bg\n삭제||지정삭제|d\n삭제||전체삭제|dela\n복사||복사|cop\n복사||사이즈간|lcop\n표시|GRID|삭제|gof\n표시|GRID|점표시|gds\n표시|GRID|점|gdf\n표시|GRID|선표시|gls\n표시|GRID|선|glf\n표시|GRID|크기|gs\n표시|GRID|원점변경|gog\n표시|화면변경|1화면|1q\n표시|화면변경|2화면|2q\n표시|화면변경|3화면|3q\n표시|화면변경|전체화면|full\n표시|DRAW화면|임의화면|fr\n속성|색지정|파란색|blue\n속성|색지정|빨간색|red\n속성|색지정|보라색|purp\n속성|색지정|초록색|gree\n속성|색지정|하늘색|mizu\n속성|색지정|노란색|yell\n속성|색지정|흰색|whit\n속성|색변경|파란색|cblu\n속성|색변경|빨간색|cred\n속성|색변경|보라색|cpur\n속성|색변경|초록색|cgre\n속성|색변경|하늘색|cmiz\n속성|색변경|노란색|cyel\n속성|색변경|흰색|cwhi\n속성|선지정|실선|soli\n속성|선지정|점선|dash\n속성|선지정|1점파선|ds1\n속성|선지정|2점파선|ds2\n속성|선변경|실선|csol\n속성|선변경|점선|cdas\n속성|선변경|1점파선|cds1\n속성|선변경|2점파선|cds2\n촌법선||수평촌법|hdi\n촌법선||수직촌법|vdi\n촌법선||2점촌법|2di\n촌법선||반경촌법|rdi".split("\n").map(l=>{const [m,g,n,c]=l.split("|");return {m,g,n,c:c.split(",").map(s=>s.trim()).filter(Boolean)}});
 const tool=t=>()=>document.querySelector('[data-tool='+t+']').click();
 const press=id=>()=>$(id).click();
 
@@ -1945,7 +2039,8 @@ const ACT={
   cc:tool('circle'),a3:tool('arc3'),
   mv:tool('move'),cmv:tool('cmove'),mvrt:tool('mvrt'),
   sg:tool('sg'),ag:()=>{tool('ag')();S.mv.phase='group';S.mv.agFirst=true;readout();refresh()},
-  nu:tool('seam'),nud:tool('seamdel'),
+  aij:()=>ycStart('aij'),
+  nu:tool('seam'),nud:tool('seamdel'),cas:()=>{setTool('seam');S.casMode=true;say('[cas] 각변경: 모서리를 바꿀 시접(외곽선이나 시접선)을 누르세요')},
   cma:()=>{tool('seam')();readout('시접: 외곽선을 하나 누르세요. 한 바퀴를 못 찾으면 차례로 직접 고릅니다')},
   t:tool('text'),tb:tool('text'),td:tool('text'),
   d:()=>{setTool('dl');readout();refresh()},
@@ -1965,10 +2060,10 @@ const XF={mvu:['상방향 이동',0,'dir','u'],mvd:['하방향 이동',0,'dir','
   mir:['2점반전',0,'mir2'],cmir:['2점 복사반전',1,'mir2'],vm:['수직반전',0,'mirv'],cvm:['수직 복사반전',1,'mirv'],cv:['수직 복사반전',1,'mirv'],
   hm:['수평반전',0,'mirh'],chm:['수평 복사반전',1,'mirh'],ml:['선반전',0,'mirl'],cml:['선 복사반전',1,'mirl'],
   hv:['수직보정',0,'fix','v'],hh:['수평보정',0,'fix','h'],
-  
+  a:['참조확인',0,'chk'],
   exr:['축소확대 회전',0,'exr'],cexr:['축소확대 복사회전',1,'exr'],
-  ex2:['2점방향 축소확대',0,'ex2'],ex:['축소확대',0,'exs','a'],exx:['폭방향 축소확대',0,'exs','x'],exy:['길이방향 축소확대',0,'exs','y'],exa:['양측방향 축소확대',0,'exs','b'],
-  };
+  ex2:['2점방향 축소확대',0,'ex2'],lcop:['사이즈간 복사',1,'lcop'],ex:['축소확대',0,'exs','a'],exx:['폭방향 축소확대',0,'exs','x'],exy:['길이방향 축소확대',0,'exs','y'],exa:['양측방향 축소확대',0,'exs','b'],
+  cka:['접속확인 지정이동',0,'cka']};
 for(const [code,[name,copy,kind,opt]] of Object.entries(XF))ACT[code]=()=>{setTool('xf');S.mv.cmd={code,name,copy:!!copy,kind,opt};readout();refresh()};
 
 XF.rg=['그룹 해제',0,'ungroup'];
@@ -2003,11 +2098,28 @@ function ycEdit(e,pts){
   if(e.trim){e.pts=resample(e.pts,e.n,true);e.trim=false;e.baked=true}
   remember(e);e.pts=pts;changed(e);
 }
+function ycReplace(olds,news){
+  for(const e of olds)if(!e.kind&&(locked(e)||S.doc.refs.has((e.rec-REC)/RSZ+1)))throw new Error('그레이딩이나 다른 요소에 연결된 선은 유카에서 고쳐 주세요.');
+  const f=olds[0],ds=[],ras=[];
+  for(const e of olds){if(e.kind){S.adds.splice(S.adds.indexOf(e),1);ras.push(e)}else{S.dels.push(e.rec);ds.push(e.rec)}}
+  const made=news.map(o=>({...o,layer:f.layer,color:f.color,group:f.kind?f.group:f.group||0,flag:1}));
+  S.adds.push(...made);S.hist.push({ds,ras,as:made});return made;
+}
 
 function ycNear(P,w){let best=null;let run=0;
   for(let i=1;i<P.length;i++){const a=P[i-1],b=P[i],dx=b.x-a.x,dy=b.y-a.y,L=Math.hypot(dx,dy)||1e-9,t=Math.max(0,Math.min(1,((w.x-a.x)*dx+(w.y-a.y)*dy)/(L*L))),p={x:a.x+dx*t,y:a.y+dy*t},d=ycD(p,w);
     if(!best||d<best.d)best={p,u:{x:dx/L,y:dy/L},s:run+t*L,d,i};run+=L}
   return best}
+
+function ycCross(A,B,extA,extB){const out=[];
+  const segs=(P,ext)=>{const S2=[];for(let i=1;i<P.length;i++)S2.push([P[i-1],P[i],i===1&&ext,i===P.length-1&&ext]);return S2};
+  let runA=0;for(const [a1,a2,ea0,ea1] of segs(A,extA)){const La=ycD(a1,a2);
+    for(const [b1,b2,eb0,eb1] of segs(B,extB)){const rx=a2.x-a1.x,ry=a2.y-a1.y,sx=b2.x-b1.x,sy=b2.y-b1.y,den=rx*sy-ry*sx;if(Math.abs(den)<1e-12)continue;
+      const t=((b1.x-a1.x)*sy-(b1.y-a1.y)*sx)/den,u=((b1.x-a1.x)*ry-(b1.y-a1.y)*rx)/den;
+      if((t<-1e-9&&!ea0)||(t>1+1e-9&&!ea1)||(u<-1e-9&&!eb0)||(u>1+1e-9&&!eb1))continue;
+      out.push({p:{x:a1.x+rx*t,y:a1.y+ry*t},s:runA+t*La})}
+    runA+=La}
+  return out}
 const ycLineOnly=e=>e&&e.pts.length===2&&!isNotch(e)&&!e.text&&!e.arc;
 function ycStart(code){const d=YC[code];setTool('yc');S.yc={code,d,i:0,pts:[],els:[],taps:[],nums:[]};ycStep()}
 function ycRestart(){const Y=S.yc;S.yc={code:Y.code,d:Y.d,i:Y.i0||0,i0:Y.i0,n0:Y.n0,pts:[],els:[],taps:[],nums:(Y.n0||[]).slice()};S.hl=null;ycStep()}
@@ -2020,7 +2132,7 @@ function ycStep(){
 }
 function ycNext(){const Y=S.yc;{const cs=Y.d.steps[Y.i];if(cs&&cs.t==='multi'&&cs.cut)Y[cs.cut]=Y.pts.length;Y.mb=Y.pts.length}Y.i++;while(Y.i<Y.d.steps.length&&Y.d.steps[Y.i].skip&&Y.d.steps[Y.i].skip(Y))Y.i++;
   if(Y.i<Y.d.steps.length)return ycStep();
-  const h0=S.hist.length,r0=S.redo,v0=S.ver;try{say('');Y.d.run(Y);if(Y.d.done)say(Y.d.done(Y));}catch(err){while(S.hist.length>h0)revert(S.hist.pop());S.redo=r0;S.ver=v0;say(err.message,true)}
+  const h0=S.hist.length,r0=S.redo,v0=S.ver;try{say('');Y.d.run(Y);if(Y.d.done)say(Y.d.done(Y));if(S.notchLink!==false&&!Y.d.noFollow){const k=notchFollow(h0);if(k)say((Y.d.done?Y.d.done(Y)+' ':'')+'너치 '+k+'개가 선을 따라갔습니다(연동).')}}catch(err){while(S.hist.length>h0)revert(S.hist.pop());S.redo=r0;S.ver=v0;say(err.message,true)}
   if(S.hist.length>h0+1){const part=S.hist.splice(h0);S.hist.push({multi:part})}
   if(Y.d.again!=null&&S.tool==='yc'){S.yc={code:Y.code,d:Y.d,i:Y.d.again,i0:Y.d.again,n0:Y.nums.slice(),pts:[],els:[],taps:[],nums:Y.nums.slice()};ycStep()}
   else ycStart(Y.code);refresh();
@@ -2087,7 +2199,29 @@ YC.fbox={name:'임의사각',steps:[{t:'pt',hint:'한 변의 시작점을 누르
     const d={x:a.x+nx*h,y:a.y+ny*h},e2={x:b.x+nx*h,y:b.y+ny*h};ycAdd([{kind:'line',pts:[a,b]},{kind:'line',pts:[b,e2]},{kind:'line',pts:[e2,d]},{kind:'line',pts:[d,a]}])},
   preview:(Y,h)=>{const[a,b]=Y.pts;if(!a||!h)return null;if(!b)return [[a,h]];const L=ycD(a,b),nx=-(b.y-a.y)/L,ny=(b.x-a.x)/L,k=(h.x-a.x)*nx+(h.y-a.y)*ny;return [[a,b,{x:b.x+nx*k,y:b.y+ny*k},{x:a.x+nx*k,y:a.y+ny*k},a]]}};
 
-const ycAlong=(A,s)=>{const c=cutCurve(A,0,Math.max(0,Math.min(lenOf(A),s)));return c[c.length-1]};;
+YC.cct={name:'중간곡선',steps:[{t:'el',hint:'첫번째 선을 누르세요'},{t:'el',hint:'두번째 선을 누르세요'}],
+  run:Y=>{const[e1,e2]=Y.els;if(e1===e2)throw new Error('서로 다른 두 선을 눌러 주세요.');if(e1.arc||e2.arc)throw new Error('원·원호는 아직 안 됩니다.');
+    if(!ycCurve(e1)&&!ycCurve(e2)&&e1.pts.length===2&&e2.pts.length===2)throw new Error('직선 둘 사이는 아직 안 됩니다. 곡선이 하나는 있어야 합니다.');
+    let A=shape(e1),B=shape(e2);if(ycD(A[0],B[0])+ycD(A[A.length-1],B[B.length-1])>ycD(A[0],B[B.length-1])+ycD(A[A.length-1],B[0]))B=B.slice().reverse();
+    const n=Math.max(3,Math.min(15,Math.max(e1.trim?e1.n:e1.pts.length,e2.trim?e2.n:e2.pts.length))),a=resample(A,n,true),b=resample(B,n,true);
+    ycAdd([{kind:'curve',keepPts:true,pts:a.map((p,i)=>({x:(p.x+b[i].x)/2,y:(p.y+b[i].y)/2})).reverse(),layer:e1.layer,color:e1.color}])},
+  done:()=>'두 선 사이에 중간곡선을 그렸습니다.'};
+
+function cutOne(e,B,bl,tap,adds){
+  if(e.arc)throw new Error('원·원호는 선자르기할 수 없습니다.');
+  const curve=ycCurve(e),style={layer:e.layer,color:e.color,...(e.flag>1?{flag:e.flag}:{})};
+  {const A=shape(e),X=ycCross(A,B,false,bl).filter(x=>x.s>0.01&&x.s<lenOf(A)-0.01);if(!X.length)throw new Error('자를 선이 기준선과 만나지 않습니다.');
+    const t=ycNear(A,tap).s,x=X.sort((p,q)=>Math.abs(p.s-t)-Math.abs(q.s-t))[0],L=lenOf(A),mine=t<x.s?[0,x.s]:[x.s,L],other=t<x.s?[x.s,L]:[0,x.s];
+    const part=([f0,f1])=>{const P=cutCurve(A,f0,f1);return curve?resample(P,e.trim?e.n:e.pts.length,true):[P[0],P[P.length-1]]};
+    const keep=part(mine);if(e.kind){remember(e);e.pts=keep}else ycEdit(e,keep);adds.push({kind:curve?'curve':'line',pts:part(other),...style})}}
+YC.c={name:'선자르기',steps:[{t:'multi',min:1,hint:Y=>'자를 선을 누르세요(여러 개 — 다 누르고 오른클릭) ['+Y.pts.length+']'},{t:'el',need:'any',hint:'기준선을 누르세요'}],
+  run:Y=>{const b=Y.els[0],B=shape(b),bl=b.pts.length===2&&!b.arc&&!ycCurve(b),ts=Y.pts.map((w,i)=>{let best=null,bd=2;for(const e of allEls()){if(e===b||e.text||isNotch(e)||e.pts.length<2)continue;const d=ycNear(shape(e),w).d;if(d<bd){bd=d;best=e}}
+      if(!best)throw new Error((i+1)+'번째 자를 선을 못 찾았습니다. 선 가까이를 눌러 주세요.');if(locked(best)&&!best.kind)throw new Error('그레이딩이나 다른 요소에 연결된 선은 유카에서 고쳐 주세요.');return best});
+    if(new Set(ts).size<ts.length)throw new Error('같은 선을 두 번 눌렀습니다.');const adds=[];ts.forEach((e,i)=>cutOne(e,B,bl,Y.pts[i],adds));Y.n=ts.length;ycAdd(adds)},
+  done:Y=>(Y.n>1?Y.n+'개의 ':'')+'선을 기준선에서 둘로 나눴습니다(모양은 그대로).'};
+
+const ycAlong=(A,s)=>{const c=cutCurve(A,0,Math.max(0,Math.min(lenOf(A),s)));return c[c.length-1]};
+const ycFromTap=(e,tap)=>{const A=shape(e);return ycD(tap,A[A.length-1])<ycD(tap,A[0])?A.slice().reverse():A};;
 
 function eMove(Y,dx,dy){
   const [a,b]=Y.pts,x0=Math.min(a.x,b.x)-1e-6,x1=Math.max(a.x,b.x)+1e-6,y0=Math.min(a.y,b.y)-1e-6,y1=Math.max(a.y,b.y)+1e-6,inR=p=>p.x>=x0&&p.x<=x1&&p.y>=y0&&p.y<=y1;
@@ -2102,10 +2236,460 @@ const eArea=[{t:'pt',hint:'이동할 영역의 첫 모서리를 누르세요'},{
 for(const [code,name,ux,uy] of [['eu','상방향',0,1],['ed','하방향',0,-1],['el','좌방향',-1,0],['er','우방향',1,0]])
   YC[code]={name:'단점이동 '+name,steps:[...eArea,{t:'num',label:'이동량 cm',pos:1,hint:'옮길 거리를 입력하세요'}],run:Y=>eMove(Y,ux*Y.nums[0],uy*Y.nums[0]),done:Y=>'끝점 '+Y.moved+'개를 '+Y.nums[0]+' cm 옮겼습니다.'};
 YC.e2={name:'단점이동 임의이동',steps:[...eArea,{t:'pt',hint:'이동할 2점: 처음 점을 누르세요'},{t:'pt',hint:'옮길 자리를 누르세요'}],
-  run:Y=>eMove(Y,Y.pts[3].x-Y.pts[2].x,Y.pts[3].y-Y.pts[2].y),done:Y=>'끝점 '+Y.moved+'개를 옮겼습니다.'};;;;;;
+  run:Y=>eMove(Y,Y.pts[3].x-Y.pts[2].x,Y.pts[3].y-Y.pts[2].y),done:Y=>'끝점 '+Y.moved+'개를 옮겼습니다.'};
+
+function grainLine(S0,E){const L=ycD(S0,E);if(L<0.01)throw new Error('시작과 끝이 같습니다.');const u=ycUnit(S0,E),h=Math.min(0.2*L,3),c=Math.cos(-15*Math.PI/180),n=Math.sin(-15*Math.PI/180);
+  const head=(p,d)=>({kind:'line',pts:[{...p},{x:p.x+(d.x*c-d.y*n)*h,y:p.y+(d.x*n+d.y*c)*h}],link:4,r10:1});
+  ycAdd([head(S0,u),head(E,{x:-u.x,y:-u.y}),{kind:'line',pts:[{...S0},{...E}],link:4}])}
+function grainOnRef(Y,perp){const [S0,E0]=Y.pts,e=Y.els[0],[a,b]=[e.pts[0],e.pts[e.pts.length-1]],r=ycUnit(a,b),d=perp?{x:-r.y,y:r.x}:r,t=(E0.x-S0.x)*d.x+(E0.y-S0.y)*d.y;
+  grainLine(S0,{x:S0.x+d.x*t,y:S0.y+d.y*t})}
+const gSteps=[{t:'pt',hint:'시작위치를 누르세요'},{t:'pt',hint:'종료위치를 누르세요'}];
+YC.qz={name:'직각결선',steps:[...gSteps,{t:'el',need:'any',hint:'기준선을 누르세요(결선이 이 선에 직각)'}],run:Y=>grainOnRef(Y,true),done:()=>'직각결선을 넣었습니다.'};
+YC.paz={name:'평행결선',steps:[...gSteps,{t:'el',need:'any',hint:'기준선을 누르세요(결선이 이 선과 평행)'}],run:Y=>grainOnRef(Y,false),done:()=>'평행결선을 넣었습니다.'};
+YC.zim={name:'임의결선',steps:gSteps,run:Y=>grainLine(Y.pts[0],Y.pts[1]),done:()=>'임의결선을 넣었습니다.'};
+
+const grainBody=e=>(e.kind?e.kind==='line'&&e.link===4&&!e.r10:e.type===TYPE.LINE&&e.link===4&&!e.owner);
+function grainExtend(e){const [a,b]=e.pts,u=ycUnit(a,b),mid={x:(a.x+b.x)/2,y:(a.y+b.y)/2};
+  const live=allEls().filter(x=>x!==e&&x.group&&x.link!==4&&x.link!==0x15&&x.pts.length>1),G=new Map();
+  for(const x of live){const P=shape(x);let g=G.get(x.group);if(!g)G.set(x.group,g={els:[],b:[1e9,1e9,-1e9,-1e9]});g.els.push(P);for(const p of P){g.b[0]=Math.min(g.b[0],p.x);g.b[1]=Math.min(g.b[1],p.y);g.b[2]=Math.max(g.b[2],p.x);g.b[3]=Math.max(g.b[3],p.y)}}
+  let best=null;for(const g of G.values())if(mid.x>=g.b[0]&&mid.x<=g.b[2]&&mid.y>=g.b[1]&&mid.y<=g.b[3]){const ar=(g.b[2]-g.b[0])*(g.b[3]-g.b[1]);if(!best||ar<best.ar)best={...g,ar}}
+  if(!best)return false;let lo=Infinity,hi=-Infinity;
+  for(const P of best.els)for(let i=1;i<P.length;i++){const p=P[i-1],q=P[i],d={x:q.x-p.x,y:q.y-p.y},den=u.x*d.y-u.y*d.x;if(Math.abs(den)<1e-12)continue;
+    const w={x:p.x-a.x,y:p.y-a.y},t=(w.x*d.y-w.y*d.x)/den,s2=(w.x*u.y-w.y*u.x)/den;if(s2<-1e-9||s2>1+1e-9)continue;lo=Math.min(lo,t);hi=Math.max(hi,t)}
+  if(!(hi>lo))return false;ycEdit(e,[{x:a.x+u.x*lo,y:a.y+u.y*lo},{x:a.x+u.x*hi,y:a.y+u.y*hi}]);return true}
+ACT.zm=()=>{const L=allEls().filter(grainBody);if(!L.length)return say('결선이 없습니다.',true);const before=S.hist.length;let n=0;for(const e of L)if(grainExtend(e))n++;
+  const mv=S.hist.splice(before).map(h=>({e:h.m,was:h.was,snap:{pts:h.pts}}));if(mv.length)S.hist.push({mv});say(n+'/'+L.length+'개의 결선을 연장했습니다.');refresh()};
+
+YC.zc={name:'결선방향변경',steps:[{t:'el',need:'any',hint:'변경할 결선을 누르세요'}],run:Y=>{const e=Y.els[0];if(!grainBody(e))throw new Error('결선 몸통(가운데 선)을 눌러 주세요.');ycEdit(e,[{...e.pts[1]},{...e.pts[0]}])},done:()=>'1/1개의 결선을 변경했습니다.'};
+
+YC.w={name:'골표시',steps:[{t:'num',label:'골 지름 cm',pos:1,def:'2',hint:'골 크기의 지름을 입력하세요'},{t:'el',need:'any',hint:'대상의 중심선을 누르세요(누른 자리가 골표시 중심)'},{t:'pt',hint:'방향을 누르세요'}],
+  run:Y=>{const d=Y.nums[0],e=Y.els[0],P=shape(e),n=ycNear(P,Y.taps[0]);if(!n)throw new Error('중심선을 다시 눌러 주세요.');
+    const i=Math.max(1,Math.min(P.length-1,n.i||1)),a=P[i-1],b=P[i],c=n.p,q=Y.pts[0],left=(b.x-a.x)*(q.y-c.y)-(b.y-a.y)*(q.x-c.x)>0,ang=degOf(a,b),f=normAng(left?ang:ang+180),t=normAng(f+180);
+    ycAdd([d/2,d/4].map(r=>({kind:'arc',arc:{c:{...c},r,from:f,to:t},pts:arcPts(c,r,f,t)})))},done:()=>'골표시를 넣었습니다.'};
+
+YC.hol={name:'구멍표시',steps:[{t:'num',label:'반지름 cm',pos:1,def:'0.5',hint:'반지름의 수치를 입력하세요'},{t:'pt',hint:'표시 위치를 누르세요'}],
+  run:Y=>{const c=Y.pts[0],r=Y.nums[0];ycAdd([{kind:'arc',arc:{c:{...c},r,from:0,to:0},pts:arcPts(c,r,0,0),color:3}])},done:()=>'구멍표시를 넣었습니다.'};
+
+const symHead=(tip,dir,len,link)=>{const b=Math.atan2(-dir.y,-dir.x);return [15,-15].map(d=>{const a=b+d*Math.PI/180;return {kind:'line',pts:[{...tip},{x:tip.x+Math.cos(a)*len,y:tip.y+Math.sin(a)*len}],link,r10:1}})};
+const circ=(c,r,link,r10)=>({kind:'arc',arc:{c:{...c},r,from:0,to:0},pts:arcPts(c,r,0,0),link,r10});
+const along=(P,t)=>{const L=lenOf(P);return ycAlong(P,L*t)};
+
+for(const [code,name,top] of [['snpo','상SNAP',1],['snpm','하SNAP',0]])
+  YC[code]={name,steps:[{t:'multi',min:1,hint:Y=>'스냅 위치를 누르세요(시작 → 끝, [완료]) ('+Y.pts.length+'점)'},{t:'num',label:'스냅 지름 cm',pos:1,def:'1',hint:'스냅의 크기를 입력'},{t:'num',label:'개수',def:'4',hint:'SNAP의 갯수는 몇개 입니까?'}],
+    run:Y=>{const P=Y.pts,d=Y.nums[0],n=Math.max(1,Math.round(Y.nums[1])),r=d/2,q=r/Math.SQRT2,out=[];
+      for(let i=0;i<n;i++){const c=P.length<2||n===1?{...P[P.length-1]}:along(P,i/(n-1));
+        if(top)out.push(circ(c,r,0x83,0),{kind:'line',pts:[{x:c.x-q,y:c.y+q},{x:c.x+q,y:c.y-q}],link:0x83,r10:2},{kind:'line',pts:[{x:c.x+q,y:c.y+q},{x:c.x-q,y:c.y-q}],link:0x83,r10:2});
+        else out.push(circ(c,r,0x83,1),circ(c,r/2,0x83,3))}
+      ycAdd(out)},done:Y=>Y.d.name+'을 넣었습니다.'};
+
+YC.dril={name:'DRILL홀',steps:[{t:'num',label:'홀 지름 cm',pos:1,def:'0.2',hint:'드릴홀의 크기수치 입력'},{t:'pt',hint:'홀의 중심위치를 누르세요'}],
+  run:Y=>{const c=Y.pts[0],r=Y.nums[0]/2,h=3*r;ycAdd([circ(c,r,9,0),{kind:'line',pts:[{x:c.x-h,y:c.y},{x:c.x+h,y:c.y}],link:9,r10:1},{kind:'line',pts:[{x:c.x,y:c.y-h},{x:c.x,y:c.y+h}],link:9,r10:1},circ(c,1.2*r,9,1)])},done:()=>'DRILL홀을 넣었습니다.'};
+
+YC.jz={name:'털방향',steps:[{t:'pt',hint:'표시할 위치의 2점을 누르세요(시작)'},{t:'pt',hint:'끝점을 누르세요'}],
+  run:Y=>{const [a,e]=Y.pts,b=Math.abs(e.x-a.x)>=Math.abs(e.y-a.y)?{x:e.x,y:a.y}:{x:a.x,y:e.y},L=ycD(a,b);if(L<0.01)throw new Error('두 점이 같습니다.');const u=ycUnit(a,b),tip={x:a.x+u.x*L*.75,y:a.y+u.y*L*.75};
+    ycAdd([...symHead(tip,u,0.2*L,4),{kind:'line',pts:[{...a},b],link:4}])},done:()=>'털방향을 넣었습니다.'};
+
+for(const [code,name,rev] of [['jn','바이어스',0],['jr','역BIAS',1]])
+  YC[code]={name,steps:[{t:'pt',hint:'대각의 2점을 누르세요(시작)'},{t:'pt',hint:'대각의 끝점을 누르세요'}],
+    run:Y=>{const [a,b]=Y.pts;if(Math.abs(a.x-b.x)<0.01||Math.abs(a.y-b.y)<0.01)throw new Error('대각의 두 점을 눌러 주세요.');
+      const d1=[{...a},{...b}],d2=[{x:b.x,y:a.y},{x:a.x,y:b.y}],[side,body]=rev?[d2,d1]:[d1,d2],L=ycD(body[0],body[1]),u=ycUnit(body[0],body[1]),tip={x:body[0].x+u.x*L*.75,y:body[0].y+u.y*L*.75};
+      ycAdd([{kind:'line',pts:side,link:4,r10:1},...symHead(tip,u,0.2*L,4),{kind:'line',pts:body,link:4}])},done:Y=>Y.d.name+'를 넣었습니다.'};
+
+const tanAt=(P,s)=>{let run=0;for(let i=1;i<P.length;i++){const L=ycD(P[i-1],P[i]);if(run+L>=s||i===P.length-1)return ycUnit(P[i-1],P[i]);run+=L}};
+YC.is={name:'이세',steps:[{t:'pt',hint:'위치할 3점을 누르세요(1)'},{t:'pt',hint:'(2)'},{t:'pt',hint:'(3)'}],
+  run:Y=>{const C=Y.pts.map(p=>({...p})),P=spline(C),L=lenOf(P),a=ycAlong(P,0.1*L),b=ycAlong(P,0.9*L),ta=tanAt(P,0.1*L),tb=tanAt(P,0.9*L);
+    ycAdd([{kind:'curve',pts:C,link:0x7c},...symHead(a,ta,0.1*L,0x7c),...symHead(b,{x:-tb.x,y:-tb.y},0.1*L,0x7c)])},done:()=>'이세를 넣었습니다.'};
+
+const stitchOf=(e,side,w)=>{const P=shape(e),n=ycNear(P,side),l=(n.u.x*(side.y-n.p.y)-n.u.y*(side.x-n.p.x))>=0?1:-1,curve=ycCurve(e);
+  const src=e.pts;return {kind:curve?'curve':'line',pts:offsetPts(src,l*w),link:0x6c,flag:2}};
+
+YC.st={name:'스티치',again:1,steps:[{t:'num',label:'간격 cm',pos:1,def:()=>S.stGap||'0.5',hint:'간격(수치)'},{t:'el',need:'any',hint:Y=>'대상선을 누르세요 [수치:'+Y.nums[0]+']'},{t:'pt',hint:'방향을 누르세요'}],
+  run:Y=>{S.stGap=Y.nums[0];ycAdd([stitchOf(Y.els[0],Y.pts[0],Y.nums[0])])},done:()=>'스티치를 넣었습니다.'};
+YC.wst={name:'W스티치',steps:[{t:'num',label:'제1의 폭 cm',pos:1,def:'0.1',hint:'제1의 폭 수치를 입력'},{t:'num',label:'제2의 폭 cm',pos:1,def:'0.6',hint:'제 2의폭 수치를 입력'},{t:'el',need:'any',hint:'대상선을 누르세요'},{t:'pt',hint:'방향을 누르세요'}],
+  run:Y=>ycAdd([stitchOf(Y.els[0],Y.pts[0],Y.nums[0]),stitchOf(Y.els[0],Y.pts[0],Y.nums[1])]),done:()=>'W스티치를 넣었습니다.'};
+
+YC.sim={name:'심지',steps:[{t:'el',need:'any',hint:'시작점 위치에 선을 누르세요'},{t:'el',need:'any',hint:'종료점 위치에 선을 누르세요'},{t:'num',label:'평행 간격 cm',pos:1,def:'0.2',hint:'평행의 간격'}],
+  run:Y=>{const [e1,e2]=Y.els,n1=ycNear(shape(e1),Y.taps[0]),n2=ycNear(shape(e2),Y.taps[1]),a=n1.p,b=n2.p,u=ycUnit(a,b),w=Y.nums[0],nl={x:-u.y,y:u.x};
+    const cut=(p,n)=>{const d=n.u,den=u.x*d.y-u.y*d.x;if(Math.abs(den)<1e-12)return p;const t=((n.p.x-p.x)*d.y-(n.p.y-p.y)*d.x)/den;return {x:p.x+u.x*t,y:p.y+u.y*t}};
+    const par=k=>{const p={x:a.x+nl.x*k,y:a.y+nl.y*k};return [cut(p,n1),cut(p,n2)]};
+    ycAdd([{kind:'line',pts:[{...a},{...b}],link:0x70},{kind:'line',pts:par(w),link:0x70,r10:1},{kind:'line',pts:par(-w),link:0x70,r10:1}])},done:()=>'심지를 넣었습니다.'};
+
+YC.gaz={name:'이세표시',steps:[{t:'pt',hint:'위치할 3점을 누르세요(1)'},{t:'pt',hint:'(2)'},{t:'pt',hint:'(3)'},{t:'num',label:'크기 cm',pos:1,def:'1',hint:'크기의 수치를 입력'}],
+  run:Y=>{const h=Y.nums[0]/2,P=spline(Y.pts.map(p=>({...p}))),L=lenOf(P),n=Math.max(2,Math.round(L/(1.4*Y.nums[0]))),out=[];
+    for(let i=0;i<=n;i++){const s=L*i/n,c=ycAlong(P,s),u=tanAt(P,Math.min(s,L-1e-9)),k=i%2?-h:h;out.push({x:c.x-u.y*k,y:c.y+u.x*k})}
+    if(out.length>15)throw new Error('물결이 너무 깁니다(15점 넘음). 크기를 키워 주세요.');ycAdd([{kind:'curve',pts:out,link:0x7a}])},done:()=>'이세표시를 넣었습니다.'};
+
+YC.noba={name:'늘임표시',steps:[{t:'pt',hint:'위치할 3점을 누르세요(1)'},{t:'pt',hint:'(2)'},{t:'pt',hint:'(3)'}],
+  run:Y=>{const C=Y.pts.map(p=>({...p})),P=spline(C),L=lenOf(P),n=P.length;
+    ycAdd([{kind:'curve',pts:C,link:0x7b},...symHead(P[0],ycUnit(P[1],P[0]),0.1*L,0x7b),...symHead(P[n-1],ycUnit(P[n-2],P[n-1]),0.1*L,0x7b)])},done:()=>'늘임표시를 넣었습니다.'};
+
+YC['k+']={name:'＋표시',steps:[{t:'pt',hint:'배치점을 누르세요'},{t:'num',label:'크기 cm',pos:1,def:'1',hint:'＋표시의 크기(기본 1.0)'}],
+  run:Y=>{const c=Y.pts[0],h=Y.nums[0]/2;ycAdd([{kind:'line',pts:[{x:c.x-h,y:c.y},{x:c.x+h,y:c.y}],link:0x63},{kind:'line',pts:[{x:c.x,y:c.y-h},{x:c.x,y:c.y+h}],link:0x63,r10:1}])},done:()=>'＋표시를 넣었습니다.'};
+
+YC.arw={name:'화살표',steps:[{t:'num',label:'1 직각 2 평행 3 임의',def:'3',hint:'1은 직각, 2는 평행, 3은 임의'},{t:'num',label:'편측 1 양측 2',def:'2',hint:'편측은 1, 양측은 2'},
+    {t:'pt',hint:'2점을 누르세요: 시작'},{t:'pt',hint:'2점을 누르세요: 끝(화살촉 쪽)'},{t:'el',need:'any',hint:'기준선을 누르세요',skip:Y=>Math.round(Y.nums[0])===3}],
+  run:Y=>{const m=Math.round(Y.nums[0]),both=Math.round(Y.nums[1])!==1;let [S0,E]=Y.pts;
+    if(m===1||m===2){const e=Y.els[0],[a,b]=[e.pts[0],e.pts[e.pts.length-1]],r=ycUnit(a,b),d=m===1?{x:-r.y,y:r.x}:r,t=(E.x-S0.x)*d.x+(E.y-S0.y)*d.y;E={x:S0.x+d.x*t,y:S0.y+d.y*t}}
+    const L=ycD(S0,E);if(L<0.01)throw new Error('두 점이 같습니다.');const u=ycUnit(E,S0),h=Math.min(0.2*L,3),rot=g=>{const c=Math.cos(g*Math.PI/180),n=Math.sin(g*Math.PI/180);return {x:E.x+(u.x*c-u.y*n)*h,y:E.y+(u.x*n+u.y*c)*h}};
+    ycAdd([{kind:'line',pts:[{...E},rot(-15)]},...(both?[{kind:'line',pts:[{...E},rot(15)]}]:[]),{kind:'line',pts:[{...S0},{...E}]}])},done:()=>'화살표를 넣었습니다.'};
+
+const b2Cut=Y=>{const i=Y.els.length-1;return {e:Y.els[i],tap:Y.taps&&Y.taps[i]}};
+function b2Scope(Y){if(Y.scope)return Y.scope;if(!Y.area)return null;const [p,q]=Y.area,x0=Math.min(p.x,q.x),x1=Math.max(p.x,q.x),y0=Math.min(p.y,q.y),y1=Math.max(p.y,q.y);
+
+  const inB=t=>t.x>=x0-1e-6&&t.x<=x1+1e-6&&t.y>=y0-1e-6&&t.y<=y1+1e-6,box=[{x:x0,y:y0},{x:x1,y:y0},{x:x1,y:y1},{x:x0,y:y1},{x:x0,y:y0}];
+  return new Set(allEls().filter(e=>{if(!e.pts.length)return false;const P=e.pts.length>2?shape(e):e.pts;return P.some(inB)||ycCross(P,box,false,false).length>0}))}
+
+YC.b2={name:'분할분리 2점방향',steps:[{t:'area',hint:Y=>'분할할 패턴을 대각의 2점으로 누르세요'+(Y.areaPts&&Y.areaPts.length?' (둘째 점)':'')},{t:'el',need:'line',hint:'절개선을 누르세요'},{t:'pt',hint:'이동할 쪽 패턴을 누르세요'},{t:'pt',hint:'이동방향을 두 점으로: 첫 점'},{t:'pt',hint:'이동방향을 두 점으로: 둘째 점'}],
+  run:Y=>{const cut=b2Cut(Y).e,[A,B]=[cut.pts[0],cut.pts[cut.pts.length-1]],L=ycD(A,B),u=ycUnit(A,B),[side,p1,p2]=Y.pts,scope=b2Scope(Y),d={x:p2.x-p1.x,y:p2.y-p1.y};if(!Y.xform&&ycD(p1,p2)<1e-6)throw new Error('이동 두 점이 같습니다.');
+    const cr=p=>u.x*(p.y-A.y)-u.y*(p.x-A.x),sg=Math.sign(cr(side)),tt=p=>((p.x-A.x)*u.x+(p.y-A.y)*u.y)/L,mv=Y.xform||(p=>({x:p.x+d.x,y:p.y+d.y}));if(!sg)throw new Error('움직일 쪽을 절개선 밖에서 눌러 주세요.');
+    const g=Y.noGroup?null:newGroupNo(),moveEls=[],adds=[];
+    for(const e of Y.order||allEls()){if(e===cut||isNotch(e)||e.text||e.arc||e.pts.length<2||(!e.kind&&e.type!==TYPE.LINE&&e.type!==TYPE.CURVE))continue;
+      if(scope&&!scope.has(e))continue;
+      const P=e.pts.length>2?shape(e):e.pts,signs=P.map(cr);
+      if(e.pts.length===2){const[a,b]=e.pts,ca=cr(a),cb=cr(b);
+        if(ca*cb<-1e-12){const t=ca/(ca-cb),X={x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t},tx=tt(X);
+          if(tx>=-1e-6&&tx<=1+1e-6){if(!e.kind&&locked(e))throw new Error('시접·그레이딩에 연결된 선은 유카에서 잘라 주세요.');
+            const startMoves=Math.sign(ca)===sg,keep=startMoves?[mv(a),mv(X)]:[a,X],rest=startMoves?[X,b]:[mv(X),mv(b)];
+            moveEls.push({e,pts:keep,g:startMoves});adds.push({kind:'line',pts:rest,layer:e.layer,color:e.color,group:startMoves||g===null?e.group:g,moved:!startMoves,from:e});continue}}}
+      else if(signs.some(v=>v>1e-9)&&signs.some(v=>v<-1e-9)&&P.some(p=>{const t=tt(p);return t>=0&&t<=1}))throw new Error('곡선이 절개선을 지나는 경우는 아직 안 됩니다(유카 확인 전).');
+      const ts=P.map(tt);
+
+      const whole=scope?((signs.every(v=>Math.sign(v)===sg||Math.abs(v)<1e-9)&&signs.some(v=>Math.sign(v)===sg&&Math.abs(v)>1e-9))||(signs.some(v=>Math.sign(v)===sg)&&Math.sign(cr(e.pts.length>2?P[(P.length>>1)-1]:{x:(P[0].x+P[1].x)/2,y:(P[0].y+P[1].y)/2}))===sg)):(signs.every(v=>Math.sign(v)===sg||Math.abs(v)<1e-9)&&Math.min(...ts)<=1+1e-9&&Math.max(...ts)>=-1e-9);
+      if(whole){if(!e.kind&&locked(e))continue;moveEls.push({e,pts:e.pts.map(mv),g:true})}}
+    adds.push({kind:cut.pts.length>2?'curve':'line',...(cut.keepPts?{keepPts:true}:{}),pts:cut.pts.length>2?cut.pts.map(mv):[mv(A),mv(B)],layer:cut.layer,color:cut.color,group:g===null?cut.group:g,moved:true});
+    for(const m of moveEls){if(m.e.kind){remember(m.e);m.e.pts=m.pts}else ycEdit(m.e,m.pts)}
+    if(g!==null)setGroup(moveEls.filter(m=>m.g).map(m=>m.e),g);
+    const made=ycAdd(adds.map(({moved,from,...o})=>o));Y.n=moveEls.length;Y.split=adds.map((a,i)=>({from:a.from,made:made[i]}))},done:Y=>'나눠서 '+Y.n+'개를 옮겼습니다.'};
+
+for(const [code,name,ux,uy] of [['bu','상방향',0,1],['bd','하방향',0,-1],['bl','좌방향',-1,0],['br','우방향',1,0]])
+  YC[code]={name:'분할분리 '+name,steps:[...YC.b2.steps.slice(0,3),{t:'num',label:'이동량 cm',pos:1,hint:'이동량은?'}],
+    run:Y=>{const v=Y.nums[0],s=Y.pts[0];YC.b2.run({...Y,pts:[s,{x:0,y:0},{x:ux*v,y:uy*v}]});Y.n=1},done:()=>'나눠서 옮겼습니다.'};
+
+YC.dart={name:'다트',steps:[{t:'el',need:'line',edit:1,hint:'허리선을 누르세요'},{t:'el',need:'line',edit:1,hint:'다트 중심선을 누르세요'},{t:'num',label:'다트량 cm',pos:1,hint:'다트량은?'}],
+  run:Y=>{const [W,Cn]=Y.els,v=Y.nums[0];if(W===Cn)throw new Error('허리선과 중심선이 같습니다.');const [a,b]=W.pts,[c,d]=Cn.pts,X=(ycCross([a,b],[c,d],false,true)[0]||{}).p;if(!X)throw new Error('허리선과 중심선이 만나지 않습니다.');
+    const u=ycUnit(b,a),h=v/2,L={x:X.x-u.x*h,y:X.y-u.y*h},R={x:X.x+u.x*h,y:X.y+u.y*h},T=ycD(c,X)>ycD(d,X)?c:d;
+    if(ycD(b,L)<0.01||ycD(a,R)<0.01||ycD(b,X)<h||ycD(a,X)<h)throw new Error('다트량이 허리선보다 깁니다.');
+    ycReplace([W,Cn],[[b,L],[L,T],[T,R],[R,a]].map(p=>({kind:'line',pts:p.map(q=>({x:q.x,y:q.y}))})))},done:()=>'다트를 넣었습니다.'};
+
+function dimMake(p1,p2,T,vert){
+  const D=vert?T.x:T.y,at=p=>vert?{x:D,y:p.y}:{x:p.x,y:D},A=at(p1),B=at(p2),L=vert?Math.abs(p2.y-p1.y):Math.abs(p2.x-p1.x);if(L<1e-6)throw new Error('두 점의 '+(vert?'세로':'가로')+' 위치가 같습니다.');
+  const ext=p=>{const q=vert?p.x:p.y,s=Math.sign(D-q)||-1;return vert?[{x:q+0.5*s,y:p.y},{x:D+s,y:p.y}]:[{x:p.x,y:q+0.5*s},{x:p.x,y:D+s}]};
+  const c=Math.cos(Math.PI/12),n=Math.sin(Math.PI/12),arrow=(E,F)=>{const u=ycUnit(E,F);return [1,-1].map(g=>[{x:E.x+u.x*c-u.y*n*g,y:E.y+u.x*n*g+u.y*c},{...E}])};
+  const segs=[[{...A},{...B}],ext(p1),ext(p2),...arrow(A,B),...arrow(B,A)],text=L.toFixed(2),mid={x:(A.x+B.x)/2,y:(A.y+B.y)/2},rot=vert?89.9998779296875:0,tat=vert?{x:mid.x-0.1,y:mid.y}:{x:mid.x,y:mid.y+0.1};
+  ycAdd([{kind:'text',text,at:tat,size:1,h:2,v:1,lh:1,rot,f54:0,box:textBox(tat,text,1,2,1,rot),pts:[]},{kind:'dim',dim:segs,pts:[]}])}
+const dimSteps=[{t:'pt',hint:'촌법선 위치를 누르세요(첫 점)'},{t:'pt',hint:'촌법선 위치를 누르세요(둘째 점)'},{t:'pt',hint:'문자 위치를 누르세요'}];
+YC.hdi={name:'수평촌법',steps:dimSteps,run:Y=>dimMake(...Y.pts,false),done:()=>'수평촌법을 넣었습니다.'};
+YC.vdi={name:'수직촌법',steps:dimSteps,run:Y=>dimMake(...Y.pts,true),done:()=>'수직촌법을 넣었습니다.'};
+
+YC.rdi={name:'반경촌법',steps:[{t:'el',need:'circle',hint:'원/호를 누르세요'},{t:'pt',hint:'문자 위치를 누르세요'}],
+  run:Y=>{const a=Y.els[0].arc,C=a.c,t=Y.taps[0],u=ycUnit(C,t),E={x:C.x+u.x*a.r,y:C.y+u.y*a.r},c=Math.cos(Math.PI/12),sn=Math.sin(Math.PI/12),w={x:-u.x,y:-u.y};
+    const arrow=[1,-1].map(g=>[{x:E.x+w.x*c-w.y*sn*g,y:E.y+w.x*sn*g+w.y*c},{...E}]),rot=normAng(Math.atan2(u.y,u.x)*180/Math.PI),text='R'+a.r.toFixed(2);
+    const tat={x:(C.x+E.x)/2-u.y*0.1,y:(C.y+E.y)/2+u.x*0.1};
+    ycAdd([{kind:'text',text,at:tat,size:1,h:2,v:1,lh:1,rot,f54:0,box:textBox(tat,text,1,2,1,rot),pts:[]},{kind:'dim',dim:[[{...C},{...E}],...arrow],pts:[]}])},done:()=>'반경촌법을 넣었습니다.'};
+
+YC['2di']={name:'2점촌법',steps:dimSteps,run:Y=>{const [p1,p2,T]=Y.pts,L=ycD(p1,p2);if(L<1e-6)throw new Error('두 점이 같습니다.');
+  const u=ycUnit(p1,p2);let n={x:-u.y,y:u.x},d=(T.x-p1.x)*n.x+(T.y-p1.y)*n.y;if(d<0){n={x:-n.x,y:-n.y};d=-d}
+  const off=(p,k)=>({x:p.x+n.x*k,y:p.y+n.y*k}),A=off(p1,d),B=off(p2,d),c=Math.cos(Math.PI/12),sn=Math.sin(Math.PI/12);
+  const arrow=(E,F)=>{const w=ycUnit(E,F);return [1,-1].map(g=>[{x:E.x+w.x*c-w.y*sn*g,y:E.y+w.x*sn*g+w.y*c},{...E}])};
+  const segs=[[A,B],[off(p1,0.5),off(p1,d+1)],[off(p2,0.5),off(p2,d+1)],...arrow(A,B),...arrow(B,A)],text=L.toFixed(2);
+  const tat=off({x:(A.x+B.x)/2,y:(A.y+B.y)/2},0.1),rot=normAng(Math.atan2(n.y,n.x)*180/Math.PI-90);
+  ycAdd([{kind:'text',text,at:tat,size:1,h:2,v:1,lh:1,rot,f54:0,box:textBox(tat,text,1,2,1,rot),pts:[]},{kind:'dim',dim:segs,pts:[]}])},done:()=>'2점촌법을 넣었습니다.'};
+
+YC.ht={name:'사선',steps:[{t:'num',label:'간격 cm',pos:1,hint:'사선의 간격을 입력하세요'},{t:'el',need:'any',hint:'대상선 2개를 누르세요: 첫째'},{t:'el',need:'any',hint:'대상선 2개를 누르세요: 둘째'}],
+  run:Y=>{const [e1,e2]=Y.els,P1=shape(e1),P2=shape(e2),L1=lenOf(P1),L2=lenOf(P2),N=Math.ceil((L1+L2)/2/Y.nums[0]-1e-9);if(N<1||N>500)throw new Error('사선 개수가 너무 많거나 적습니다.');
+    ycAdd([...Array(N)].map((_,k)=>({kind:'line',pts:[ycAlong(P1,L1*k/N),ycAlong(P2,L2*(k+1)/N)]})));Y.n=N},done:Y=>'사선 '+Y.n+'개를 넣었습니다.'};
+
+YC.bq={name:'분할분리 직각절개',steps:[...YC.b2.steps.slice(0,3),{t:'num',label:'이동량 cm',pos:1,hint:'이동량은?'}],
+  run:Y=>{const [A,B]=b2Cut(Y).e.pts,u=ycUnit(A,B),s0=Y.pts[0],v=Y.nums[0];let n={x:-u.y,y:u.x};if((s0.x-A.x)*n.x+(s0.y-A.y)*n.y<0)n={x:-n.x,y:-n.y};
+    YC.b2.run({...Y,pts:[s0,{x:0,y:0},{x:n.x*v,y:n.y*v}]});Y.n=1},done:()=>'나눠서 옮겼습니다.'};
+
+YC.ba={name:'분할분리 각도절개',steps:[...YC.b2.steps.slice(0,3),{t:'num',label:'각도량 °',pos:1,hint:'각도량은?'}],
+  run:Y=>{const [A,B]=b2Cut(Y).e.pts,t=b2Cut(Y).tap||A,C=ycD(t,A)<=ycD(t,B)?A:B,F=C===A?B:A,u=ycUnit(A,B),s0=Y.pts[0];let n={x:-u.y,y:u.x};if((s0.x-A.x)*n.x+(s0.y-A.y)*n.y<0)n={x:-n.x,y:-n.y};
+    const f={x:F.x-C.x,y:F.y-C.y},sgn=Math.sign(-f.y*n.x+f.x*n.y)||1,r=sgn*Y.nums[0]*Math.PI/180,c=Math.cos(r),sn=Math.sin(r);
+    YC.b2.run({...Y,pts:[s0,{x:0,y:0},{x:0,y:0}],xform:p=>({x:C.x+(p.x-C.x)*c-(p.y-C.y)*sn,y:C.y+(p.x-C.x)*sn+(p.y-C.y)*c})});Y.n=1},done:()=>'나눠서 돌렸습니다.'};
+
+YC.b3={name:'분할분리 3점절개',steps:[...YC.b2.steps.slice(0,3),{t:'pt',hint:'이동할 2점을 누르세요: 첫 점'},{t:'pt',hint:'이동할 2점을 누르세요: 둘째 점(첫 점이 이 방향으로 가게 돈다)'}],
+  run:Y=>{const [A,B]=b2Cut(Y).e.pts,t=b2Cut(Y).tap||A,C={...(ycD(t,A)<=ycD(t,B)?A:B)},[s0,p1,p2]=Y.pts;if(ycD(C,p1)<1e-6||ycD(C,p2)<1e-6)throw new Error('두 점은 회전 중심(절개선 끝)과 달라야 합니다.');
+    const r=Math.atan2(p2.y-C.y,p2.x-C.x)-Math.atan2(p1.y-C.y,p1.x-C.x),c=Math.cos(r),sn=Math.sin(r);
+    YC.b2.run({...Y,pts:[s0,{x:0,y:0},{x:0,y:0}],xform:p=>({x:C.x+(p.x-C.x)*c-(p.y-C.y)*sn,y:C.y+(p.x-C.x)*sn+(p.y-C.y)*c})});Y.n=1},done:()=>'나눠서 돌렸습니다.'};
+
+function bsXf(P,ci,n,a,b){const C=P[ci],F=P[1-ci],L=ycD(C,F);if(Math.abs(b-a)<1e-9)return p=>({x:p.x+n.x*a,y:p.y+n.y*a});
+  const k=a/(b-a),Z={x:C.x+(C.x-F.x)*k,y:C.y+(C.y-F.y)*k},E=b>a?F:C,e={x:E.x-Z.x,y:E.y-Z.y},sg=Math.sign(-e.y*n.x+e.x*n.y)||1,r=sg*2*Math.asin(Math.min(1,Math.abs(b-a)/(2*L))),c=Math.cos(r),sn=Math.sin(r);
+  return p=>({x:Z.x+(p.x-Z.x)*c-(p.y-Z.y)*sn,y:Z.y+(p.x-Z.x)*sn+(p.y-Z.y)*c})}
+const bsNormal=(P,side)=>{const u=ycUnit(P[0],P[1]);let n={x:-u.y,y:u.x};if((side.x-P[0].x)*n.x+(side.y-P[0].y)*n.y<0)n={x:-n.x,y:-n.y};return n};
+const bsEnd=(P,t)=>ycD(t,P[0])<=ycD(t,P[1])?0:1;
+YC.be={name:'분할분리 편측절개',steps:[...YC.b2.steps.slice(0,3),{t:'num',label:'단점에서의 이동량 cm',pos:1,hint:'이동량은?'}],
+  run:Y=>{const P=b2Cut(Y).e.pts,s0=Y.pts[0];YC.b2.run({...Y,pts:[s0,{x:0,y:0},{x:0,y:0}],xform:bsXf(P,bsEnd(P,b2Cut(Y).tap||P[0]),bsNormal(P,s0),0,Y.nums[0])});Y.n=1},done:()=>'나눠서 벌렸습니다.'};
+YC.bb={name:'분할분리 양측절개',steps:[...YC.b2.steps.slice(0,3),{t:'num',label:'시작점 전개량 cm',pos:1,hint:'첫번째 량(누른 쪽 끝)은?'},{t:'num',label:'끝점 전개량 cm',pos:1,hint:'두번째 량(반대쪽 끝)은?'}],
+  run:Y=>{const P=b2Cut(Y).e.pts,s0=Y.pts[0];YC.b2.run({...Y,pts:[s0,{x:0,y:0},{x:0,y:0}],xform:bsXf(P,bsEnd(P,b2Cut(Y).tap||P[0]),bsNormal(P,s0),Y.nums[0],Y.nums[1])});Y.n=1},done:()=>'나눠서 벌렸습니다.'};
+
+function bsCuts(Y){const n=Y.nCut==null?Y.pts.length:Y.nCut,cuts=[];
+  for(let i=0;i<n;i++){const t=Y.pts[i];let best=null,bd=2;for(const e of allEls()){if(!ycLineOnly(e)||(!e.kind&&e.type!==TYPE.LINE))continue;const d=ycNear(e.pts,t).d;if(d<bd){bd=d;best=e}}
+    if(!best)throw new Error((i+1)+'번째 분할선을 못 찾았습니다. 직선 가까이를 눌러 주세요.');if(cuts.some(c=>c.e===best))throw new Error('같은 분할선을 두 번 눌렀습니다.');cuts.push({e:best,ci:bsEnd(best.pts,t)})}
+  if(n===1&&!Y.pts[1])throw new Error('방향의 점(이동할 쪽)을 눌러 주세요.');return {cuts,side:n===1?Y.pts[1]:null}}
+
+function bsRun(Y,mk,given){const {cuts,side}=given||bsCuts(Y),scope=b2Scope(Y);let order=allEls();const mid=e=>{const a=e.pts[0],b=e.pts[e.pts.length-1];return {x:(a.x+b.x)/2,y:(a.y+b.y)/2}};
+  cuts.forEach((c,i)=>{const P=[c.e.pts[0],c.e.pts[c.e.pts.length-1]].map(p=>({...p})),m=mid(c.e),pm=i?mid(cuts[i-1].e):null,s0=side||(i<cuts.length-1?mid(cuts[i+1].e):{x:2*m.x-pm.x,y:2*m.y-pm.y}),n=bsNormal(P,s0);
+    if(Math.abs((s0.x-P[0].x)*n.x+(s0.y-P[0].y)*n.y)<1e-6)throw new Error('분할선들이 한 줄에 있어 이동할 쪽을 알 수 없습니다.');
+    const R={els:[c.e],taps:[],nums:[],pts:[s0,{x:0,y:0},{x:0,y:0}],xform:mk(P,c.ci,n,c),noGroup:true,scope,order};YC.b2.run(R);
+    const front=[];for(const {from,made} of R.split){if(from){order=order.filter(x=>x!==from);front.push(from)}front.push(made);if(scope)scope.add(made)}order=[...front,...order]});Y.n=cuts.length}
+const bsSteps=(...nums)=>[YC.b2.steps[0],{t:'multi',min:1,hint:Y=>'분할선을 고정할 측부터 차례로 누르고 오른클릭 ('+Y.pts.length+'개)'},...nums.map(([label,hint,any])=>({t:'num',label,pos:any?0:1,hint})),{t:'pt',hint:'방향의 점(이동할 쪽)을 누르세요',skip:Y=>{if(Y.nCut==null)Y.nCut=Y.pts.length;return Y.nCut>1}}];
+const bsDone=Y=>'분할선 '+Y.n+'개에서 나눠 옮겼습니다.';
+
+function beRun(Y,mk){const [e1,e2]=Y.els,N=Math.round(Y.nums[0]);if(e1===e2)throw new Error('서로 다른 두 요소를 눌러 주세요.');if(!(N>=1&&N<=50))throw new Error('분할수는 1~50입니다.');
+  const A=ycFromTap(e1,Y.taps[0]),B=ycFromTap(e2,Y.taps[1]),La=lenOf(A),Lb=lenOf(B),scope=b2Scope(Y)||new Set(allEls());
+  const lines=ycAdd([...Array(N)].map((_,k)=>({kind:'line',pts:[ycAlong(A,La*(k+1)/(N+1)),ycAlong(B,Lb*(k+1)/(N+1))],layer:e1.layer,color:e1.color,group:e1.group||0})));
+  if(N===1&&!Y.pts[0])throw new Error('방향의 점(이동할 쪽)을 눌러 주세요.');
+  for(const l of lines)scope.add(l);Y.scope=scope;bsRun(Y,mk,{cuts:lines.map(e=>({e,ci:0})),side:N===1?Y.pts[0]:null})}
+const beSteps=(...nums)=>[YC.b2.steps[0],{t:'el',need:'any',hint:'양쪽의 2요소를 누르세요: 고정측(나누기 시작할 끝 가까이)'},{t:'el',need:'any',hint:'양쪽의 2요소를 누르세요: 반대쪽(같은 끝 가까이)'},{t:'num',label:'분할수',pos:1,def:'3',hint:'분할수는?'},
+  ...nums.map(([label,hint,any])=>({t:'num',label,pos:any?0:1,hint})),{t:'pt',hint:'방향의 점(이동할 쪽)을 누르세요',skip:Y=>Math.round(Y.nums[0])>1}];
+for(const [code,name,ux,uy] of [['beu','상방향',0,1],['bed','하방향',0,-1],['bel','좌방향',-1,0],['ber','우방향',1,0]])
+  YC[code]={name:'등분분할 '+name,steps:beSteps(['이동량 cm','이동량은?']),run:Y=>beRun(Y,()=>p=>({x:p.x+ux*Y.nums[1],y:p.y+uy*Y.nums[1]})),done:bsDone};
+YC.beq={name:'등분분할 직각절개',steps:beSteps(['이동량 cm','이동량은?']),run:Y=>beRun(Y,(P,ci,n)=>bsXf(P,ci,n,Y.nums[1],Y.nums[1])),done:bsDone};
+YC.bee={name:'등분분할 편측절개',steps:beSteps(['이동량 cm','이동량은?']),run:Y=>beRun(Y,(P,ci,n)=>bsXf(P,ci,n,0,Y.nums[1])),done:bsDone};
+YC.beb={name:'등분분할 양측절개',steps:beSteps(['시작점 전개량 cm','첫번째 량(고정측 요소 쪽)은?'],['끝점 전개량 cm','두번째 량(반대쪽 요소 쪽)은?']),run:Y=>beRun(Y,(P,ci,n)=>bsXf(P,ci,n,Y.nums[1],Y.nums[2])),done:bsDone};
+YC.bea={name:'등분분할 각도절개',steps:beSteps(['각도량 ° (+ 반시계 · − 시계)','각도량은? (+는 반시계방향, −는 시계방향)',1]),
+  run:Y=>{if(!Y.nums[1])throw new Error('각도량을 입력해 주세요.');beRun(Y,(P,ci)=>{const C=P[ci],r=Y.nums[1]*Math.PI/180,c=Math.cos(r),sn=Math.sin(r);return p=>({x:C.x+(p.x-C.x)*c-(p.y-C.y)*sn,y:C.y+(p.x-C.x)*sn+(p.y-C.y)*c})})},done:bsDone};
+for(const [code,name,ux,uy] of [['bsu','상방향',0,1],['bsd','하방향',0,-1],['bsl','좌방향',-1,0],['bsr','우방향',1,0]])
+  YC[code]={name:'지정분할 '+name,steps:bsSteps(['이동량 cm','이동량은?']),run:Y=>bsRun(Y,()=>p=>({x:p.x+ux*Y.nums[0],y:p.y+uy*Y.nums[0]})),done:bsDone};
+YC.bsq={name:'지정분할 직각절개',steps:bsSteps(['이동량 cm','이동량은?']),run:Y=>bsRun(Y,(P,ci,n)=>bsXf(P,ci,n,Y.nums[0],Y.nums[0])),done:bsDone};
+
+YC.bsa={name:'지정분할 각도절개',steps:bsSteps(['각도량 ° (+ 반시계 · − 시계)','각도량은? (+는 반시계방향, −는 시계방향)',1]),
+  run:Y=>{if(!Y.nums[0])throw new Error('각도량을 입력해 주세요.');bsRun(Y,(P,ci)=>{const C=P[ci],r=Y.nums[0]*Math.PI/180,c=Math.cos(r),sn=Math.sin(r);return p=>({x:C.x+(p.x-C.x)*c-(p.y-C.y)*sn,y:C.y+(p.x-C.x)*sn+(p.y-C.y)*c})})},done:bsDone};
+YC.bse={name:'지정분할 편측절개',steps:bsSteps(['이동량 cm','이동량은?']),run:Y=>bsRun(Y,(P,ci,n)=>bsXf(P,ci,n,0,Y.nums[0])),done:bsDone};
+YC.bsb={name:'지정분할 양측절개',steps:bsSteps(['시작점 전개량 cm','첫번째 량(누른 쪽 끝)은?'],['끝점 전개량 cm','두번째 량(반대쪽 끝)은?']),run:Y=>bsRun(Y,(P,ci,n)=>bsXf(P,ci,n,Y.nums[0],Y.nums[1])),done:bsDone};
+
+YC.bx={name:'지정분할 부속분리',steps:YC.b2.steps,
+  run:Y=>{const cut=b2Cut(Y).e,[A,B]=cut.pts,L=ycD(A,B),u=ycUnit(A,B),[side,p1,p2]=Y.pts,scope=b2Scope(Y),d={x:p2.x-p1.x,y:p2.y-p1.y};if(ycD(p1,p2)<1e-6)throw new Error('이동 두 점이 같습니다.');
+    const cr=p=>u.x*(p.y-A.y)-u.y*(p.x-A.x),sg=Math.sign(cr(side)),tt=p=>((p.x-A.x)*u.x+(p.y-A.y)*u.y)/L,mv=p=>({x:p.x+d.x,y:p.y+d.y});if(!sg)throw new Error('옮길 쪽을 절개선 밖에서 눌러 주세요.');
+    const g=newGroupNo(),adds=[];
+    for(const e of allEls()){if(e===cut||isNotch(e)||e.text||e.arc||e.pts.length<2||(!e.kind&&e.type!==TYPE.LINE&&e.type!==TYPE.CURVE))continue;if(scope&&!scope.has(e))continue;
+      const P=e.pts.length>2?shape(e):e.pts,signs=P.map(cr),o={layer:e.layer,color:e.color,group:g};
+      if(e.pts.length===2){const[a,b]=e.pts,ca=cr(a),cb=cr(b);
+        if(ca*cb<-1e-12){const t=ca/(ca-cb),X={x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t},tx=tt(X);if(tx>=-1e-6&&tx<=1+1e-6){adds.push({kind:'line',pts:Math.sign(ca)===sg?[mv(a),mv(X)]:[mv(X),mv(b)],...o});continue}}}
+      else if(signs.some(v=>v>1e-9)&&signs.some(v=>v<-1e-9)&&P.some(p=>{const t=tt(p);return t>=0&&t<=1}))throw new Error('곡선이 절개선을 지나는 경우는 아직 안 됩니다(유카 확인 전).');
+      const whole=(signs.every(v=>Math.sign(v)===sg||Math.abs(v)<1e-9)&&signs.some(v=>Math.sign(v)===sg&&Math.abs(v)>1e-9))||(signs.some(v=>Math.sign(v)===sg)&&Math.sign(cr(e.pts.length>2?P[(P.length>>1)-1]:{x:(P[0].x+P[1].x)/2,y:(P[0].y+P[1].y)/2}))===sg);
+      if(whole)adds.push({kind:e.pts.length>2?'curve':'line',pts:e.pts.map(mv),...o})}
+    adds.push({kind:'line',pts:[mv(A),mv(B)],layer:cut.layer,color:cut.color,group:g});ycAdd(adds);Y.n=adds.length},done:Y=>'고른 쪽 '+Y.n+'개를 복사해 옮겼습니다.'};
+
+YC.drt={name:'다트 회전',steps:[{t:'area',hint:Y=>'처리대상을 대각의 2점으로 누르세요'+(Y.areaPts&&Y.areaPts.length?' (둘째 점)':'')},{t:'pt',hint:'다트의 회전 중심(다트 끝)을 누르세요: 끝점'},
+    {t:'el',need:'line',hint:'다트선을 반시계 방향으로 누르세요: 첫째 다트선(고정 쪽)'},{t:'el',need:'line',hint:'다트선을 반시계 방향으로 누르세요: 둘째 다트선'},
+    {t:'multi',min:2,hint:Y=>'절개선을 반시계 방향으로 차례로 누르고 오른클릭 ('+(Y.pts.length-1)+'개)'},
+    {t:'num',label:'1 = 각도 · 2 = 비율',def:'1',pos:1,hint:'다트회전 창: 각도로(1) 비율로(2)'},
+    ...[1,2,3,4,5,6,7,8].map(k=>({t:'num',label:k===1?'1번(다트에 남길) ':k+'번(절개선 '+(k-1)+') ',def:Y=>Y.nums[0]===2?(k===1?'0':'1'):(k===1?'0':'99'),
+      hint:Y=>(Y.nums[0]===2?k+'번 비율':k+'번 각도 ° (99 = 잔량)'),skip:Y=>k>Y.pts.length}))],
+  run:Y=>{let [L1,L2]=Y.els;const scope=b2Scope(Y);if(!scope)throw new Error('처리대상을 대각의 2점으로 눌러 주세요.');
+    const taps=Y.cutEls?null:Y.pts.slice(1),cutEls=Y.cutEls||taps.map((t,i)=>{let best=null,bd=2;for(const e of allEls()){if(e===L1||e===L2||!ycLineOnly(e)||(!e.kind&&e.type!==TYPE.LINE))continue;const d=ycNear(e.pts,t).d;if(d<bd){bd=d;best=e}}
+      if(!best)throw new Error((i+1)+'번째 절개선을 못 찾았습니다. 직선 가까이를 눌러 주세요.');return best});
+    if(!cutEls.length)throw new Error('절개선을 하나 이상 눌러 주세요.');if(new Set([L1,L2,...cutEls]).size<cutEls.length+2)throw new Error('다트선 둘과 절개선은 서로 다른 선이어야 합니다.');
+    const near=(e,p)=>ycD(e.pts[0],p)<=ycD(e.pts[1],p)?e.pts[0]:e.pts[1],C={...near(L1,Y.pts[0])},far=e=>ycD(e.pts[0],C)>=ycD(e.pts[1],C)?e.pts[0]:e.pts[1];
+    for(const e of [L2,...cutEls])if(ycD(near(e,C),C)>0.05)throw new Error('다트선 둘과 절개선이 회전 중심(다트 끝)에서 만나야 합니다.');
+    const ang=p=>Math.atan2(p.y-C.y,p.x-C.x),nm=t=>((t%(2*Math.PI))+2*Math.PI)%(2*Math.PI);let dart=nm(ang(far(L2))-ang(far(L1)));if(dart>Math.PI){[L1,L2]=[L2,L1];dart=2*Math.PI-dart}
+    const a0=ang(far(L2)),cuts=cutEls.map(e=>({e,E:{...far(e)},phi:nm(ang(far(e))-a0)})).sort((p,q)=>p.phi-q.phi),endPhi=nm(ang(far(L1))-a0);
+    if(cuts.some(c=>c.phi<1e-7||c.phi>endPhi-1e-7))throw new Error('절개선은 다트 바깥(둘째 다트선에서 반시계로 첫째 다트선 사이)에 있어야 합니다.');
+
+    const D=dart*180/Math.PI,n=cuts.length,mode=Y.nums[0]===2?2:1,raw=[1,...cuts.map((_,i)=>i+2)].map(k=>Y.nums[k]!==undefined?+Y.nums[k]:(k===1?0:mode===2?1:99));let deg;
+    if(mode===2){const s=raw.reduce((a,b)=>a+b,0);if(!(s>0)||raw.some(v=>v<0))throw new Error('비율은 0 이상, 합이 0보다 커야 합니다.');deg=raw.map(v=>D*v/s)}
+    else{const fixed=raw.filter(v=>v!==99).reduce((a,b)=>a+b,0),m=raw.filter(v=>v===99).length;deg=raw.map(v=>v===99?(D-fixed)/m:v);
+      if(!m&&Math.abs(fixed-D)>1e-3)throw new Error('각도 합('+fixed.toFixed(3)+'°)이 다트 각('+D.toFixed(3)+'°)과 달라요. 남는 곳에 99를 넣어 주세요.');if(deg.some(v=>v<-1e-9))throw new Error('각도가 다트 각('+D.toFixed(3)+'°)보다 큽니다.')}
+    if(!(D-deg[0]>1e-9))throw new Error('다트에 남길 각이 다트 각('+D.toFixed(3)+'°)보다 작아야 합니다.');
+
+    const turn=[...cuts.map((_,j)=>deg.slice(j+1).reduce((a,b)=>a+b,0)),0].map(v=>v*Math.PI/180),rotF=th=>{const c=Math.cos(-th),s=Math.sin(-th);return p=>({x:C.x+(p.x-C.x)*c-(p.y-C.y)*s,y:C.y+(p.x-C.x)*s+(p.y-C.y)*c})};
+    const eps=1e-7,bnd=[0,...cuts.map(c=>c.phi)],sec=p=>{if(ycD(p,C)<1e-6)return null;const r=nm(ang(p)-a0);if(r>endPhi+eps&&r<2*Math.PI-eps)return -1;
+      for(let j=0;j<bnd.length;j++)if(Math.abs(r-bnd[j])<eps||(j===0&&r>2*Math.PI-eps))return {b:j};for(let j=n;j>=0;j--)if(r>bnd[j])return j;return 0};
+    const edits=[],adds=[];
+    for(const e of allEls()){if(e===L1||e===L2||cutEls.includes(e)||!scope.has(e)||isNotch(e)||e.text||e.arc||e.pts.length<2||(!e.kind&&e.type!==TYPE.LINE&&e.type!==TYPE.CURVE))continue;
+      const P=e.pts.length>2?shape(e):e.pts,num=v=>v!==null&&typeof v==='number'&&v>=0;let ks=P.map(sec).filter(num);if(!ks.length)ks=P.slice(1).map((q,i)=>sec({x:(P[i].x+q.x)/2,y:(P[i].y+q.y)/2})).filter(num);
+      const js=[...new Set(ks)];if(!js.length||(js.length===1&&js[0]===n))continue;
+      if(!e.kind&&locked(e))throw new Error('시접·그레이딩에 연결된 선이 도는 쪽에 있습니다. 유카에서 해 주세요.');
+      if(js.length===1){edits.push([e,e.pts.map(rotF(turn[js[0]]))]);continue}
+      if(e.pts.length!==2||js.length>2||Math.abs(js[0]-js[1])!==1)throw new Error('곡선이나 여러 부채꼴에 걸친 선이 절개선 끝을 지나는 경우는 아직 안 됩니다.');
+      const b=Math.max(...js),EK=cuts[b-1].E,h=ycCross(e.pts,[C,EK],false,false)[0],X=h?h.p:ycD(ycNear(e.pts,EK).p,EK)<1e-4?{...EK}:null;if(!X)throw new Error('부채꼴 경계(절개선)를 지나지 않고 걸친 선이 있습니다.');
+      const [p,q]=e.pts,jp=sec(p),jq=sec(q),rS=j=>j===0?rotF(turn[0]):(t=>({...t})),rp=rS(typeof jp==='number'?jp:js.find(v=>v!==jq)),rq=rS(typeof jq==='number'?jq:js.find(v=>v!==jp));
+      edits.push([e,[rp(p),rp(X)]]);adds.push({kind:'line',pts:[rq(X),rq(q)],layer:e.layer,color:e.color,group:e.group||0})}
+    for(const [e,pts] of edits)if(e.kind){remember(e);e.pts=pts}else ycEdit(e,pts);
+    for(const [e,j] of [[L2,0],...cuts.map((c,i)=>[c.e,i])]){if(!(turn[j]>0))continue;const pts=e.pts.map(rotF(turn[j]));if(e.kind){remember(e);e.pts=pts}else ycEdit(e,pts)}
+    if(adds.length)ycAdd(adds);Y.deg=D-deg[0];Y.degs=deg},done:Y=>'다트 '+Y.deg.toFixed(3)+'°를 절개선 '+(Y.degs.length-1)+'개로 옮겼습니다('+Y.degs.slice(1).map(v=>v.toFixed(3)).join(' · ')+').'};
+
+const ktAmtSteps=[{t:'num',label:'절개량 cm',pos:1,hint:'절개량은?(첫 절단선)'},...[2,3,4,5,6].map(k=>({t:'num',label:k+'번째 절단선 절개량 cm',pos:1,def:Y=>String(Y.nums[k-2]),hint:k+'번째로 누른 절단선의 절개량(같으면 Enter)',skip:Y=>Y.pts.length<k}))];
+function ktAmts(Y,cuts){cuts.forEach((c,i)=>{const v=+(Y.nums[i]??Y.nums[i-1]??Y.nums[0]);c.a=v>0?v:+Y.nums[0]})}
+function ktCuts(Y,base,fix,scope){const cuts=[];for(const t of Y.pts){let best=null,bd=2;for(const e of allEls()){if(e===base||e===fix)continue;const cv=ycCurve(e)&&!isNotch(e)&&!e.text&&!e.arc;if(!cv&&(!ycLineOnly(e)||(!e.kind&&e.type!==TYPE.LINE)))continue;const d=ycNear(cv?shape(e):e.pts,t).d;if(d<bd){bd=d;best=e}}
+    if(!best)throw new Error((cuts.length+1)+'번째 절단선을 못 찾았습니다. 선 가까이를 눌러 주세요.');if(cuts.some(c=>c.e===best))throw new Error('같은 절단선을 두 번 눌렀습니다.');
+    const E0=best.pts[0],E1=best.pts[best.pts.length-1];cuts.push({e:best,ci:ycNear(base.pts,E0).d<=ycNear(base.pts,E1).d?0:1})}
+
+  for(const c of cuts)if(ycCurve(c.e)){const old=c.e,[nc]=ycReplace([old],[{kind:'curve',keepPts:true,pts:shape(old).map(p=>({...p}))}]);c.e=nc;if(scope){scope.delete(old);scope.add(nc)}}
+  return cuts}
+const ktChord=e=>[e.pts[0],e.pts[e.pts.length-1]].map(p=>({...p}));
+YC.kten={name:'편측절개',steps:[YC.b2.steps[0],{t:'el',need:'line',hint:'분할의 기준선을 누르세요'},{t:'el',need:'line',hint:'고정측의 선을 누르세요'},
+    {t:'multi',min:1,hint:Y=>'절단선을 고정측부터 차례로 누르고 오른클릭 ('+Y.pts.length+'개)'},...ktAmtSteps],
+  run:Y=>{const [base,fix]=Y.els,a=Y.nums[0],scope=b2Scope(Y);if(!scope)throw new Error('영역을 대각의 2점으로 눌러 주세요.');if(base===fix)throw new Error('기준선과 고정측 선이 같습니다.');
+    const cuts=ktCuts(Y,base,fix,scope);ktAmts(Y,cuts);const As=cuts.map(c=>c.a),Amin=Math.min(...As),Amax=Math.max(...As);
+    const A=ycNear(fix.pts,base.pts[0]).d>=ycNear(fix.pts,base.pts[1]).d?base.pts[0]:base.pts[1],fu=ycUnit(fix.pts[0],fix.pts[1]);let xh={x:-fu.y,y:fu.x};if((A.x-fix.pts[0].x)*xh.x+(A.y-fix.pts[0].y)*xh.y<0)xh={x:-xh.x,y:-xh.y};
+    const Ps=cuts.map(c=>ktChord(c.e));Ps.forEach((P,i)=>{if(ycD(P[0],P[1])<=As[i]/2)throw new Error('절개량이 절단선보다 너무 큽니다.')});
+    const shift=g=>{let p=A;for(let i=Ps.length-1;i>=0;i--)p=bsXf(Ps[i],cuts[i].ci,bsNormal(Ps[i],A),g*As[i]/Amax,As[i])(p);return {x:A.x-p.x,y:A.y-p.y}},F=g=>{const t=shift(g);return t.x*xh.x+t.y*xh.y+0.0097};
+    const Lm=Math.min(...Ps.map(P=>ycD(P[0],P[1])));let lo=Math.max(-Amax,Amax-2*Lm)*0.999,hi=Amax*0.999;if(F(lo)<=0||F(hi)>=0)throw new Error('이 모양으로는 벌릴 수 없습니다(기준선·고정측·절단선을 확인해 주세요).');for(let i=0;i<60;i++){const m=(lo+hi)/2;if(F(m)>0)lo=m;else hi=m}const g=(lo+hi)/2;
+    const t=shift(g),cp=ycAdd([{kind:'line',pts:base.pts.map(p=>({...p})),layer:base.layer,color:base.color,group:base.group||0}])[0];scope.delete(base);scope.add(cp);Y.scope=scope;
+    bsRun(Y,(P,ci,n,c)=>bsXf(P,ci,n,g*c.a/Amax,c.a),{cuts,side:A});
+    for(const e of scope){if(e===base||isNotch(e)||e.text||e.arc||e.pts.length<2||(!e.kind&&locked(e)))continue;const pts=e.pts.map(p=>({x:p.x+t.x,y:p.y+t.y}));if(e.kind){remember(e);e.pts=pts}else ycEdit(e,pts)}
+    Y.n=cuts.length;Y.g=g;Y.as=As},done:Y=>'절단선 '+Y.n+'개에서 '+[...new Set(Y.as)].join('·')+'cm 벌렸습니다.'};
+
+YC.bten={name:'양측절개',steps:[YC.b2.steps[0],{t:'el',need:'line',hint:'분할의 기준선을 누르세요'},{t:'multi',min:1,hint:Y=>'절단선을 차례로 누르고 오른클릭 ('+Y.pts.length+'개)'},...ktAmtSteps],
+  run:Y=>{const base=Y.els[0],a=Y.nums[0],scope=b2Scope(Y);if(!scope)throw new Error('영역을 대각의 2점으로 눌러 주세요.');
+    const cuts=ktCuts(Y,base,null,scope);ktAmts(Y,cuts);const near=c=>ktChord(c.e)[c.ci],[b0,b1]=base.pts,E0=cuts.length>1&&ycD(b1,near(cuts[0]))<ycD(b1,near(cuts[1]))?b1:b0,E1=E0===b0?b1:b0,L=ycD(E0,E1);
+    cuts.sort((p,q)=>ycD(E0,near(p))-ycD(E0,near(q)));
+    const Ps=cuts.map(c=>ktChord(c.e)),As=cuts.map(c=>c.a),Amin=Math.min(...As),Amax=Math.max(...As);Ps.forEach((P,i)=>{if(ycD(P[0],P[1])<=As[i]/2)throw new Error('절개량이 절단선보다 너무 큽니다.')});
+    const end=g=>{let p=E1;for(let i=Ps.length-1;i>=0;i--)p=bsXf(Ps[i],cuts[i].ci,bsNormal(Ps[i],E1),g*As[i]/Amax,As[i])(p);return p},F=g=>ycD(end(g),E0)-L-0.0097;
+    const Lm=Math.min(...Ps.map(P=>ycD(P[0],P[1])));let lo=Math.max(-Amax,Amax-2*Lm)*0.999,hi=Amax*0.999;if(F(lo)>=0||F(hi)<=0)throw new Error('이 모양으로는 벌릴 수 없습니다(기준선·절단선을 확인해 주세요).');
+    for(let i=0;i<60;i++){const m=(lo+hi)/2;if(F(m)<0)lo=m;else hi=m}const g=(lo+hi)/2,e=end(g),r=Math.atan2(E1.y-E0.y,E1.x-E0.x)-Math.atan2(e.y-E0.y,e.x-E0.x),c=Math.cos(r),sn=Math.sin(r),O={...E0};
+    const cp=ycAdd([{kind:'line',pts:base.pts.map(p=>({...p})),layer:base.layer,color:base.color,group:base.group||0}])[0];scope.delete(base);scope.add(cp);Y.scope=scope;
+    bsRun(Y,(P,ci,n,c)=>bsXf(P,ci,n,g*c.a/Amax,c.a),{cuts,side:{...E1}});
+    for(const el of scope){if(el===base||isNotch(el)||el.text||el.arc||el.pts.length<2||(!el.kind&&locked(el)))continue;const pts=el.pts.map(p=>({x:O.x+(p.x-O.x)*c-(p.y-O.y)*sn,y:O.y+(p.x-O.x)*sn+(p.y-O.y)*c}));if(el.kind){remember(el);el.pts=pts}else ycEdit(el,pts)}
+    Y.n=cuts.length;Y.g=g;Y.as=As},done:Y=>'절단선 '+Y.n+'개에서 '+[...new Set(Y.as)].join('·')+'cm 양쪽으로 벌렸습니다.'};
+
+function seamInfo(s5,lax){const v=new DataView(S.doc.bytes.buffer,S.doc.bytes.byteOffset),n=v.getUint16(s5.addr+4,true),L=j=>[...Array(n)].map((_,k)=>v.getUint16(s5.addr+6+2*(j*n+k),true)),h=s5.addr+6+24*n;
+  const W=[...Array(n)].map((_,i)=>v.getFloat32(s5.addr+6+16*n+8*i,true)),kind=[...Array(n)].map((_,i)=>i<n-1?v.getUint16(h+56+68*i+14,true):v.getUint16(h+2,true));
+  const gone=new Set(S.dels.map(r=>(r-REC)/RSZ+1)),L0=L(0).map(k=>gone.has(k)?0:k);
+  if(!lax&&L0.includes(0))throw new Error('외곽선이 지워진 시접입니다. 외곽선을 되살리거나 시접을 다시 넣어 주세요.');
+  return {n,L0,L1:L(1),L2:L(2),dir:[...Array(n)].map((_,k)=>v.getInt16(s5.addr+6+14*n+2*k,true)),W,kind}}
+
+YC.dara={name:'다트접기',steps:[{t:'el',need:'line',hint:'기준측 다트선을 누르세요'},{t:'el',need:'any',hint:'기준측 허리선을 누르세요'},{t:'el',need:'line',hint:'상대측 다트선을 누르세요'},{t:'el',need:'any',hint:'상대측 허리선을 누르세요'}],
+  run:Y=>{const [d1,w1,d2,w2]=Y.els,near=(a,b,c)=>ycD(a,c)<ycD(b,c);
+    const common=(e1,e2)=>{let best=null;for(const p of [e1.pts[0],e1.pts[e1.pts.length-1]])for(const q of [e2.pts[0],e2.pts[e2.pts.length-1]]){const d=ycD(p,q);if(!best||d<best.d)best={p,d}}return best};
+    const c1=common(d1,w1),c2=common(d2,w2);if(c1.d>0.05||c2.d>0.05)throw new Error('다트선과 허리선이 한 점에서 만나야 합니다.');
+    const L=c1.p,R=c2.p,T=near(d1.pts[0],d1.pts[1],L)?d1.pts[1]:d1.pts[0],W=shape(w1),wd=ycD(W[0],L)<ycD(W[W.length-1],L)?ycUnit(W[0],W[1]):ycUnit(W[W.length-1],W[W.length-2]);
+    const u=ycUnit(L,T),k=wd.x*u.x+wd.y*u.y,r={x:2*k*u.x-wd.x,y:2*k*u.y-wd.y},v1=ycUnit(T,L),v2=ycUnit(T,R),bis=ycUnit({x:0,y:0},{x:v1.x+v2.x,y:v1.y+v2.y});
+    const den=r.x*bis.y-r.y*bis.x;if(Math.abs(den)<1e-12)throw new Error('다트 산을 찾지 못했습니다.');const t=((T.x-L.x)*bis.y-(T.y-L.y)*bis.x)/den,P={x:L.x+r.x*t,y:L.y+r.y*t};
+    ycAdd([{kind:'line',pts:[{...L},{...P}]},{kind:'line',pts:[{...R},{...P}]},{kind:'line',pts:[{...P},{...T}]}])},done:()=>'다트 산을 넣었습니다.'};
 const bakedPts=e=>resample(e.pts,e.n,true);
+
+function kOne(b,e,tap){
+  const B=shape(b),bl=b.pts.length===2&&!b.arc;
+  if(e.arc)throw new Error('원·원호는 편측수정할 수 없습니다.');
+  if(e.pts.length===2&&e.type!==TYPE.CURVE&&e.kind!=='curve'){const[a,c]=e.pts,X=ycCross([a,c],B,true,bl);if(!X.length)throw new Error('두 선이 만나지 않습니다.');
+    const end=ycD(tap,c)<ycD(tap,a),ref=end?c:a;let best=X[0];for(const x of X)if(ycD(x.p,ref)<ycD(best.p,ref))best=x;
+    const pts=end?[a,best.p]:[best.p,c];if(ycD(pts[0],pts[1])<0.01)throw new Error('선 길이가 0이 됩니다.');if(e.kind){remember(e);e.pts=pts;return}ycEdit(e,pts);return}
+  if(e.kind)throw new Error('새로 그린 곡선은 저장한 뒤 다시 열어 고쳐 주세요.');
+  if((e.link!==0&&e.link!==1)||e.owner!==0)throw new Error('그레이딩이나 다른 요소에 연결된 선은 유카에서 고쳐 주세요.');
+  const tr=e.trim&&e.ctrl&&e.ft,C=tr?e.ctrl:e.pts,P=spline(C),L=lenOf(P),[F,T]=tr?e.ft:[0,L],vis=cutCurve(P,F,T,C),atEnd=ycNear(vis,tap).s>lenOf(vis)/2;
+  const X=ycCross(P,B,true,bl);if(!X.length)throw new Error('두 선이 만나지 않습니다.');const ref=atEnd?T:F;let best=X[0];for(const x of X)if(Math.abs(x.s-ref)<Math.abs(best.s-ref))best=x;
+  const ft=atEnd?[F,best.s]:[best.s,T];if(ft[1]-ft[0]<0.01)throw new Error('선이 없어집니다.');
+  ycEdit(e,resample(cutCurve(P,ft[0],ft[1],C),e.trim?e.n:e.pts.length,true))}
+YC.k={name:'편측수정',steps:[{t:'el',need:'any',hint:'기준이 되는 선을 누르세요'},{t:'multi',min:1,hint:Y=>'수정할 선을 수정할 쪽에서 누르세요(여러 개 — 다 누르고 오른클릭) ['+Y.pts.length+']'}],
+  run:Y=>{const b=Y.els[0],ts=Y.pts.map((w,i)=>{let best=null,bd=2;for(const e of allEls()){if(e===b||e.text||isNotch(e)||e.pts.length<2)continue;const d=ycNear(shape(e),w).d;if(d<bd){bd=d;best=e}}
+      if(!best)throw new Error((i+1)+'번째 수정할 선을 못 찾았습니다. 선 가까이를 눌러 주세요.');if(locked(best)&&!best.kind)throw new Error('그레이딩이나 다른 요소에 연결된 선은 유카에서 고쳐 주세요.');return best});
+    if(new Set(ts).size<ts.length)throw new Error('같은 선을 두 번 눌렀습니다.');Y.n=ts.length;Y.kTs=ts; ts.forEach((e,i)=>kOne(b,e,Y.pts[i]))},
+  done:Y=>(Y.n>1?Y.n+'개의 ':'')+'선 끝을 기준선에 맞췄습니다.'};
+
+function bOne(b1,b2,e){
+  if(e.arc)throw new Error('원·원호는 양측수정할 수 없습니다.');const L1=b1.pts.length===2&&!ycCurve(b1),L2=b2.pts.length===2&&!ycCurve(b2),B1=shape(b1),B2=shape(b2);
+  if(!ycCurve(e)){const[a,c]=e.pts,X1=ycCross([a,c],B1,true,L1),X2=ycCross([a,c],B2,true,L2);if(!X1.length||!X2.length)throw new Error('수정할 선이 기준선과 만나지 않습니다.');
+    const L=ycD(a,c),mid=L/2,pk=X=>X.sort((p,q)=>Math.abs(p.s-mid)-Math.abs(q.s-mid))[0],x1=pk(X1),x2=pk(X2),pts=x1.s<=x2.s?[x1.p,x2.p]:[x2.p,x1.p];
+    if(ycD(pts[0],pts[1])<0.01)throw new Error('선 길이가 0이 됩니다.');if(e.kind){remember(e);e.pts=pts;return}ycEdit(e,pts);return}
+  if(e.kind)throw new Error('새로 그린 곡선은 저장한 뒤 다시 열어 고쳐 주세요.');
+  if((e.link!==0&&e.link!==1)||e.owner!==0)throw new Error('그레이딩이나 다른 요소에 연결된 선은 유카에서 고쳐 주세요.');
+  const tr=e.trim&&e.ctrl&&e.ft,C=tr?e.ctrl:e.pts,P=spline(C),L0=lenOf(P),[F,T]=tr?e.ft:[0,L0],mid=(F+T)/2,X1=ycCross(P,B1,true,L1),X2=ycCross(P,B2,true,L2);
+  if(!X1.length||!X2.length)throw new Error('수정할 곡선이 기준선과 만나지 않습니다.');const pk=X=>X.sort((p,q)=>Math.abs(p.s-mid)-Math.abs(q.s-mid))[0].s,s1=pk(X1),s2=pk(X2),ft=[Math.min(s1,s2),Math.max(s1,s2)];
+  if(ft[1]-ft[0]<0.01)throw new Error('선이 없어집니다.');
+  ycEdit(e,resample(cutCurve(P,ft[0],ft[1],C),e.trim?e.n:e.pts.length,true))}
+YC.b={name:'양측수정',steps:[{t:'el',need:'any',hint:'기준이 되는 2개의 선을 누르세요: 첫째'},{t:'el',need:'any',hint:'기준이 되는 2개의 선을 누르세요: 둘째'},{t:'multi',min:1,hint:Y=>'수정할 선을 누르세요(여러 개 — 다 누르고 오른클릭) ['+Y.pts.length+']'}],
+  run:Y=>{const[b1,b2]=Y.els;if(b1===b2)throw new Error('서로 다른 두 기준선을 눌러 주세요.');
+    const ts=Y.pts.map((w,i)=>{let best=null,bd=2;for(const e of allEls()){if(e===b1||e===b2||e.text||isNotch(e)||e.pts.length<2)continue;const d=ycNear(shape(e),w).d;if(d<bd){bd=d;best=e}}
+      if(!best)throw new Error((i+1)+'번째 수정할 선을 못 찾았습니다. 선 가까이를 눌러 주세요.');if(locked(best)&&!best.kind)throw new Error('그레이딩이나 다른 요소에 연결된 선은 유카에서 고쳐 주세요.');return best});
+    if(new Set(ts).size<ts.length)throw new Error('같은 선을 두 번 눌렀습니다.');Y.n=ts.length;ts.forEach(e=>bOne(b1,b2,e))},
+  done:Y=>(Y.n>1?Y.n+'개의 ':'')+'선을 두 기준선 사이로 맞췄습니다.'};
+
+YC.pa={name:'점추가',steps:[{t:'el',need:'curve',edit:1,hint:'점을 넣을 곡선의 자리를 누르세요'}],
+  run:Y=>{const e=Y.els[0];if((e.trim?e.n:e.pts.length)>=15)throw new Error('유카 곡선은 점이 15개까지입니다.');const P=e.trim?bakedPts(e):e.pts,D=spline(P),n=ycNear(D,Y.taps[0]),span=Math.min(P.length-2,Math.floor(n.i/8));
+    const pts=[...P.slice(0,span+1),n.p,...P.slice(span+1)];ycReplace([e],[{kind:'curve',pts}])},done:()=>'점을 넣었습니다.'};
+YC.pde={name:'점삭제',steps:[{t:'el',need:'curve',edit:1,hint:'지울 점 가까이 곡선을 누르세요'}],
+  run:Y=>{const e=Y.els[0],P=e.trim?bakedPts(e):e.pts;if(P.length<=3)throw new Error('점이 3개뿐이라 더 지울 수 없습니다.');
+    let k=1,bd=1e9;for(let i=1;i<P.length-1;i++){const d=ycD(P[i],Y.taps[0]);if(d<bd){bd=d;k=i}}
+    ycReplace([e],[{kind:'curve',pts:P.filter((p,i)=>i!==k)}])},done:()=>'점을 지웠습니다(양 끝점은 그대로).'};
+
+function rcChain(els){let out=null;
+  for(let k=0;k<els.length;k++){const e=els[k];let Q=e.trim?e.pts.slice():gPts(e);const D=Q2=>ycCurve(e)&&!e.trim&&Q2.length>2?spline(Q2):Q2;
+    if(!out){if(els.length>1){const n=gPts(els[1]),a=Q[0],b=Q[Q.length-1],m=Math.min(ycD(a,n[0]),ycD(a,n[n.length-1])),M=Math.min(ycD(b,n[0]),ycD(b,n[n.length-1]));if(m<M)Q=Q.slice().reverse()}out=D(Q);continue}
+    const end=out[out.length-1];if(ycD(end,Q[Q.length-1])<ycD(end,Q[0]))Q=Q.slice().reverse();if(ycD(end,Q[0])>0.05)throw new Error((k+1)+'번째 선이 앞 선과 이어져 있지 않습니다.');out=out.concat(D(Q).slice(1))}
+  return out}
+YC.rc={name:'선합치기',steps:[{t:'multi',min:1,hint:Y=>'합칠 곡선을 순서대로 누르세요(다 누르고 오른클릭) ['+Y.pts.length+']'},{t:'num',label:'점수 (3~15)',def:()=>S.grcN||8,pos:1,hint:'선의 점수를 입력하세요'}],
+  run:Y=>{const N=Math.round(Y.nums[0]);if(N<3||N>15)throw new Error('점수는 3~15입니다.');S.grcN=N;
+    const els=Y.pts.map((w,i)=>{let best=null,bd=2;for(const e of allEls()){if(e.text||isNotch(e)||e.arc||e.pts.length<2)continue;const d=ycNear(shape(e),w).d;if(d<bd){bd=d;best=e}}
+      if(!best)throw new Error((i+1)+'번째 선을 못 찾았습니다. 선 가까이를 눌러 주세요.');return best});
+    if(new Set(els).size<els.length)throw new Error('같은 선을 두 번 눌렀습니다.');
+    ycReplace(els,[{kind:'curve',keepPts:true,pts:resample(rcChain(els),N,true)}])},done:Y=>'곡선 하나('+Math.round(Y.nums[0])+'점)로 합쳤습니다.'};
+
+const ycUnit=(a,b)=>{const d=ycD(a,b)||1;return {x:(b.x-a.x)/d,y:(b.y-a.y)/d}};
+const ycSetEnd=(e,oldP,newP)=>{const pts=e.pts.map(p=>p===oldP?{...newP}:p);if(e.kind){remember(e);e.pts=pts}else ycEdit(e,pts)};
+
+YC.fil={name:'각수정',steps:[{t:'el',need:'line',edit:1,hint:'곡선이 될 첫 번째 선을 누르세요'},{t:'el',need:'line',edit:1,hint:'두 번째 선을 누르세요'},{t:'pt',hint:'시작점(첫 선 위, 모서리에서 떨어진 만큼 둥글어짐)을 누르세요'}],
+  run:Y=>{const[e1,e2]=Y.els;if(e1===e2)throw new Error('서로 다른 두 선을 눌러 주세요.');
+    const X=ycCross(e1.pts,e2.pts,true,true);if(!X.length)throw new Error('두 선이 평행합니다.');const c=X[0].p;
+    const near=e=>ycD(e.pts[0],c)<ycD(e.pts[1],c)?e.pts[0]:e.pts[1],far=e=>near(e)===e.pts[0]?e.pts[1]:e.pts[0];
+    const u=ycUnit(c,far(e1)),v=ycUnit(c,far(e2)),s=Y.pts[0],d=(s.x-c.x)*u.x+(s.y-c.y)*u.y,th=Math.acos(Math.max(-1,Math.min(1,u.x*v.x+u.y*v.y)));
+    if(!(d>0.01))throw new Error('시작점을 모서리에서 떨어진 첫 선 위에 눌러 주세요.');if(th<1e-3||th>Math.PI-1e-3)throw new Error('두 선이 일직선입니다.');
+    if(d>=ycD(c,far(e1))||d>=ycD(c,far(e2)))throw new Error('둥글릴 거리가 선보다 깁니다.');
+    const r=d*Math.tan(th/2),b=ycUnit({x:0,y:0},{x:u.x+v.x,y:u.y+v.y}),k=d/Math.cos(th/2),ctr={x:c.x+b.x*k,y:c.y+b.y*k};
+    const t1={x:c.x+u.x*d,y:c.y+u.y*d},t2={x:c.x+v.x*d,y:c.y+v.y*d},a1=normAng(degOf(ctr,t1)),a2=normAng(degOf(ctr,t2));
+    const [from,to]=((a2-a1+360)%360)<=180?[a1,a2]:[a2,a1];
+    ycSetEnd(e1,near(e1),t1);ycSetEnd(e2,near(e2),t2);
+    commit({kind:'arc',arc:{c:ctr,r,from,to},pts:arcPts(ctr,r,from,to),flag:1})},
+  preview:(Y,h)=>{if(Y.i!==2||!h)return null;const[e1,e2]=Y.els,X=ycCross(e1.pts,e2.pts,true,true);if(!X.length)return null;const c=X[0].p,f=e=>ycD(e.pts[0],c)>ycD(e.pts[1],c)?e.pts[0]:e.pts[1],u=ycUnit(c,f(e1)),v=ycUnit(c,f(e2)),d=(h.x-c.x)*u.x+(h.y-c.y)*u.y;if(!(d>0))return null;
+    const th=Math.acos(Math.max(-1,Math.min(1,u.x*v.x+u.y*v.y))),r=d*Math.tan(th/2),b=ycUnit({x:0,y:0},{x:u.x+v.x,y:u.y+v.y}),k=d/Math.cos(th/2),ctr={x:c.x+b.x*k,y:c.y+b.y*k},a1=normAng(degOf(ctr,{x:c.x+u.x*d,y:c.y+u.y*d})),a2=normAng(degOf(ctr,{x:c.x+v.x*d,y:c.y+v.y*d})),[fr,to]=((a2-a1+360)%360)<=180?[a1,a2]:[a2,a1];return [arcPts(ctr,r,fr,to)]},
+  done:()=>'모서리를 원호로 둥글렸습니다.'};
+
+YC.dfil={name:'2각수정',steps:[{t:'el',need:'line',edit:1,hint:'첫 번째 선을 자를 끝 쪽에서 누르세요'},{t:'pt',hint:'첫 번째 선의 시작위치를 누르세요'},{t:'el',need:'line',edit:1,hint:'두 번째 선을 자를 끝 쪽에서 누르세요'},{t:'pt',hint:'두 번째 선의 시작위치를 누르세요'}],
+  run:Y=>{const[e1,e2]=Y.els;if(e1===e2)throw new Error('서로 다른 두 선을 눌러 주세요.');
+    const X=ycCross(e1.pts,e2.pts,true,true);if(!X.length)throw new Error('두 선이 평행합니다.');const c=X[0].p;
+    const cut=(e,tap,s)=>{const[a,b]=e.pts,u=ycUnit(a,b),t=(s.x-a.x)*u.x+(s.y-a.y)*u.y,L=ycD(a,b);if(t<=0.01||t>=L-0.01)throw new Error('시작위치를 선 안쪽에 눌러 주세요.');const p={x:a.x+u.x*t,y:a.y+u.y*t},end=ycD(tap,b)<ycD(tap,a)?b:a;return {e,end,p}};
+    const A=cut(e1,Y.taps[0],Y.pts[0]),B=cut(e2,Y.taps[1],Y.pts[1]),P=[];
+    for(let k=0;k<=8;k++){const t=k/8,s=1-t;P.push({x:s*s*A.p.x+2*s*t*c.x+t*t*B.p.x,y:s*s*A.p.y+2*s*t*c.y+t*t*B.p.y})}
+    ycSetEnd(A.e,A.end,A.p);ycSetEnd(B.e,B.end,B.p);ycAdd([{kind:'curve',pts:P}])},
+  done:()=>'두 선 사이를 곡선으로 이었습니다.'};
+
+function ycTan2(c1,r1,c2,r2){const d={x:c2.x-c1.x,y:c2.y-c1.y},D=Math.hypot(d.x,d.y),out=[];if(D<1e-9)return out;const ux=d.x/D,uy=d.y/D;
+  for(const s of [1,-1]){const k=(s*r2-r1)/D;if(Math.abs(k)>1)continue;const h=Math.sqrt(Math.max(0,1-k*k));
+    for(const g of [1,-1]){const n={x:k*ux-g*h*uy,y:k*uy+g*h*ux};out.push([{x:c1.x-r1*n.x,y:c1.y-r1*n.y},{x:c2.x-s*r2*n.x,y:c2.y-s*r2*n.y}])}}
+  return out}
+
+function ycReachPts(p,L,e){const out=[];
+  if(e.arc){const{c,r}=e.arc,d=ycD(p,c);if(d<1e-9||d>L+r||d<Math.abs(L-r))return out;const a=(L*L-r*r+d*d)/(2*d),h=Math.sqrt(Math.max(0,L*L-a*a)),u={x:(c.x-p.x)/d,y:(c.y-p.y)/d},m={x:p.x+u.x*a,y:p.y+u.y*a};
+    const P=arcPts(c,r,e.arc.from,e.arc.to),onArc=q=>P.some((s,i)=>i&&ycSegD(q,P[i-1],s)<0.05);
+    for(const g of [1,-1]){const q={x:m.x-g*h*u.y,y:m.y+g*h*u.x};if(onArc(q))out.push(q)}return out}
+  const P=e.pts.length>2?spline(e.pts):e.pts;
+  for(let i=1;i<P.length;i++){const A=P[i-1],B=P[i],dx=B.x-A.x,dy=B.y-A.y,fx=A.x-p.x,fy=A.y-p.y,a=dx*dx+dy*dy,b=2*(fx*dx+fy*dy),c=fx*fx+fy*fy-L*L,D=b*b-4*a*c;if(a<1e-12||D<0)continue;
+    for(const s of [-1,1]){const t=(-b+s*Math.sqrt(D))/(2*a);if(t>=-1e-9&&t<=1+1e-9)out.push({x:A.x+dx*t,y:A.y+dy*t})}}
+  return out}
+function ycSegD(q,a,b){const dx=b.x-a.x,dy=b.y-a.y,L2=dx*dx+dy*dy,t=L2?Math.max(0,Math.min(1,((q.x-a.x)*dx+(q.y-a.y)*dy)/L2)):0;return Math.hypot(q.x-a.x-dx*t,q.y-a.y-dy*t)}
+const ycReach=(Y,L)=>{const T=ycReachPts(Y.pts[0],L,Y.els[0]);if(!T.length)throw new Error('그 길이로는 고른 선에 닿지 않습니다.');const tap=Y.taps[0];return T.sort((a,b)=>ycD(a,tap)-ycD(b,tap))[0]};
+YC.ld={name:'접선',steps:[{t:'pt',hint:'시작점을 누르세요'},{t:'el',need:'any',hint:'닿을 선을 닿을 자리 가까이 누르세요'},{t:'num',label:'길이 cm',pos:1,hint:'길이를 입력하세요(시작점에서 그 선 위의 점까지)'}],
+  run:Y=>{if(!(Y.nums[0]>0))throw new Error('길이를 입력하세요.');ycAdd([{kind:'line',pts:[Y.pts[0],ycReach(Y,Y.nums[0])]}])},
+  preview:(Y,h,v)=>{if(Y.i<2||!(v>0))return null;try{return [[Y.pts[0],ycReach(Y,v)]]}catch(e){return null}}};
+YC.ld2={name:'2접선',steps:[{t:'el',need:'circle',hint:'첫 번째 원을 접점 가까이 누르세요'},{t:'el',need:'circle',hint:'두 번째 원을 접점 가까이 누르세요'}],
+  run:Y=>{const[a,b]=Y.els.map(e=>e.arc);if(Y.els[0]===Y.els[1])throw new Error('서로 다른 두 원을 눌러 주세요.');
+    const L=ycTan2(a.c,a.r,b.c,b.r);if(!L.length)throw new Error('한 원이 다른 원 안에 있어서 접선이 없습니다.');
+    const[t1,t2]=Y.taps;L.sort((x,y)=>ycD(x[0],t1)+ycD(x[1],t2)-ycD(y[0],t1)-ycD(y[1],t2));ycAdd([{kind:'line',pts:L[0]}])},
+  preview:(Y,h)=>{if(Y.i!==1||!h)return null;const a=Y.els[0].arc,t1=Y.taps[0];let best=null;
+    for(const o of allEls())if(o.arc&&o!==Y.els[0]&&ycD(o.arc.c,h)<o.arc.r*1.5+0.5)for(const T of ycTan2(a.c,a.r,o.arc.c,o.arc.r)){const k=ycD(T[0],t1)+ycD(T[1],h);if(!best||k<best.k)best={k,T}}
+    return best?[best.T]:null},done:()=>'두 원에 닿는 직선을 넣었습니다.'};
+
+YC.cl={name:'선수정',steps:[{t:'num',label:'길이 cm',pos:1,hint:'원하는 길이를 입력하세요'},{t:'el',need:'line',edit:1,hint:'고칠 직선을 그대로 둘 끝 가까이 누르세요'}],
+  run:Y=>{const e=Y.els[0],[a,b]=e.pts,end=ycD(Y.taps[0],a)<ycD(Y.taps[0],b),L=Y.nums[0];
+    const pts=end?[a,{x:a.x+ycUnit(a,b).x*L,y:a.y+ycUnit(a,b).y*L}]:[{x:b.x+ycUnit(b,a).x*L,y:b.y+ycUnit(b,a).y*L},b];if(e.kind){remember(e);e.pts=pts;return}ycEdit(e,pts)},
+  done:Y=>'직선 길이를 '+Y.nums[0].toFixed(2)+' cm로 바꿨습니다.'};
 YC.crc={name:'반경중심',steps:[{t:'num',label:'반지름 cm',pos:1,hint:'원의 반지름을 입력하세요'},{t:'pt',hint:'원의 중심을 누르세요'}],
   run:Y=>makeArc({c:Y.pts[0],r:Y.nums[0],from:0,to:0}),preview:(Y,h)=>Y.i===1&&h?[arcPts(h,Y.nums[0],0,0)]:null};
+
+function seamColor(list,c){const sc=[],rn=x=>(x.rec-REC)/RSZ+1,set=(e,key,v)=>{sc.push({e,key,old:e[key],was:e.kind?null:S.regroup.has(e)});e[key]=v;if(!e.kind)S.regroup.add(e)};
+  for(const s5 of list){if(s5.kind==='seam'){set(s5,'scol',c);continue}
+    set(s5,'scol',c);if(c)for(const l of S.doc.els)if(l.link===0x15&&l.owner===rn(s5)&&l.type!==0x16&&!S.dels.includes(l.rec))set(l,'color',c)}
+  if(sc.length)S.hist.push({sc});refresh();return list.length}
+const SCOL=[['cna','cn',0,'비표시'],['cpa','cp',3,'보라색'],['cwa','cw',7,'흰색']];
+for(const [all,one,c,name] of SCOL){
+  ACT[all]=()=>{const L=[...S.doc.els.filter(e=>e.type===0x5C&&!S.dels.includes(e.rec)),...S.adds.filter(e=>e.kind==='seam')];if(!L.length)return say('시접이 없습니다.',true);seamColor(L,c);say('모든 시접('+L.length+'개)을 '+name+'으로 했습니다.')};
+  YC[one]={name:'시접 '+name,steps:[{t:'el',need:'any',hint:'시접선을 누르세요'}],run:Y=>{const e=Y.els[0],rn=x=>(x.rec-REC)/RSZ+1;
+    const s5=e.kind==='seam'?e:e.link===0x15&&e.owner?S.doc.els.find(x=>rn(x)===e.owner&&x.type===0x5C):null;if(!s5)throw new Error('시접선을 눌러 주세요.');
+    seamColor([s5],c);say('시접을 '+name+'으로 했습니다.')}};
+}
 
 function textSet(e,o){
   const src=S.doc.bytes,keep=e.kind?null:{tail:src.slice(e.addr+62+(new DataView(src.buffer,src.byteOffset).getUint16(e.addr+60,true)),e.addr+e.len),head:src.slice(e.addr,e.addr+62)};
@@ -2130,15 +2714,340 @@ YC.tma={name:'경사변경',steps:[textStep,{t:'num',label:'각도 °',def:'0',h
 ACT.tr=()=>{const a=prompt('이전 문자열 입력');if(!a)return;const b=prompt('새로운 문자를 입력');if(b===null)return;const mv=[];
   for(const e of [...S.doc.els.filter(x=>x.type===TYPE.TEXT&&!S.dels.includes(x.rec)),...S.adds.filter(x=>x.kind==='text')])if(e.text&&e.text.includes(a)){const ed=!e.kind&&S.edits.has(e),was=textSet(e,{text:e.text.split(a).join(b)});mv.push({e,was:ed,snap:was})}
   if(mv.length)S.hist.push({mv});say(mv.length+'개 글자를 바꿨습니다.');refresh()};
+
+YC.s={name:'S수정',steps:[{t:'el',need:'any',hint:'조정할 곡선을 누르세요'},{t:'pt',hint:'선의 점을 누르세요'},{t:'pt',hint:'새로운 점의 위치를 누르세요'}],
+  run:Y=>{const e=Y.els[0];if(!ycCurve(e))throw new Error('곡선을 눌러 주세요.');const P=e.pts,q=Y.pts[0];let bi=0,bd=1e9;P.forEach((p,i)=>{const d=ycD(p,q);if(d<bd){bd=d;bi=i}});
+    if(e.trim){bakeTrim(e);bi=0;bd=1e9;e.pts.forEach((p,i)=>{const d=ycD(p,q);if(d<bd){bd=d;bi=i}})}const N=e.pts.map((p,i)=>i===bi?{...Y.pts[1]}:{...p});ycEdit(e,N)},done:()=>'곡선 점을 옮겼습니다.'};
+
+function pleatRun(Y,box){const [A,B]=Y.pts,F=Y.pts[box?2:3],[L,T,Bt]=Y.els,N=Y.nums,two=k=>[N[k],N[k+1]==null?N[k]:N[k+1]],Ds=[two(0)];let ni=3;
+
+    if(N[2]>0){Ds.push(two(2));ni=5;if(N[4]>0){Ds.push(two(4));ni=6}}
+
+    if(box)Ds.push(...Ds.slice().reverse());
+    const hn=box?0:Math.round(N[ni]||0),hs=N[ni+1]==null?3:N[ni+1],hg=N[ni+2]==null?1:N[ni+2];
+    if(Ds.some(([a,b])=>!(a>0&&b>0)))throw new Error('깊이는 0보다 커야 합니다.');if(hn>0&&Ds.length>1)throw new Error('사선은 지금 1매 주름에서만 됩니다.');if(hn>50)throw new Error('사선 수가 너무 많습니다.');
+    if(L.pts.length!==2||T.pts.length!==2||Bt.pts.length!==2)throw new Error('지금은 직선 주름선·기준선만 됩니다.');
+    const a=L.pts[0],u=ycUnit(a,L.pts[1]),side=p=>(p.x-a.x)*(-u.y)+(p.y-a.y)*u.x,sf=Math.sign(side(F))||1,m={x:u.y*sf,y:-u.x*sf},mov=p=>side(p)*sf<-1e-6;
+    const bx=[Math.min(A.x,B.x),Math.min(A.y,B.y),Math.max(A.x,B.x),Math.max(A.y,B.y)],inA=p=>p.x>=bx[0]&&p.x<=bx[2]&&p.y>=bx[1]&&p.y<=bx[3];
+    const X=e=>{const h=ycCross(e.pts,L.pts,false,true)[0];if(!h)throw new Error('기준선이 주름선과 만나지 않습니다.');return h.p};
+    const XT=X(T),XB=X(Bt),adds=[],LL=ycD(XT,XB);if(LL<1e-6||Ds.some(([p,q])=>Math.abs(p-q)>=2*LL))throw new Error('상단·하단 깊이 차가 주름선보다 너무 큽니다.');
+
+    const Ms=Ds.map(([p,q])=>bsXf([XT,XB],0,m,p,q)),C=[p=>({...p})];Ms.forEach((M,k)=>{const pv=C[k];C.push(p=>pv(M(M(p))))});const mvW=C[Ds.length];
+    const fold=(k,e,c)=>{const M=Ms[k];if(Math.abs(Ds[k][0]-Ds[k][1])<1e-9)return M(c);const h=ycCross(e.pts,[M(XT),M(XB)],true,true)[0];if(!h)throw new Error('접힘선이 기준선과 만나지 않습니다.');return h.p};
+    const FT=Ds.map((_,k)=>fold(k,T,XT)),FB=Ds.map((_,k)=>fold(k,Bt,XB));
+    for(const e of [Bt,T]){const [p,q]=e.pts,c=e===T?XT:XB,f=r=>mov(r)?mvW(r):{...r};
+      ycEdit(e,[f(p),mov(p)?mvW(c):{...c}]);adds.push({kind:'line',pts:[mov(q)?mvW(c):{...c},f(q)]})}
+    for(const e of allEls())if(e!==L&&e!==T&&e!==Bt&&e.pts.length&&(e.kind?['line','curve'].includes(e.kind):[TYPE.LINE,TYPE.CURVE].includes(e.type))&&e.pts.every(inA)&&e.pts.every(mov)&&!locked(e))ycEdit(e,e.pts.map(mvW));
+    adds.push({kind:'line',pts:L.pts.map(mvW)});
+    Ds.forEach((_,k)=>{const s0=C[k],s1=C[k+1],ft=s0(FT[k]),fb=s0(FB[k]);if(k)adds.push({kind:'line',pts:L.pts.map(s0)});
+      adds.push({kind:'line',pts:[s0(XT),ft]},{kind:'line',pts:[s0(XB),fb]},{kind:'line',pts:[ft,s1(XT)]},{kind:'line',pts:[fb,s1(XB)]},{kind:'line',pts:[ft,fb]})});
+
+    if(hn>0){const w=ycUnit(XT,XB),at=t=>({x:XT.x+w.x*t,y:XT.y+w.y*t});for(let k=0;k<hn;k++)adds.push({kind:'line',pts:[at(hs+k*hg),mvW(at(hs+k*hg+Ds[0][0]))]})}
+    ycAdd(adds)}
+
+const pleatSteps=(dir,sash=dir)=>[{t:'pt',hint:'영역을 대각으로 누르세요(1)'},{t:'pt',hint:'영역을 대각으로 누르세요(2)'},{t:'el',need:'any',hint:'주름선을 누르세요(고정측부터)'},{t:'el',need:'any',hint:'상단의 기준선을 누르세요'},{t:'el',need:'any',hint:'하단의 기준선을 누르세요'},
+  ...(dir?[{t:'pt',hint:'주름의 방향을 누르세요'}]:[]),{t:'pt',hint:'이동하지 않는 패턴측을 누르세요'},{t:'num',label:'상단 절개량(깊이) cm',pos:1,def:dir?'2':'3',hint:'상단 절개량(1매)'},...(dir||!sash?[{t:'num',label:'하단 절개량 cm',pos:1,def:Y=>String(Y.nums[0]),hint:'하단 절개량(상단과 같으면 그대로 Enter)'},
+    {t:'num',label:'2매째 상단 절개량 (0 = 1매)',def:'0',hint:'2매작성이면 둘째 주름의 상단 절개량, 1매면 0'},{t:'num',label:'2매째 하단 절개량 cm',pos:1,def:Y=>String(Y.nums[2]),hint:'둘째 주름의 하단 절개량',skip:Y=>!(Y.nums[2]>0)},
+    {t:'num',label:'3매째 상단 절개량 (0 = 2매)',def:'0',hint:'3매작성이면 셋째 주름의 상단 절개량, 아니면 0',skip:Y=>!(Y.nums[2]>0)},{t:'num',label:'3매째 하단 절개량 cm',pos:1,def:Y=>String(Y.nums[4]),hint:'셋째 주름의 하단 절개량',skip:Y=>!(Y.nums[2]>0&&Y.nums[4]>0)},
+    ...(sash?[{t:'num',label:'사선수 (0 = 사선 없음)',def:'0',hint:'사선 수(없으면 0)'},{t:'num',label:'사선 개시위치 cm',def:'3',hint:'상단에서 첫 사선까지',skip:Y=>!(Y.nums[pleatHi(Y)]>0)},{t:'num',label:'사선 간격 cm',pos:1,def:'1',hint:'사선 사이 간격',skip:Y=>!(Y.nums[pleatHi(Y)]>0)}]:[])]:[])];
+const pleatHi=Y=>Y.nums[2]>0?(Y.nums[4]>0?6:5):3;
+YC.khda={name:'외주름',steps:pleatSteps(1),run:Y=>pleatRun(Y,0),done:()=>'외주름을 만들었습니다.'};
+YC.bhda={name:'맞주름',steps:pleatSteps(0,false),run:Y=>pleatRun(Y,1),done:()=>'맞주름을 만들었습니다.'};
+
+YC.phda={name:'핀턱',steps:pleatSteps(1).map((st,k,a)=>st.t==='num'&&a.findIndex(x=>x.t==='num')===k?{...st,def:'0.3'}:st),run:Y=>pleatRun(Y,0),done:()=>'핀턱을 만들었습니다.'};
 for(const code of Object.keys(YC))ACT[code]=()=>ycStart(code);
+ACT.sft=ACT.jz;ACT.bias=ACT.jn;
+
+const grGeo=e=>!e.gr&&(e.type===TYPE.LINE||e.type===TYPE.CURVE);
+const grP=e=>(e.ctrl||e.pts);
 
 YC.ds={name:'2점 재기',steps:[{t:'pt',hint:'2점을 누르세요(첫 점)'},{t:'pt',hint:'2점을 누르세요(둘째 점)'}],
   run:Y=>{const [a,b]=Y.pts;S.dsLast={h:Math.abs(b.y-a.y),w:Math.abs(b.x-a.x),d:Math.hypot(b.x-a.x,b.y-a.y)}},
   done:()=>{const r=S.dsLast,f=v=>(+v.toFixed(3)).toString();return '높이 '+f(r.h)+'  폭 '+f(r.w)+'  간격 '+f(r.d)}};ACT.ds=()=>ycStart('ds');
+
+YC['m-']={name:'길이 차',steps:[{t:'multi',min:1,cut:'na',hint:Y=>'제1의 선을 누르세요(여러 개 — 다 누르고 오른클릭) ['+Y.pts.length+']'},{t:'multi',min:1,rel:1,hint:Y=>'제2의 선을 누르세요(여러 개 — 다 누르고 오른클릭) ['+(Y.pts.length-(Y.mb||0))+']'}],
+  run:Y=>{const find=(w,i)=>{let best=null,bd=2;for(const e of allEls()){if(e.text||isNotch(e)||e.pts.length<2)continue;const d=ycNear(shape(e),w).d;if(d<bd){bd=d;best=e}}if(!best)throw new Error((i+1)+'번째 선을 못 찾았습니다.');return best};
+    const A=Y.pts.slice(0,Y.na).map(find),B=Y.pts.slice(Y.na).map(find),sum=L=>L.reduce((t,e)=>t+elLen(e),0);S.mmLast={a:sum(A),b:sum(B)};S.calcLast=S.mmLast.a-S.mmLast.b},
+  done:()=>{const r=S.mmLast,f=v=>(+v.toFixed(2)).toString();return '제1 '+f(r.a)+'  제2 '+f(r.b)+'  계 '+f(r.a-r.b)},noFollow:1};ACT['m-']=()=>ycStart('m-');
+
+function simMove(P,i,q){const j=i===0?P.length-1:0,F=P[j],M=P[i],u={x:M.x-F.x,y:M.y-F.y},v={x:q.x-F.x,y:q.y-F.y},U=u.x*u.x+u.y*u.y||1e-12,re=(v.x*u.x+v.y*u.y)/U,im=(v.y*u.x-v.x*u.y)/U;
+  return P.map((p,k)=>k===i?{x:q.x,y:q.y}:k===j?{...p}:{x:F.x+re*(p.x-F.x)-im*(p.y-F.y),y:F.y+im*(p.x-F.x)+re*(p.y-F.y)})}
+const gPts=e=>e.trim?resample(e.pts,e.n,true):e.pts.slice();
+function gSetPts(e,N,mv){const snap={};for(const k of ['pts','ctrl','ft','trim','baked'])snap[k]=e[k];mv.push({e,was:!e.kind&&S.edits.has(e),snap});
+  if(e.trim){e.trim=false;e.baked=true}e.pts=N;changed(e)}
+
+function gMates(e){
+  const B=e.layer,out=[],A=null;
+  const lays=[...new Set(S.doc.els.filter(x=>grGeo(x)&&x.layer!==B&&Math.abs(x.layer-B)<=5).map(x=>x.layer).concat(S.adds.filter(x=>x.grFrom===e).map(x=>x.layer)))].sort((a,b)=>a-b);
+  for(const L of lays){const cp=S.adds.find(x=>x.grFrom===e&&x.layer===L);if(cp){out.push(cp);continue}if(e.kind)continue;let t=null;
+    if(!t){const P=grP(e);let bd=5;for(const x of S.doc.els){if(x.layer!==L||x.type!==e.type||!grGeo(x)||S.dels.includes(x.rec))continue;const Q=grP(x);if(Q.length!==P.length)continue;const d=P.reduce((s,p,i)=>s+Math.hypot(p.x-Q[i].x,p.y-Q[i].y),0)/P.length;if(d<bd){bd=d;t=x}}}
+    if(t&&!S.dels.includes(t.rec))out.push(t)}
+  return out}
+function srRun(Y,all){const e=Y.els[0],tap=Y.taps[0],q=Y.pts[0];if(!(e.type===TYPE.LINE||e.type===TYPE.CURVE||e.kind==='line'||e.kind==='curve'))throw new Error('직선이나 곡선을 눌러 주세요.');
+  if(!e.kind&&locked(e))throw new Error('그레이딩이나 다른 요소에 연결된 선은 유카에서 고쳐 주세요.');
+  const P=gPts(e),i=ycD(tap,P[0])<=ycD(tap,P[P.length-1])?0:P.length-1,d={x:q.x-P[i].x,y:q.y-P[i].y},mv=[],mates=all?gMates(e):[];
+  gSetPts(e,simMove(P,i,q),mv);let n=0;for(const t of mates){if(!t.kind&&locked(t))continue;const T=gPts(t);if(T.length!==P.length)continue;gSetPts(t,simMove(T,i,{x:T[i].x+d.x,y:T[i].y+d.y}),mv);n++}
+  S.hist.push({mv});S.srN=n}
+YC.sr={name:'유사이동',steps:[{t:'el',edit:1,hint:'대상을 누르세요(옮길 끝 쪽을 누름)'},{t:'pt',hint:'새로운 점을 누르세요'}],run:Y=>srRun(Y,false),done:()=>'끝점을 옮기고 곡선을 닮게 따라 옮겼습니다.'};ACT.sr=()=>ycStart('sr');
+
+function ycKill(e,ds,ras){if(e.kind){const i=S.adds.indexOf(e);if(i>=0)S.adds.splice(i,1);ras.push(e)}else{S.dels.push(e.rec);ds.push(e.rec)}}
+
+function agnPick(Y){const nt=Y.nt||0,nf=Y.nf??Y.pts.length,nb=Y.nb??Y.pts.length,taps=Y.pts.slice(0,nt),fw=Y.pts.slice(nt,nf),bk=Y.pts.slice(nf,nb);
+  const near=(w,skip)=>{let best=null,bd=1;for(const e of allEls()){if(e.text||isNotch(e)||e.arc||e.pts.length<2||skip.includes(e))continue;const d=ycNear(shape(e),w).d;if(d<bd){bd=d;best=e}}return best};
+  const els=taps.map((w,i)=>{const e=near(w,[]);if(!e)throw new Error((i+1)+'번째 대상선을 못 찾았습니다.');return {e,w}});
+  let P=[];for(const {e,w} of els){let Q=shape(e);if(ycD(Q[Q.length-1],w)<ycD(Q[0],w))Q=Q.slice().reverse();if(P.length&&ycD(P[P.length-1],Q[0])<1e-6)Q=Q.slice(1);P=P.concat(Q)}
+  const cum=[0];for(let i=1;i<P.length;i++)cum.push(cum[i-1]+ycD(P[i-1],P[i]));const L=cum[cum.length-1],tg=els.map(x=>x.e);
+  const sOf=(w,k)=>{const m=near(w,tg);if(!m)throw new Error(k+' 표시선을 못 찾았습니다. 선 가까이를 눌러 주세요.');const Q=shape(m),hit=ycCross(P,Q,false,false)[0];if(hit)return {m,s:hit.s};
+    const a=ycNear(P,Q[0]),b=ycNear(P,Q[Q.length-1]),c=a.d<=b.d?a:b;if(c.d>1)throw new Error(k+' 표시선이 대상선에서 1cm 넘게 떨어져 있습니다.');return {m,s:c.s}};
+  const F=fw.map((w,i)=>sOf(w,'순서대로 '+(i+1)+'번째')),B=bk.map((w,i)=>sOf(w,'역순으로 '+(i+1)+'번째'));
+  const a=[0,0,0,0,0];let prev=0;F.forEach((x,i)=>{if(i<5)a[i]=+(x.s-prev).toFixed(4);prev=x.s});prev=L;B.forEach((x,i)=>{if(4-i>=0)a[4-i]=+(prev-x.s).toFixed(4);prev=x.s});
+  if(F.length+B.length>5||(B.length&&F.length+B.length>4))throw new Error('너치 칸은 다섯 개입니다(순서대로와 역순을 같이 쓰면 넷까지).');
+  return {taps,marks:[...F,...B].map(x=>x.m),a,L}}
+YC.agn={name:'너치화',steps:[{t:'multi',min:1,cut:'nt',hint:Y=>'[ag1] 대상요소를 누르세요 — 순서대로, 다 누르고 오른클릭 ['+Y.pts.length+']'},
+    {t:'multi',min:0,rel:1,cut:'nf',hint:Y=>'너치를 순서대로 누르세요(표시선, 시작 쪽부터) — 다 누르고 오른클릭 ['+(Y.pts.length-Y.nt)+']'},
+    {t:'multi',min:0,rel:1,cut:'nb',hint:Y=>'너치를 역순으로 누르세요(끝 쪽부터) — 없으면 오른클릭 ['+(Y.pts.length-Y.nf)+']'},
+    ...[1,2,3,4,5].map(k=>({t:'num',label:k+' 영역 cm (표시선 자리)',def:Y=>{try{return String(agnPick(Y).a[k-1])}catch(e){say(e.message,true);return '0'}},hint:'표시선 자리로 채운 칸입니다. 고치려면 바꾸세요'})),
+    {t:'num',label:'길이 1 cm (O 반대쪽)',pos:1,def:()=>String((S.aijLen||[0.5,1])[0])},{t:'num',label:'길이 2 cm (O 쪽)',pos:1,def:()=>String((S.aijLen||[0.5,1])[1])},
+    {t:'pt',hint:'너치의 원 생성방향을 누르세요(너치 머리 쪽)'}],
+  run:Y=>{const g=agnPick(Y);if(!g.marks.length)throw new Error('표시선을 하나 이상 눌러 주세요.');if(new Set(g.marks).size<g.marks.length)throw new Error('같은 표시선을 두 번 눌렀습니다.');
+    for(const m of g.marks)if(!m.kind&&!delOK(m))throw new Error('표시선이 시접·너치에 연결돼 있어 너치로 바꿀 수 없습니다.');
+    const ds=[],ras=[];for(const m of g.marks)ycKill(m,ds,ras);S.hist.push({ds,ras});refresh();
+    const R={pts:[...g.taps,Y.pts[Y.pts.length-1]],els:[],taps:[],nums:[...Y.nums.slice(0,5),Y.nums[5],Y.nums[6]]};YC.aij.run(R);Y.n=R.n;Y.L=R.L},
+  done:Y=>'표시선 '+Y.n+'개를 너치로 바꿨습니다(총길이 '+Y.L.toFixed(3)+').'};
+ACT.agn=()=>ycStart('agn');ACT.ag1=ACT.agn;
+
+function ajpmCur5B(x){
+  const v=new DataView(S.doc.bytes.buffer,S.doc.bytes.byteOffset),u=(o)=>{const q=(x.patch16||[]).find(([k])=>k===o);return q?q[1]:v.getUint16(x.addr+o,true)},f=(o)=>{const q=(x.patch||[]).find(([k])=>k===o);return q?q[1]:v.getFloat32(x.addr+o,true)};
+  const rd=(c,i0,l0)=>Array.from({length:Math.min(u(c),5)},(_,i)=>({no:u(i0+2*i),len:f(l0+4*i)}));return {front:rd(48,50,70),back:rd(150,152,172)}}
+function ajpmRefs(){const r=new Map;for(const x of S.doc.els){if(x.type!==0x5B||S.dels.includes(x.rec))continue;const c=ajpmCur5B(x);for(const l of [c.front,c.back])for(const k of l)r.set(k.no,x)}return r}
+YC.ajpm={name:'너치해제',steps:[{t:'multi',min:1,hint:Y=>'[ajpm] 해제할 너치를 누르세요(영역 F4 가능) — 다 누르고 오른클릭 ['+Y.pts.length+']',areaPick:(Q,cross)=>allEls().filter(e=>isNotch(e)&&e.pts.length>=2&&(cross?e.pts.some(p=>inPoly(Q,p)):e.pts.every(p=>inPoly(Q,p)))).map(e=>({x:(e.pts[0].x+e.pts[1].x)/2,y:(e.pts[0].y+e.pts[1].y)/2}))}],
+  run:Y=>{const used=[],refs=ajpmRefs();for(const w of Y.pts){let best=null,bd=1.5;for(const e of allEls()){if(!isNotch(e)||used.includes(e)||e.pts.length<2)continue;const d=ycNear(e.pts,w).d;if(d<bd){bd=d;best=e}}
+      if(!best)throw new Error((used.length+1)+'번째 너치를 못 찾았습니다. 너치 가까이를 눌러 주세요.');used.push(best)}
+    const mv=[],snapped=new Set;for(const e of used.filter(e=>!e.kind).sort((a,b)=>b.rec-a.rec)){const no=(e.rec-REC)/RSZ+1,x=refs.get(no);if(!x)continue;
+      if(x.len!==258)throw new Error('봉제너치·자동너치처럼 묶음이 여럿인 5B의 너치는 아직 못 풉니다.');
+      const c=ajpmCur5B(x);let hit=false;for(const k of ['front','back']){const L=c[k],i=L.findIndex(y=>y.no===no);if(i<0)continue;hit=true;const [me]=L.splice(i,1);if(L[i])L[i].len+=me.len}
+      if(!hit)continue;if(!snapped.has(x)){snapped.add(x);mv.push({e:x,was:S.edits.has(x),snap:{patch16:x.patch16,patch:x.patch}})}
+      x.patch16=[[48,c.front.length],[150,c.back.length]];x.patch=[];c.front.forEach((y,i)=>{x.patch16.push([50+2*i,y.no]);x.patch.push([70+4*i,y.len])});c.back.forEach((y,i)=>{x.patch16.push([152+2*i,y.no]);x.patch.push([172+4*i,y.len])});changed(x)}
+    const ds=[],ras=[],lines=used.map(e=>({kind:'line',pts:[{...e.pts[0]},{...e.pts[1]}],layer:e.layer,color:e.color,flag:e.flag||1}));
+    for(const e of used)ycKill(e,ds,ras);S.hist.push({ds,ras});refresh();ycAdd(lines);const add=S.hist.pop(),kill=S.hist.pop();S.hist.push({multi:[...(mv.length?[{mv}]:[]),kill,add]});Y.n=used.length},
+  done:Y=>'너치 '+Y.n+'개를 선으로 되돌렸습니다.'};ACT.ajpm=()=>ycStart('ajpm');
 YC.pl={name:'평행',steps:[{t:'el',need:'any',hint:'평행의 기준선을 누르세요'},{t:'pt',hint:'방향을 누르세요(평행선을 그을 쪽)'},{t:'num',label:'간격 cm',pos:1,def:()=>S.plGap||'1',hint:'간격을 입력하세요'}],
   run:Y=>{const e=Y.els[0];if(e.arc)throw new Error('원·원호의 평행은 아직 안 됩니다.');const d=Y.nums[0];S.plGap=d;ycAdd([{...plEl(e,d*plSide(e,Y.pts[0])),layer:e.layer,color:e.color}])},
   preview:(Y,h,v)=>{const e=Y.els[0];if(!e||e.arc)return null;const w=Y.pts[0]||h;if(!w)return null;const d=(Y.pts[0]?(v>0?v:S.plGap||1):S.plGap||1)*plSide(e,w),o=plEl(e,d);return [o.kind==='line'?o.pts:spline(o.pts)]},
   done:Y=>'간격 '+Y.nums[0]+' cm로 평행선을 그었습니다.'};
+
+function sg2Map(e,p,q){const P=e.pts,A=P[0],B=P[P.length-1],u={x:B.x-A.x,y:B.y-A.y},L2=u.x*u.x+u.y*u.y;if(L2<1e-12)throw new Error('기본 곡선의 두 끝이 같습니다.');
+  if(u.x*(q.x-p.x)+u.y*(q.y-p.y)<0)[p,q]=[q,p];const v={x:q.x-p.x,y:q.y-p.y};if(Math.hypot(v.x,v.y)<1e-9)throw new Error('두 점이 같습니다.');
+  const c=(u.x*v.x+u.y*v.y)/L2,n=(u.x*v.y-u.y*v.x)/L2;return P.map(t=>{const x=t.x-A.x,y=t.y-A.y;return {x:p.x+x*c-y*n,y:p.y+x*n+y*c}})}
+YC.sg2={name:'2점유사',steps:[{t:'el',hint:'기준선을 누르세요'},{t:'pt',hint:'수정할 위치의 2점을 누르세요: 첫째 점(끝점)'},{t:'pt',hint:'수정할 위치의 2점을 누르세요: 둘째 점(끝점)'}],
+  run:Y=>{const e=Y.els[0],[p,q]=Y.pts,cv=e.pts.length>2,st={layer:e.layer,color:e.color};
+    if(cv&&e.trim&&e.ctrl&&e.ft){
+      const A=e.pts[0],B=e.pts[e.pts.length-1],V=sg2Map({pts:[A,B]},p,q),k=ycD(V[0],V[1])/(ycD(A,B)||1),C=sg2Map({pts:[A,...e.ctrl,B]},p,q).slice(1,-1),ft=e.ft.map(t=>t*k);
+      return ycAdd([{kind:'curve',pts:resample(cutCurve(spline(C),ft[0],ft[1],C),Math.min(15,Math.max(3,C.length)),true),keepPts:true,...st}])}
+    ycAdd([{kind:cv?'curve':'line',...(cv?{keepPts:true}:{}),pts:sg2Map(e,p,q),...st}])},
+  preview:(Y,h)=>Y.els[0]&&Y.pts[0]&&h?[(()=>{try{const P=sg2Map(Y.els[0],Y.pts[0],h);return P.length>2?spline(P):P}catch(err){return null}})()]:null,
+  done:()=>'기준선과 닮은 선을 두 점 사이에 만들었습니다.'};ACT.sg2=()=>ycStart('sg2');
+
+YC.aij={name:'너치',steps:[{t:'multi',min:1,hint:Y=>'[aij] 대상선을 누르세요 — 시작점 쪽을 차례로, 다 누르고 오른클릭 ['+Y.pts.length+']'},{t:'pt',hint:'"O"의 방향을 누르세요(너치 머리 쪽)'},
+    ...[1,2,3,4,5].map(k=>({t:'num',label:k+' 영역 cm (0 = 나눔, 뒤는 끝에서)',def:()=>String((S.aijLast||[5,0,0,0,13])[k-1]),hint:'1~5 영역: 0 앞은 시작에서, 0 뒤는 끝에서(5부터) 잰다'})),
+    {t:'num',label:'길이 1 cm (O 반대쪽)',pos:1,def:()=>String((S.aijLen||[0.5,1])[0])},{t:'num',label:'길이 2 cm (O 쪽)',pos:1,def:()=>String((S.aijLen||[0.5,1])[1])}],
+  run:Y=>{const taps=Y.pts.slice(0,-1),O=Y.pts[Y.pts.length-1],a=Y.nums.slice(0,5).map(v=>+v||0),[l1,l2]=Y.nums.slice(5,7);if(!taps.length)throw new Error('대상선을 눌러 주세요.');
+    const els=taps.map((w,i)=>{let best=null,bd=2;for(const e of allEls()){if(e.text||isNotch(e)||e.arc||e.pts.length<2)continue;const d=ycNear(shape(e),w).d;if(d<bd){bd=d;best=e}}
+      if(!best)throw new Error((i+1)+'번째 대상선을 못 찾았습니다. 선 가까이를 눌러 주세요.');return {e:best,w}});
+    let P=[],rev=false;for(const {e,w} of els){let Q=shape(e);if(ycD(Q[Q.length-1],w)<ycD(Q[0],w)){Q=Q.slice().reverse();if(els.length===1)rev=true}if(P.length&&ycD(P[P.length-1],Q[0])<1e-6)Q=Q.slice(1);P=P.concat(Q)}
+    const cum=[0];for(let i=1;i<P.length;i++)cum.push(cum[i-1]+ycD(P[i-1],P[i]));const L=cum[cum.length-1];
+    const z=a.indexOf(0),pos=[];let acc=0;for(let i=0;i<(z<0?5:z);i++){acc+=a[i];pos.push({s:acc,side:'f',len:a[i]})}
+    if(z>=0){acc=0;for(let i=4;i>z;i--)if(a[i]>0){acc+=a[i];pos.push({s:L-acc,side:'b',len:a[i]})}}
+    const at=s=>{let i=1;while(i<P.length-1&&cum[i]<s)i++;const p=P[i-1],q=P[i],d=ycD(p,q)||1,t=(s-cum[i-1])/d;return {c:{x:p.x+(q.x-p.x)*t,y:p.y+(q.y-p.y)*t},u:{x:(q.x-p.x)/d,y:(q.y-p.y)/d}}};
+
+    const lay=els[0].e.layer||S.layer,def=els.length===1?{kind:'n5b',pts:[],layer:lay,line:els[0].e,dir:rev?-1:1,front:[],back:[]}:null;
+    const made=[],seen=[];for(const {s,side,len} of pos){if(s<-1e-6||s>L+1e-6||seen.some(v=>Math.abs(v-s)<1e-6))continue;seen.push(s);const {c,u}=at(Math.max(0,Math.min(L,s)));let n={x:-u.y,y:u.x};if((O.x-c.x)*n.x+(O.y-c.y)*n.y<0)n={x:-n.x,y:-n.y};
+      commit({kind:'notch',pts:[{x:c.x+n.x*l2,y:c.y+n.y*l2},{x:c.x-n.x*l1,y:c.y-n.y*l1}],at:c,layer:lay,color:7});const nt=S.hist.pop().a;made.push(nt);if(def){nt.n5B=def;(side==='f'?def.front:def.back).push({n:nt,len})}}
+    if(!made.length)throw new Error('넣을 자리가 선 길이('+L.toFixed(2)+' cm) 밖입니다.');if(def){S.adds.push(def);made.push(def)}S.hist.push({as:made});S.aijLast=a;S.aijLen=[l1,l2];Y.n=made.length-(def?1:0);Y.L=L},
+  done:Y=>'너치 '+Y.n+'개를 넣었습니다(총길이 '+Y.L.toFixed(3)+').'};
+
+YC.ana={name:'봉제너치',steps:[{t:'multi',min:1,cut:'n1',hint:Y=>'[ana] 기준선을 누르세요 — 시작점 쪽, 누르고 오른클릭 ['+Y.pts.length+']'},
+    {t:'multi',min:1,rel:true,hint:'봉제될 선을 누르세요 — 시작점 쪽, 누르고 오른클릭'},
+    {t:'pt',hint:'기준선 너치의 "O" 방향을 누르세요(머리 쪽)'},{t:'pt',hint:'봉제될 선 너치의 "O" 방향을 누르세요(머리 쪽)'},
+    ...[1,2,3,4,5].map(k=>({t:'num',label:'대상1 '+k+' 영역 cm',def:()=>String((S.anaLast||[5,0,0,0,13,5,0,0,0,13])[k-1]),hint:'대상1(기준선) 1~5 영역: 0 앞은 시작에서, 0 뒤는 끝에서(5부터)'})),
+    ...[1,2,3,4,5].map(k=>({t:'num',label:'대상2 '+k+' 영역 cm',def:()=>String((S.anaLast||[5,0,0,0,13,5,0,0,0,13])[4+k]),hint:'대상2(봉제될 선) 1~5 영역 — 너치 수가 대상1과 같아야 합니다'})),
+    {t:'num',label:'길이 1 cm (O 반대쪽)',pos:1,def:()=>String((S.aijLen||[0.5,1])[0])},{t:'num',label:'길이 2 cm (O 쪽)',pos:1,def:()=>String((S.aijLen||[0.5,1])[1])}],
+  run:Y=>{const P0=Y.pts,O1=P0[P0.length-2],O2=P0[P0.length-1],w1=P0[0],w2=P0[Y.n1],a=Y.nums.slice(0,10).map(v=>+v||0),[l1,l2]=Y.nums.slice(10,12);
+    if(Y.n1!==1||P0.length!==4)throw new Error('기준선과 봉제될 선을 하나씩 눌러 주세요.');
+    const pick=(w,what)=>{let best=null,bd=2;for(const e of allEls()){if(e.text||isNotch(e)||e.arc||e.pts.length<2)continue;const d=ycNear(shape(e),w).d;if(d<bd){bd=d;best=e}}if(!best)throw new Error(what+'을 못 찾았습니다. 선 가까이를 눌러 주세요.');return best};
+    const plan=(e,w,c)=>{let P=shape(e),rev=false;if(ycD(P[P.length-1],w)<ycD(P[0],w)){P=P.slice().reverse();rev=true}
+      const cum=[0];for(let i=1;i<P.length;i++)cum.push(cum[i-1]+ycD(P[i-1],P[i]));const L=cum[cum.length-1],z=c.indexOf(0),pos=[],seen=[];let acc=0;
+      for(let i=0;i<(z<0?5:z);i++){acc+=c[i];pos.push({s:acc,side:'f',len:c[i]})}if(z>=0){acc=0;for(let i=4;i>z;i--)if(c[i]>0){acc+=c[i];pos.push({s:L-acc,side:'b',len:c[i]})}}
+      return {e,P,cum,L,rev,pos:pos.filter(p=>{const ok=p.s>=-1e-6&&p.s<=L+1e-6&&!seen.some(v=>Math.abs(v-p.s)<1e-6);if(ok)seen.push(p.s);return ok})}};
+    const A=plan(pick(w1,'기준선'),w1,a.slice(0,5)),B=plan(pick(w2,'봉제될 선'),w2,a.slice(5,10));
+    if(A.e===B.e)throw new Error('기준선과 봉제될 선이 같습니다.');
+    if(!A.pos.length)throw new Error('넣을 자리가 기준선 길이('+A.L.toFixed(2)+' cm) 밖입니다.');
+    if(A.pos.length!==B.pos.length)throw new Error('대상1('+A.pos.length+'개)과 대상2('+B.pos.length+'개)의 너치 수가 같아야 합니다(유카도 다르면 너치를 안 만듭니다).');
+    const lay=A.e.layer||S.layer,def={kind:'n5b',pts:[],layer:lay,blocks:[]},made=[];
+    for(const [G,O,side2] of [[A,O1,false],[B,O2,true]]){const blk={line:G.e,dir:G.rev?-1:1,front:[],back:[]};def.blocks.push(blk);
+      const at=s=>{const {P,cum}=G;let i=1;while(i<P.length-1&&cum[i]<s)i++;const p=P[i-1],q=P[i],d=ycD(p,q)||1,t=(s-cum[i-1])/d;return {c:{x:p.x+(q.x-p.x)*t,y:p.y+(q.y-p.y)*t},u:{x:(q.x-p.x)/d,y:(q.y-p.y)/d}}};
+      for(const {s,side,len} of G.pos){const {c,u}=at(Math.max(0,Math.min(G.L,s)));let n={x:-u.y,y:u.x};if((O.x-c.x)*n.x+(O.y-c.y)*n.y<0)n={x:-n.x,y:-n.y};
+        commit({kind:'notch',pts:[{x:c.x+n.x*l2,y:c.y+n.y*l2},{x:c.x-n.x*l1,y:c.y-n.y*l1}],at:c,layer:lay,color:7,side2});const nt=S.hist.pop().a;nt.n5B=def;made.push(nt);(side==='f'?blk.front:blk.back).push({n:nt,len})}}
+    S.adds.push(def);made.push(def);S.hist.push({as:made});S.anaLast=a;S.aijLen=[l1,l2];Y.n=A.pos.length;Y.L=[A.L,B.L]},
+  done:Y=>'봉제너치 '+Y.n+'쌍을 넣었습니다(기준선 '+Y.L[0].toFixed(3)+' · 봉제될 선 '+Y.L[1].toFixed(3)+').'};ACT.ana=()=>ycStart('ana');
+
+function ajsPick(w,what){let best=null,bd=2;for(const e of allEls()){if(e.text||isNotch(e)||e.arc||e.pts.length<2)continue;const d=ycNear(shape(e),w).d;if(d<bd){bd=d;best=e}}if(!best)throw new Error(what+'을 못 찾았습니다. 선 가까이를 눌러 주세요.');return best}
+function ajsPlan(e,w,c){let P=shape(e),rev=false;if(ycD(P[P.length-1],w)<ycD(P[0],w)){P=P.slice().reverse();rev=true}
+  const cum=[0];for(let i=1;i<P.length;i++)cum.push(cum[i-1]+ycD(P[i-1],P[i]));const L=cum[cum.length-1],z=c.indexOf(0),pos=[],seen=[];let acc=0;
+  for(let i=0;i<(z<0?5:z);i++){acc+=c[i];pos.push({s:acc,side:'f',len:c[i]})}if(z>=0){acc=0;for(let i=4;i>z;i--)if(c[i]>0){acc+=c[i];pos.push({s:L-acc,side:'b',len:c[i]})}}
+  return {e,P,cum,L,rev,pos:pos.filter(p=>{const ok=p.s>=-1e-6&&p.s<=L+1e-6&&!seen.some(v=>Math.abs(v-p.s)<1e-6);if(ok)seen.push(p.s);return ok})}}
+const AJS_NAMES=['앞AH','앞소매산','뒤AH','뒤소매산'];
+function ajsInfo(Y){try{const L=[0,1,2,3].map(i=>lenOf(shape(ajsPick(Y.pts[i],AJS_NAMES[i]))));return '앞 AH '+L[0].toFixed(3)+' · 소매산 '+L[1].toFixed(3)+' · 이세 '+(L[1]-L[0]).toFixed(3)+' / 뒤 AH '+L[2].toFixed(3)+' · 소매산 '+L[3].toFixed(3)+' · 이세 '+(L[3]-L[2]).toFixed(3)}catch(_){return ''}}
+
+const ajsSaved=()=>{try{const v=JSON.parse(localStorage.getItem('ajsLast')||'null');return Array.isArray(v)&&v.length===10?v:null}catch(e){return null}};
+YC.ajs={name:'자동너치',steps:[{t:'multi',min:1,cut:'n1',hint:Y=>'[ajs] 앞AH을 누르세요 — 시작점 쪽, 누르고 오른클릭 ['+Y.pts.length+']'},
+    {t:'multi',min:1,rel:true,cut:'n2',hint:'앞소매산을 누르세요 — 시작점 쪽, 누르고 오른클릭'},{t:'multi',min:1,rel:true,cut:'n3',hint:'뒤AH을 누르세요 — 시작점 쪽, 누르고 오른클릭'},
+    {t:'multi',min:1,rel:true,hint:'뒤소매산을 누르세요 — 시작점 쪽, 누르고 오른클릭'},
+    {t:'pt',hint:'앞소매산 너치의 "O" 방향을 누르세요(머리 쪽)'},{t:'pt',hint:'뒤소매산 너치의 "O" 방향을 누르세요(머리 쪽)'},
+    ...[1,2,3,4,5].map(k=>({t:'num',label:'앞소매 '+k+' 영역 cm',def:()=>String((S.ajsLast||ajsSaved()||[6,0,0,0,0,7,0,0,0,0])[k-1]),hint:Y=>'앞소매산 1~5 영역(0 앞은 시작에서, 0 뒤는 끝에서) — '+ajsInfo(Y)})),
+    ...[1,2,3,4,5].map(k=>({t:'num',label:'뒤소매 '+k+' 영역 cm',def:()=>String((S.ajsLast||ajsSaved()||[6,0,0,0,0,7,0,0,0,0])[4+k]),hint:Y=>'뒤소매산 1~5 영역 — '+ajsInfo(Y)})),
+    {t:'num',label:'길이 1 cm (O 반대쪽)',pos:1,def:()=>String((S.ajsLen||[0.8,0.99])[0])},{t:'num',label:'길이 2 cm (O 쪽)',pos:1,def:()=>String((S.ajsLen||[0.8,0.99])[1])}],
+  run:Y=>{const P0=Y.pts,a=Y.nums.slice(0,10).map(v=>+v||0),[l1,l2]=Y.nums.slice(10,12);
+    if(Y.n1!==1||Y.n2!==2||Y.n3!==3||P0.length!==6)throw new Error('앞AH·앞소매산·뒤AH·뒤소매산을 하나씩 눌러 주세요.');
+    const G=[0,1,2,3].map(i=>ajsPlan(ajsPick(P0[i],AJS_NAMES[i]),P0[i],i===1?a.slice(0,5):i===3?a.slice(5,10):[0,0,0,0,0]));
+    if(new Set(G.map(g=>g.e)).size<4)throw new Error('앞AH·앞소매산·뒤AH·뒤소매산은 서로 다른 선이어야 합니다.');
+    if(!G[1].pos.length&&!G[3].pos.length)throw new Error('넣을 자리가 소매산 길이(앞 '+G[1].L.toFixed(2)+' · 뒤 '+G[3].L.toFixed(2)+' cm) 밖입니다.');
+    const lay=G[1].e.layer||S.layer,def={kind:'n5b',pts:[],layer:lay,blocks:[],x0:4},made=[];
+    G.forEach((g,i)=>{const blk={line:g.e,dir:g.rev?-1:1,front:[],back:[]};def.blocks.push(blk);if(i%2===0)return;const O=P0[i===1?4:5];
+      const at=s=>{const {P,cum}=g;let j=1;while(j<P.length-1&&cum[j]<s)j++;const p=P[j-1],q=P[j],d=ycD(p,q)||1,t=(s-cum[j-1])/d;return {c:{x:p.x+(q.x-p.x)*t,y:p.y+(q.y-p.y)*t},u:{x:(q.x-p.x)/d,y:(q.y-p.y)/d}}};
+      for(const {s,side,len} of g.pos){const {c,u}=at(Math.max(0,Math.min(g.L,s)));let n={x:-u.y,y:u.x};if((O.x-c.x)*n.x+(O.y-c.y)*n.y<0)n={x:-n.x,y:-n.y};
+        commit({kind:'notch',pts:[{x:c.x+n.x*l2,y:c.y+n.y*l2},{x:c.x-n.x*l1,y:c.y-n.y*l1}],at:c,layer:lay,color:7,blkNo:i+1});const nt=S.hist.pop().a;nt.n5B=def;made.push(nt);(side==='f'?blk.front:blk.back).push({n:nt,len})}});
+    S.adds.push(def);made.push(def);S.hist.push({as:made});S.ajsLast=a;try{localStorage.setItem('ajsLast',JSON.stringify(a))}catch(e){}S.ajsLen=[l1,l2];Y.n=[G[1].pos.length,G[3].pos.length];Y.info=ajsInfo(Y)},
+  done:Y=>'자동너치: 앞소매산 '+Y.n[0]+'개 · 뒤소매산 '+Y.n[1]+'개 ('+Y.info+').'};ACT.ajs=()=>ycStart('ajs');
+
+function nfAt(P,s){const cum=[0];for(let i=1;i<P.length;i++)cum.push(cum[i-1]+ycD(P[i-1],P[i]));const L=cum[cum.length-1];s=Math.max(0,Math.min(L,s));
+  let i=1;while(i<P.length-1&&cum[i]<s)i++;const p=P[i-1],q=P[i],d=ycD(p,q)||1,t=(s-cum[i-1])/d;return {c:{x:p.x+(q.x-p.x)*t,y:p.y+(q.y-p.y)*t},u:{x:(q.x-p.x)/d,y:(q.y-p.y)/d},L}}
+function nfLen(P){let L=0;for(let i=1;i<P.length;i++)L+=ycD(P[i-1],P[i]);return L}
+function nfFrame(P,w){let best=null;let acc=0;for(let i=1;i<P.length;i++){const a=P[i-1],b=P[i],d=ycD(a,b)||1e-12,u={x:(b.x-a.x)/d,y:(b.y-a.y)/d},t=Math.max(0,Math.min(d,(w.x-a.x)*u.x+(w.y-a.y)*u.y)),c={x:a.x+u.x*t,y:a.y+u.y*t},dd=ycD(c,w);if(!best||dd<best.dd)best={c,u,dd,s:acc+t};acc+=d}return best}
+
+function nfGroups(){const out=[],dead=new Set(S.dels),v=new DataView(S.doc.bytes.buffer,S.doc.bytes.byteOffset),byNo=new Map();
+  for(const e of S.doc.els)if(!dead.has(e.rec))byNo.set((e.rec-REC)/RSZ+1,e);
+  const mk=(line,dir,F,B)=>{const items=[];let a=0;F.forEach(x=>{a+=x.len;const d=a;items.push({n:x.n,s:L=>dir>0?d:L-d})});a=0;B.forEach(x=>{a+=x.len;const d=a;items.push({n:x.n,s:L=>dir>0?L-d:d})});return {line,dir,items:items.filter(t=>t.n)}};
+  for(const s5 of S.doc.els){if(s5.type!==0x5B||dead.has(s5.rec))continue;
+    for(let k=0;k+258<=s5.len;k+=256){const o=s5.addr+k;if(!v.getUint16(o+6,true)||v.getUint16(o+68,true)>=4)continue; const line=byNo.get(v.getUint16(o+8,true));if(!line||line.type===0x14)continue;
+      const rd=(c,no,va)=>{const n=Math.min(p5u(s5,k+c),10);return [...Array(n)].map((_,i)=>({n:byNo.get(p5u(s5,k+no+2*i)),len:p5f(s5,k+va+4*i)})).filter(x=>x.n&&x.n.type===0x14)};
+      out.push(mk(line,v.getInt16(o+28,true)<0?-1:1,rd(48,50,70),rd(150,152,172)))}}
+  for(const d of S.adds){if(d.kind!=='n5b'||d.line2)continue;for(const b of d.blocks||[d])out.push(mk(b.line,b.dir,b.front.filter(x=>S.adds.includes(x.n)),b.back.filter(x=>S.adds.includes(x.n))))}
+  return out}
+function nfPlace(g,oldShape,mv){const P=shape(g.line);if(!P||P.length<2)return 0;const L=nfLen(P);let k=0;
+  for(const {n,s} of g.items){if(!n.pts||n.pts.length<2||!n.at)continue;const O=oldShape?nfFrame(oldShape,n.at):nfFrame(P,n.at),N=nfAt(P,s(L));
+    const loc=p=>{const dx=p.x-O.c.x,dy=p.y-O.c.y;return [dx*O.u.x+dy*O.u.y,-dx*O.u.y+dy*O.u.x]},put=([a,b])=>({x:N.c.x+N.u.x*a-N.u.y*b,y:N.c.y+N.u.y*a+N.u.x*b});
+    const pts=n.pts.map(p=>put(loc(p))),at=put(loc(n.at));if(Math.max(...pts.map((p,i)=>ycD(p,n.pts[i])),ycD(at,n.at))<5e-4)continue;
+    mv.push({e:n,was:!n.kind&&S.edits.has(n),snap:{pts:n.pts,at:n.at}});n.pts=pts;n.at=at;changed(n);k++}
+  return k}
+function notchFollow(h0){const old=new Map();
+  for(const h of S.hist.slice(h0)){const add=(e,snap)=>{if(!e||old.has(e)||e.type===0x14||e.kind==='notch'||!e.pts)return;old.set(e,shape(Object.assign(Object.create(Object.getPrototypeOf(e)),e,snap,{shapeOf:null,smooth:null})))};
+    if(h.m)add(h.m,{pts:h.pts});if(h.mv)for(const x of h.mv)if(x.snap&&x.snap.pts)add(x.e,x.snap);if(h.multi)for(const q of h.multi){if(q.m)add(q.m,{pts:q.pts});if(q.mv)for(const x of q.mv)if(x.snap&&x.snap.pts)add(x.e,x.snap)}}
+  if(!old.size)return 0;const moved=new Set();for(const h of S.hist.slice(h0))for(const x of (h.mv||[]))moved.add(x.e);
+  const mv=[];let k=0;for(const g of nfGroups()){if(!old.has(g.line))continue;g.items=g.items.filter(t=>!moved.has(t.n));k+=nfPlace(g,old.get(g.line),mv)}
+  if(mv.length)S.hist.push({mv});return k}
+
+YC.are={name:'너치연동',noFollow:1,steps:[{t:'el',need:'any',hint:'연동할 너치를 누르세요'}],run:Y=>{const n=Y.els[0];if(!isNotch(n))throw new Error('너치를 눌러 주세요.');
+  const gs=nfGroups().filter(g=>g.items.some(t=>t.n===n));if(!gs.length)throw new Error('이 너치는 선에 붙어 있지 않습니다(너치 정의 5B 없음).');const mv=[];let k=0;for(const g of gs)k+=nfPlace(g,null,mv);if(mv.length)S.hist.push({mv});Y.k=k},
+  done:Y=>Y.k?'너치 '+Y.k+'개를 선에 다시 붙였습니다.':'너치가 이미 제자리입니다.'};
+ACT.are=()=>ycStart('are');
+
+function p5u(x,o){const q=(x.patch16||[]).find(([k])=>k===o);return q?q[1]:new DataView(S.doc.bytes.buffer,S.doc.bytes.byteOffset).getUint16(x.addr+o,true)}
+function p5f(x,o){const q=(x.patch||[]).find(([k])=>k===o);return q?q[1]:new DataView(S.doc.bytes.buffer,S.doc.bytes.byteOffset).getFloat32(x.addr+o,true)}
+
+function aj5B(w){let n=null,bd=1.5;for(const e of allEls()){if(!isNotch(e)||e.pts.length<2)continue;const d=ycNear(e.pts,w).d;if(d<bd){bd=d;n=e}}
+  if(!n)throw new Error('너치를 못 찾았습니다. 너치 가까이를 눌러 주세요.');
+  const dead=new Set(S.dels),byNo=new Map();for(const e of S.doc.els)if(!dead.has(e.rec))byNo.set((e.rec-REC)/RSZ+1,e);
+  if(!n.kind){const no=(n.rec-REC)/RSZ+1;for(const x of S.doc.els){if(x.type!==0x5B||dead.has(x.rec))continue;
+    for(let k=0;k+258<=x.len;k+=256){if(!p5u(x,k+6)||p5u(x,k+68)>=4)continue;const rd=(c,i0,l0)=>Array.from({length:Math.min(p5u(x,k+c),5)},(_,i)=>({no:p5u(x,k+i0+2*i),len:p5f(x,k+l0+4*i)})).map(y=>({...y,n:byNo.get(y.no)}));
+      const F=rd(48,50,70),B=rd(150,152,172);if(![...F,...B].some(y=>y.no===no))continue;const line=byNo.get(p5u(x,k+8));if(!line)continue;
+      return {n,src:x,k,line,dir:new DataView(S.doc.bytes.buffer,S.doc.bytes.byteOffset).getInt16(x.addr+k+28,true)<0?-1:1,F,B}}}}
+  for(const d of S.adds){if(d.kind!=='n5b'||d.line2)continue;for(const b of d.blocks||[d])if([...b.front,...b.back].some(y=>y.n===n))return {n,src:d,blk:b,line:b.line,dir:b.dir,F:b.front.map(y=>({...y})),B:b.back.map(y=>({...y}))}}
+  throw new Error('이 너치는 너치 정의(5B)가 없습니다(너치 기능으로 만든 너치만 고칠 수 있습니다).')}
+
+const ajSlots=(F,B)=>{const a=[0,0,0,0,0];F.forEach((y,i)=>{if(i<5)a[i]=+(+y.len).toFixed(4)});B.forEach((y,i)=>{if(4-i>=0)a[4-i]=+(+y.len).toFixed(4)});return a};
+function ajParse(a){const z=a.indexOf(0),F=[],B=[];for(let i=0;i<(z<0?5:z);i++)F.push(a[i]);if(z>=0)for(let i=4;i>z;i--)if(a[i]>0)B.push(a[i]);return {F,B}}
+
+function ajPut(n,P,s,flip,mv){const O=nfFrame(P,n.at),N=nfAt(P,s),f=flip?-1:1;
+  const loc=p=>{const dx=p.x-O.c.x,dy=p.y-O.c.y;return [dx*O.u.x+dy*O.u.y,f*(-dx*O.u.y+dy*O.u.x)]},put=([a,b])=>({x:N.c.x+N.u.x*a-N.u.y*b,y:N.c.y+N.u.y*a+N.u.x*b});
+  const pts=n.pts.map(p=>put(loc(p))),at=put(loc(n.at));if(Math.max(...pts.map((p,i)=>ycD(p,n.pts[i])),ycD(at,n.at))<1e-6)return 0;
+  mv.push({e:n,was:!n.kind&&S.edits.has(n),snap:{pts:n.pts,at:n.at}});n.pts=pts;n.at=at;changed(n);return 1}
+
+const ajPos=(g,F,B,L)=>{const r=[];let a=0;F.forEach(y=>{a+=y.len;r.push({n:y.n,s:g.dir>0?a:L-a})});a=0;B.forEach(y=>{a+=y.len;r.push({n:y.n,s:g.dir>0?L-a:a})});return r};
+
+function ajMates(g){const P=shape(g.line),base=[...g.F,...g.B].filter(y=>y.n).map(y=>({n:y.n,s:nfFrame(P,y.n.at).s})),out=[];
+  for(const t of gMates(g.line)){const Q=shape(t);if(!Q||Q.length<2)continue;const cand=allEls().filter(e=>isNotch(e)&&e.layer===t.layer&&e.at&&e.pts.length>=2).map(e=>({e,f:nfFrame(Q,e.at)})).filter(x=>x.f.dd<0.01);
+    const used=new Set,m=new Map;for(const b of base){let best=null;for(const c of cand){if(used.has(c.e))continue;if(!best||Math.abs(c.f.s-b.s)<Math.abs(best.f.s-b.s))best=c}if(!best)break;used.add(best.e);m.set(b.n,best.e)}
+    if(m.size===base.length)out.push({t,Q,L:nfLen(Q),m})}
+  return out}
+const ajFlip=(n,P,O)=>{const f=nfFrame(P,n.at),hb=(n.pts[0].x-f.c.x)*-f.u.y+(n.pts[0].y-f.c.y)*f.u.x,ob=(O.x-f.c.x)*-f.u.y+(O.y-f.c.y)*f.u.x;return Math.abs(hb)>1e-9&&hb*ob<0};
+
+YC.ajm={name:'너치수정',noFollow:1,steps:[{t:'pt',hint:'[ajm] 수정할 너치를 누르세요'},
+    ...[1,2,3,4,5].map(k=>({t:'num',label:k+' 영역 cm (0 = 나눔, 뒤는 끝에서)',def:()=>{try{const Y=S.yc;Y.ajg=Y.ajg||aj5B(Y.pts[0]);return String(ajSlots(Y.ajg.F,Y.ajg.B)[k-1])}catch(e){return '0'}},
+      hint:()=>{try{const Y=S.yc;Y.ajg=Y.ajg||aj5B(Y.pts[0]);const g=Y.ajg,L=nfLen(shape(g.line)),a=ajSlots(g.F,g.B),sum=a.reduce((p,q)=>p+q,0);return '너치 창: 총길이 '+L.toFixed(3)+' · 합계 '+(+sum.toFixed(3))+' · 차 '+(+(L-sum).toFixed(3))}catch(e){return e.message}}})),
+    {t:'pt',hint:'너치의 원 생성방향을 누르세요'}],
+  run:Y=>{const g=Y.ajg||aj5B(Y.pts[0]),O=Y.pts[Y.pts.length-1],a=Y.nums.slice(0,5).map(v=>+v||0),{F,B}=ajParse(a);
+    if(F.length!==g.F.length||B.length!==g.B.length)throw new Error('너치의 개수는 바꿀 수 없습니다(지금 앞 '+g.F.length+'·끝 '+g.B.length+'개).');
+    const mates=ajMates(g),P=shape(g.line),L=nfLen(P),mv=[],keep=(y,v)=>+(+y.len).toFixed(4)===v?y.len:v,nF=g.F.map((y,i)=>({...y,len:keep(y,F[i])})),nB=g.B.map((y,i)=>({...y,len:keep(y,B[i])}));
+    if(g.blk){const d=g.src;mv.push({e:d,was:false,snap:d.blocks?{blocks:d.blocks}:{front:d.front,back:d.back}});const nb={...g.blk,front:nF.map(y=>({n:y.n,len:y.len})),back:nB.map(y=>({n:y.n,len:y.len}))};
+      if(d.blocks)d.blocks=d.blocks.map(b=>b===g.blk?nb:b);else{d.front=nb.front;d.back=nb.back}}
+    else{const x=g.src;mv.push({e:x,was:S.edits.has(x),snap:{patch16:x.patch16,patch:x.patch}});const keys=new Set([...nF.map((_,i)=>g.k+70+4*i),...nB.map((_,i)=>g.k+172+4*i)]);
+      x.patch=[...(x.patch||[]).filter(([o])=>!keys.has(o)),...nF.map((y,i)=>[g.k+70+4*i,y.len]),...nB.map((y,i)=>[g.k+172+4*i,y.len])];changed(x)}
+    let k=0;const flips=new Map;for(const {n,s} of ajPos(g,nF,nB,L)){if(!n)continue;const fl=ajFlip(n,P,O);flips.set(n,fl);k+=ajPut(n,P,s,fl,mv)}
+    for(const M of mates)for(const {n,s} of ajPos(g,nF,nB,M.L)){const t=M.m.get(n);if(t)k+=ajPut(t,M.Q,s,!!flips.get(n),mv)}
+    S.hist.push({mv});Y.k=k;Y.ns=mates.length},
+  done:Y=>'너치 정의를 고쳐 너치 '+Y.k+'개를 다시 놓았습니다'+(Y.ns?'(사이즈 '+Y.ns+'개 포함)':'')+'.'};ACT.ajm=()=>ycStart('ajm');
+ACT.amr=()=>{S.notchLink=S.notchLink===false;say('너치 연동 '+(S.notchLink?'켬':'끔')+'(선을 고치면 5B로 붙은 너치가 따라감)')};
+
+function an2Corner(e1,e2){const P=shape(e1),Q=shape(e2),ends=[[P[0],P[1]],[P[P.length-1],P[P.length-2]]],endq=[[Q[0],Q[1]],[Q[Q.length-1],Q[Q.length-2]]];let best=null;
+  for(const [a,an] of ends)for(const [b,bn] of endq){const d=ycD(a,b);if(!best||d<best.d)best={d,C:a,u1:ycUnit(a,an),u2:ycUnit(b,bn),fa:a===P[0]?P[P.length-1]:P[0],fb:b===Q[0]?Q[Q.length-1]:Q[0]}}
+  if(best.d>1e-3){const h=ycCross([ends[0][0],ends[1][0]],[endq[0][0],endq[1][0]],true,true)[0];if(!h)throw new Error('두 기준선이 만나지 않습니다.');best.C=h.p;best.u1=ycUnit(h.p,ycD(h.p,P[0])>ycD(h.p,P[P.length-1])?P[0]:P[P.length-1]);best.u2=ycUnit(h.p,ycD(h.p,Q[0])>ycD(h.p,Q[Q.length-1])?Q[0]:Q[Q.length-1])}
+  return best}
+YC.an2={name:'2분각너치',again:2,noFollow:1,steps:[{t:'num',label:'길이 1 cm (원 반대쪽)',pos:1,def:()=>String((S.an2Len||[0.5,2])[0])},{t:'num',label:'길이 2 cm (원 쪽)',pos:1,def:()=>String((S.an2Len||[0.5,2])[1])},
+    {t:'el',need:'any',hint:'제1 기준선을 누르세요'},{t:'el',need:'any',hint:'제2 기준선을 누르세요'},{t:'pt',hint:'너치의 원 생성방향을 누르세요'}],
+  run:Y=>{const [l1,l2]=Y.nums,[e1,e2]=Y.els,O=Y.pts[Y.pts.length-1];if(e1===e2)throw new Error('서로 다른 두 기준선을 눌러 주세요.');if([e1,e2].some(e=>isNotch(e)||e.text||e.arc||!e.pts||e.pts.length<2))throw new Error('선을 눌러 주세요.');
+    const {C,u1,u2}=an2Corner(e1,e2);let b={x:u1.x+u2.x,y:u1.y+u2.y};const bl=Math.hypot(b.x,b.y);b=bl<1e-9?{x:-u1.y,y:u1.x}:{x:b.x/bl,y:b.y/bl};if((O.x-C.x)*b.x+(O.y-C.y)*b.y<0)b={x:-b.x,y:-b.y};
+    const lay=e1.layer||S.layer;commit({kind:'notch',pts:[{x:C.x+b.x*l2,y:C.y+b.y*l2},{x:C.x-b.x*l1,y:C.y-b.y*l1}],at:{...C},layer:lay,color:7,n46:4});const nt=S.hist.pop().a;
+    const def={kind:'n5b',pts:[],layer:lay,line:e1,line2:e2,x68:5,dir:1,front:[{n:nt,len:0.01}],back:[]};nt.n5B=def;S.adds.push(def);S.hist.push({as:[nt,def]});S.an2Len=[l1,l2]},
+  done:()=>'2분각너치를 넣었습니다(다음 모서리: 제1 기준선).'};ACT.an2=()=>ycStart('an2');
+
+YC.anb={name:'연장너치',again:2,noFollow:1,steps:[{t:'num',label:'길이 1 cm (원 반대쪽)',pos:1,def:()=>String((S.anbLen||[1,1])[0])},{t:'num',label:'길이 2 cm (원 쪽)',pos:1,def:()=>String((S.anbLen||[1,1])[1])},
+    {t:'el',need:'any',hint:'기준선을 누르세요'},{t:'el',need:'any',hint:'연장선을 누르세요'},{t:'pt',hint:'너치의 원 생성방향을 누르세요'}],
+  run:Y=>{const [l1,l2]=Y.nums,[b,x]=Y.els,O=Y.pts[Y.pts.length-1];if(b===x)throw new Error('기준선과 연장선이 같습니다.');if([b,x].some(e=>isNotch(e)||e.text||e.arc||!e.pts||e.pts.length<2))throw new Error('선을 눌러 주세요.');
+    const B=shape(b),X=shape(x);let best=null;for(const seg of [[X[0],X[1]],[X[X.length-2],X[X.length-1]]]){const h=ycCross(B,seg,false,true)[0];if(h&&(!best||ycD(h.p,seg[0])<ycD(best.p,seg[0])))best={p:h.p,u:ycUnit(seg[0],seg[1])}}
+    if(!best)throw new Error('연장선을 늘여도 기준선과 만나지 않습니다.');let {p:C,u}=best;if((O.x-C.x)*u.x+(O.y-C.y)*u.y<0)u={x:-u.x,y:-u.y};
+    const lay=b.layer||S.layer;commit({kind:'notch',pts:[{x:C.x+u.x*l2,y:C.y+u.y*l2},{x:C.x-u.x*l1,y:C.y-u.y*l1}],at:{...C},layer:lay,color:7});const nt=S.hist.pop().a;
+    const def={kind:'n5b',pts:[],layer:lay,line:b,line2:x,x68:4,dir:1,front:[{n:nt,len:lenOf(B)/2}],back:[]};nt.n5B=def;S.adds.push(def);S.hist.push({as:[nt,def]});S.anbLen=[l1,l2]},
+  done:()=>'연장너치를 넣었습니다(다음: 기준선).'};ACT.anb=()=>ycStart('anb');
+
+function acJoint(B,C){const bs=[B[0],B[B.length-1]],cs=[C[0],C[C.length-1]];let best=null;
+  for(let i=0;i<2;i++)for(let j=0;j<2;j++){const d=ycD(bs[i],cs[j]);if(!best||d<best.d)best={d,bi:i,ci:j}}
+  if(best.d>0.1)return null;return {J:bs[best.bi],far:bs[1-best.bi],C:best.ci===0?C.slice():C.slice().reverse()}}
+YC.ac={name:'각확인',steps:[{t:'el',need:'any',hint:'이동측 기준선을 누르세요'},{t:'el',edit:1,hint:'이동측 연결선을 누르세요'},{t:'el',need:'any',hint:'대응측 기준선을 누르세요'},{t:'el',edit:1,hint:'대응측 연결선을 누르세요'},{t:'num',label:'수정하는 점수 (3~15)',def:()=>S.acN||10,pos:1}],
+  run:Y=>{const [b1,c1,b2,c2]=Y.els,N=Math.round(Y.nums[0]);if(N<3||N>15)throw new Error('점수는 3~15입니다.');S.acN=N;
+    if(new Set(Y.els).size<4)throw new Error('네 요소를 서로 다르게 눌러 주세요.');
+    for(const e of [b1,c1,b2,c2])if(!e.kind&&locked(e))throw new Error('그레이딩이나 다른 요소에 연결된 선은 유카에서 고쳐 주세요.');
+    const m=acJoint(shape(b1),gPts(c1)),k=acJoint(shape(b2),gPts(c2));
+    if(!m||!k)throw new Error('기준선과 연결선의 끝이 이어져 있지 않습니다.');
+    const ux=m.far.x-m.J.x,uy=m.far.y-m.J.y,vx=k.far.x-k.J.x,vy=k.far.y-k.J.y,lu=Math.hypot(ux,uy),lv=Math.hypot(vx,vy);if(lu<1e-9||lv<1e-9)throw new Error('기준선 길이가 0입니다.');
+    const cs=(ux*vx+uy*vy)/(lu*lv),sn=(ux*vy-uy*vx)/(lu*lv),fw=p=>({x:k.J.x+cs*(p.x-m.J.x)-sn*(p.y-m.J.y),y:k.J.y+sn*(p.x-m.J.x)+cs*(p.y-m.J.y)}),bw=p=>({x:m.J.x+cs*(p.x-k.J.x)+sn*(p.y-k.J.y),y:m.J.y-sn*(p.x-k.J.x)+cs*(p.y-k.J.y)});
+    const sp=(e,Q)=>(e.type===TYPE.CURVE||e.kind==='curve')&&Q.length>2?spline(Q):Q;
+    const A=sp(c1,m.C).map(fw).reverse(),Bv=sp(c2,k.C),nodes=resample([...A,...Bv.slice(1)],N,true),D=spline(nodes);
+
+    const side=p=>((p.x-k.far.x)*vy-(p.y-k.far.y)*vx)/lv;let X=null,sX=0,run=0;
+    for(let i=1;i<D.length;i++){const s0=side(D[i-1]),s1=side(D[i]),dl=ycD(D[i-1],D[i]);if(!(s0*s1>0||(s0===0&&s1===0))){const t=s0/(s0-s1),p={x:D[i-1].x+(D[i].x-D[i-1].x)*t,y:D[i-1].y+(D[i].y-D[i-1].y)*t};
+      if(!X||ycD(p,k.J)<ycD(X,k.J)){X=p;sX=run+dl*t}}run+=dl}
+    const L=run;if(!X||ycD(X,k.J)>lv){
+      X=null;run=0;for(let i=1;i<D.length;i++){const a=D[i-1],b=D[i],dl=ycD(a,b),t=dl?Math.max(0,Math.min(1,((k.J.x-a.x)*(b.x-a.x)+(k.J.y-a.y)*(b.y-a.y))/(dl*dl))):0,p={x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t};
+        if(!X||ycD(p,k.J)<ycD(X,k.J)){X=p;sX=run+dl*t}run+=dl}}
+
+    const o1=gPts(c1),o2=gPts(c2),j1=ycD(m.C[0],o1[0])<1e-9,j2=ycD(k.C[0],o2[0])<1e-9;
+    const C1=j1?nodes.map(bw).reverse():nodes.map(bw),F1=j1?[L-sX,L]:[0,sX],C2=j2?nodes.map(p=>({...p})):nodes.slice().reverse(),F2=j2?[sX,L]:[0,L-sX];
+    const mv=[],end=(b,J,P)=>{const Q=gPts(b).map(p=>({...p})),i=ycD(Q[0],J)<=ycD(Q[Q.length-1],J)?0:Q.length-1;Q[i]={...P};gSetPts(b,Q,mv)};
+    const setFT=(e,C,ft)=>{const snap={};for(const q of ['pts','ctrl','ft','trim','baked'])snap[q]=e[q];mv.push({e,was:!e.kind&&S.edits.has(e),snap});
+      Object.assign(e,{pts:resample(cutCurve(spline(C),ft[0],ft[1],C),C.length,true),trim:false,baked:true});if(!e.kind)e.grow=1;changed(e)};
+    end(b1,m.J,bw(X));end(b2,k.J,X);setFT(c1,C1,F1);setFT(c2,C2,F2);S.hist.push({mv});S.acX=ycD(X,k.J)},
+  done:()=>'두 연결선을 이어서 점 '+S.acN+'개로 고쳤습니다(이음 자리가 기준선을 따라 '+S.acX.toFixed(3)+' cm 옮겨짐). 더 손볼 곳은 ss로 고치세요.'};ACT.ac=()=>ycStart('ac');
 
 const RECENT_DB='pi-recent';
 function recentDb(){return new Promise((ok,no)=>{const r=indexedDB.open(RECENT_DB,1);r.onupgradeneeded=()=>r.result.createObjectStore('f');r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)})}
@@ -2154,6 +3063,16 @@ ACT.bf=async()=>{const L=await recentGet();if(!L.length)return say('아직 최�
       const f=await x.h.getFile();load(new Uint8Array(await f.arrayBuffer()),f.name.replace(/\.(pax|pan)(\.\d+)?$|\.\d+$/,''));S.file=f.name;S.fh=x.h;recentAdd(x.h);say('')}catch(err){say('열 수 없습니다: '+err.message,true)}};box.appendChild(b)});
   d.querySelector('button[value=x]').onclick=()=>d.close();d.showModal()};
 
+YC.nh={name:'동폭시접',steps:[{t:'num',label:'시접 폭 cm',def:()=>S.nhW||1,pos:1},{t:'pt',hint:'영역을 대각의 2점으로 누르세요(첫 점)'},{t:'pt',hint:'영역을 대각의 2점으로 누르세요(둘째 점)'}],
+  run:Y=>{const w=Y.nums[0];S.nhW=w;const [a,b]=Y.pts,x0=Math.min(a.x,b.x),x1=Math.max(a.x,b.x),y0=Math.min(a.y,b.y),y1=Math.max(a.y,b.y),In=p=>p.x>=x0&&p.x<=x1&&p.y>=y0&&p.y<=y1;
+    const cand=allEls().filter(e=>e.layer===S.layer&&(e.type===TYPE.LINE||e.type===TYPE.CURVE||e.kind==='line'||e.kind==='curve')&&e.pts.length&&e.pts.every(In)),seen=new Set(),loops=[],taken=seamedOutline();for(const x of S.adds)if(x.kind==='seam')for(const o of x.outline)taken.add(o.rec);
+    for(const e of cand){if(seen.has(e)||seamBlock(e))continue;const L=findLoop(e);if(!L)continue;for(const l of L)seen.add(l.e);
+      const P=L.flatMap(l=>l.e.pts),bx=[Math.min(...P.map(p=>p.x)),Math.min(...P.map(p=>p.y)),Math.max(...P.map(p=>p.x)),Math.max(...P.map(p=>p.y))];loops.push({L,bx,done:L.some(l=>taken.has(l.e.rec))})}
+    const outer=loops.filter(o=>!loops.some(q=>q!==o&&q.bx[0]<=o.bx[0]+1e-6&&q.bx[1]<=o.bx[1]+1e-6&&q.bx[2]>=o.bx[2]-1e-6&&q.bx[3]>=o.bx[3]-1e-6&&(q.bx[2]-q.bx[0])*(q.bx[3]-q.bx[1])>(o.bx[2]-o.bx[0])*(o.bx[3]-o.bx[1])));
+    const made=[];for(const {L} of outer.filter(o=>!o.done)){const Z={loop:L,w:L.map(()=>w),corner:L.map(()=>1),sel:-1};made.push({kind:'seam',pts:[],sides:seamSides(Z),outline:L.map(l=>({rec:l.e.rec,rev:l.rev})),w:Z.w.slice(),layer:L[0].e.layer,color:3,flag:1})}
+    if(!made.length)throw new Error('영역 안에서 시접을 넣을 패턴(한 바퀴 이어진 외곽선)을 못 찾았습니다.');S.adds.push(...made);S.hist.push({as:made});S.nhN=made.length},
+  done:()=>'패턴 '+S.nhN+'개에 시접을 넣었습니다.'};ACT.nh=()=>ycStart('nh');
+
 YC.meme={...YC.tm,name:'메모편집',run:Y=>{const e=Y.els[0];if(!isText(e))throw new Error('글자를 눌러 주세요.');memoDialog(e)},done:()=>'메모편집 창에서 고치고 [종료]를 누르세요.'};ACT.meme=()=>ycStart('meme');
 
 function memoDialog(e){const old=document.getElementById('memoDlg');if(old)old.remove();
@@ -2163,6 +3082,34 @@ function memoDialog(e){const old=document.getElementById('memoDlg');if(old)old.r
   row.append(ok,no);d.append(document.createTextNode('메모편집'),ta,row);document.body.append(d);setTimeout(()=>ta.focus(),0);
   no.onclick=()=>{d.remove();say('메모편집을 그만뒀습니다.')};
   ok.onclick=()=>{const t=ta.value.replace(/\r?\n/g,'\r\n').replace(/(\r\n)+$/,'');d.remove();if(!t||t===e.text)return say('바뀐 글자가 없습니다.');try{textUndo(e,()=>textSet(e,{text:t}));say('메모를 고쳤습니다.')}catch(err){say(err.message,true)}refresh()}}
+
+ACT.ref=()=>{if(S.ref){if(confirm('참조 파일 "'+S.ref.name+'"을(를) 닫을까요?')){S.ref=null;draw();say('참조 파일을 닫았습니다.')}return}
+  const inp=document.createElement('input');inp.type='file';if(window.showOpenFilePicker)inp.accept='.pax,.pan,.001,.002,.003,.004,.005';
+  inp.onchange=async()=>{const f=inp.files[0];if(!f)return;try{refOpen(new Uint8Array(await f.arrayBuffer()),f.name)}catch(err){say(err.message,true)}};inp.click()};
+function refOpen(bytes,name){const d=parse(bytes);S.ref={doc:d,name:name.replace(/\.(pax|pan)(\.\d+)?$|\.\d+$/,'')};draw();say('참조 파일 "'+S.ref.name+'"을(를) 흐리게 겹쳐 봅니다(보기만). 다시 ref로 닫기.')}
+function drawRef(c){if(!S.ref)return;c.save();c.globalAlpha=.35;c.strokeStyle=css('--dim')||'#888';c.lineWidth=1;
+  for(const e of S.ref.doc.els){if(e.gr||!e.pts||e.pts.length<2||S.hide.has(e.layer)||e.layer===195)continue;const P=e.type===TYPE.CURVE&&!e.trim&&e.pts.length>2?spline(e.pts):e.pts;c.beginPath();P.forEach((p,i)=>{const q=toS(p);i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y)});c.stroke()}
+  c.restore()}
+
+function rotAbout(p,c,a){const co=Math.cos(a),si=Math.sin(a);return {x:c.x+(p.x-c.x)*co-(p.y-c.y)*si,y:c.y+(p.x-c.x)*si+(p.y-c.y)*co}}
+YC.ta={name:'다트 접어보기',steps:[{t:'el',edit:1,hint:'허리선(다트 왼쪽)을 누르세요'},{t:'el',edit:1,hint:'허리선(다트 오른쪽)을 누르세요'},{t:'el',edit:1,hint:'다트선(고정될 쪽)을 누르세요'},{t:'el',edit:1,hint:'다트선(접히는 쪽)을 누르세요'},{t:'num',label:'점수 (3~15)',def:()=>S.taN||8,pos:1}],
+  run:Y=>{const [w1,w2,l1,l2]=Y.els,N=Math.round(Y.nums[0]);if(N<3||N>15)throw new Error('점수는 3~15입니다.');S.taN=N;if(new Set(Y.els).size<4)throw new Error('서로 다른 요소 넷을 눌러 주세요.');
+    for(const e of Y.els)if(!e.kind&&(locked(e)||S.doc.refs.has((e.rec-REC)/RSZ+1)))throw new Error('그레이딩이나 다른 요소에 연결된 선은 유카에서 고쳐 주세요.');
+    const L1=gPts(l1),L2=gPts(l2),cands=[[L1[0],L2[0]],[L1[0],L2[L2.length-1]],[L1[L1.length-1],L2[0]],[L1[L1.length-1],L2[L2.length-1]]].map(([a,b])=>({a,b,d:ycD(a,b)})).sort((x,y)=>x.d-y.d)[0];
+    if(cands.d>0.1)throw new Error('두 다트선이 다트 끝에서 만나지 않습니다.');const T={x:(cands.a.x+cands.b.x)/2,y:(cands.a.y+cands.b.y)/2},a1=ycD(L1[0],T)<ycD(L1[L1.length-1],T)?L1[L1.length-1]:L1[0],a2=ycD(L2[0],T)<ycD(L2[L2.length-1],T)?L2[L2.length-1]:L2[0];
+    let A=gPts(w1),B=gPts(w2);if(ycD(A[0],a1)<ycD(A[A.length-1],a1))A.reverse();if(ycD(B[B.length-1],a2)<ycD(B[0],a2))B.reverse();
+    if(ycD(A[A.length-1],a1)>0.1||ycD(B[0],a2)>0.1)throw new Error('허리선 끝이 다트선 끝과 닿아 있지 않습니다.');
+    const th=Math.atan2(a1.y-T.y,a1.x-T.x)-Math.atan2(a2.y-T.y,a2.x-T.x),dr=(e,P)=>(e.type===TYPE.CURVE||e.kind==='curve')&&P.length>2?spline(P):P;
+    const Bf=dr(w2,B).map(p=>rotAbout(p,T,th)),C=[...dr(w1,A),...(ycD(Bf[0],a1)<1e-6?Bf.slice(1):Bf)],K=resample(C,2*N-1,true),sm=spline(K);
+
+    const X=ycCross(sm,[T,{x:T.x+(a1.x-T.x)*3,y:T.y+(a1.y-T.y)*3}],false,true);if(!X.length)throw new Error('다듬은 허리선이 다트선과 만나지 않습니다.');
+    const s=X.sort((x,y)=>ycD(x.p,a1)-ycD(y.p,a1))[0].s,Ls=lenOf(sm),F=X.sort((x,y)=>ycD(x.p,a1)-ycD(y.p,a1))[0].p;
+    const dl=Math.min(0.5,s/(4*N)),dr2=Math.min(0.5,(Ls-s)/(4*N));
+    const left=[...resample(cutCurve(sm,0,s-dl),N-1,true),{...F}],right=[{...F},...resample(cutCurve(sm,s+dr2,Ls),N-1,true)].map(p=>rotAbout(p,T,-th)),F2=rotAbout(F,T,-th);
+    const ds=[],ras=[],kill=x=>{if(x.kind){S.adds.splice(S.adds.indexOf(x),1);ras.push(x)}else{S.dels.push(x.rec);ds.push(x.rec)}},mk=(x,kind,pts)=>({kind,pts,layer:x.layer,color:x.color,group:x.group||0,flag:x.flag||1});
+    const as=[mk(w1,'curve',left),mk(w2,'curve',right),mk(l1,'line',[{...T},{...F}]),mk(l2,'line',[{...T},{...F2}])];for(const e of Y.els)kill(e);S.adds.push(...as);S.hist.push({ds,ras,as});
+    S.taInfo={l1:ycD(T,F),l2:ycD(T,F2)}},done:()=>'다트를 접어 허리선을 다듬고 폈습니다(다트선 '+S.taInfo.l1.toFixed(2)+' / '+S.taInfo.l2.toFixed(2)+'cm). 더 고치려면 ss.'};ACT.ta=()=>ycStart('ta');
+ACT.csm=ACT.nt=ACT.cps=()=>{S.seamW=true;say('시접 폭을 표시합니다(no로 끄기).');draw()};ACT.no=()=>{S.seamW=!S.seamW;draw()};
 ACT.gof=()=>{$('gridOn').checked=false;draw()};
 ACT.gls=ACT.glf=()=>{$('gridOn').checked=true;S.gridMode='line';draw()};ACT.gds=ACT.gdf=()=>{$('gridOn').checked=true;S.gridMode='dot';draw()};
 ACT.gs=()=>{const v=prompt('GRID 크기(cm). 비우면 화면 배율에 맞춰 자동',S.gridSize||'');if(v===null)return;const n=parseFloat(v);S.gridSize=n>0?n:null;$('gridOn').checked=true;say(n>0?'GRID '+n+'cm':'GRID 자동');draw()};
@@ -2174,6 +3121,27 @@ function splitPanes(n){if(!S.doc)return;if(S.split){const P=S.panes[S.paneActive
   renderLayers();draw();say(n+'화면: 누른 쪽이 작업 화면(레이어 창에서 그 화면의 사이즈를 고름). 1q로 1화면.')}
 ACT['2q']=()=>splitPanes(2);ACT['3q']=()=>splitPanes(3);
 ACT['1q']=()=>{if(!S.split)return;const n=S.panes.length,P=S.panes[S.paneActive],ox=S.paneActive*S.w/n;S.split=false;S.view={...P.view,x:P.view.x-ox+(S.w-S.w/n)/2};S.hide=P.hide;S.panes=null;renderLayers();draw();say('1화면')};
+
+const MOL_DEF={'1':['앞','뒤','사이바','요크','단작','밑단','지에리(1)','우에리(1)','에리고시(1)','소매','소매단(1)','미까시','안감','후드'],'2':[],'3':[]};
+const molWord=w=>{const m=String(w).match(/^(.*?)\s*\(\s*([\d.]+)\s*\)\s*$/);return m?{t:m[1],size:+m[2]}:{t:w,size:null}};
+function molFiles(){try{return Object.assign({},MOL_DEF,JSON.parse(localStorage.getItem('molFiles')||'{}'))}catch(e){return {...MOL_DEF}}}
+function molShow(){const F=molFiles(),f=$('molFile');if(!F[S.mol.file])F[S.mol.file]=[];
+  f.innerHTML=Object.keys(F).map(k=>'<option'+(k===S.mol.file?' selected':'')+'>'+k+'</option>').join('');
+  const W=F[S.mol.file];$('molWords').innerHTML='';W.forEach((w,i)=>{const b=document.createElement('button');b.textContent=molWord(w).t;b.setAttribute('aria-pressed',i===S.mol.i);b.onclick=()=>{S.mol.i=i;molShow()};$('molWords').append(b)});
+  $('molPanel').hidden=false;const mw=W[S.mol.i]!=null?molWord(W[S.mol.i]):null,t=mw&&mw.t;if(mw&&S.mol.sized!==S.mol.i){$('molSize').value=mw.size||2;S.mol.sized=S.mol.i}
+  readout(t?'[mol] ['+t+'] 횡, 중앙, 높이 '+$('molSize').value+' : 문자의 위치를 누르세요':'[mol] 등록문자 '+S.mol.file+'에 낱말이 없습니다. [고치기]로 넣어 주세요');}
+function molTap(w){const W=molFiles()[S.mol.file]||[],t=W[S.mol.i]!=null?molWord(W[S.mol.i]).t:null,size=parseFloat($('molSize').value);if(!t)return say('놓을 낱말이 없습니다.',true);if(!(size>0))return say('높이를 cm로 넣어 주세요.',true);
+  const at={x:w.x,y:w.y};commit({kind:'text',text:t,at,size,h:2,v:2,rot:0,lh:size*1.2,box:textBox(at,t,size,2,2,0),pts:[],layer:S.layer,color:7});
+  S.mol.i=(S.mol.i+1)%W.length;say('['+t+'] 넣음');molShow();refresh()}
+ACT.mol=()=>{setTool('mol');S.mol={file:S.molFile||'1',i:0};molShow()};
+ACT.mof=()=>{ACT.mol();$('molEdit').click()};
+$('molFile').onchange=()=>{S.mol.file=S.molFile=$('molFile').value;S.mol.i=0;molShow()};
+$('molSize').oninput=()=>S.mol&&molShow();
+$('molEdit').onclick=()=>{const F=molFiles(),k=S.mol.file,v=prompt('등록문자 '+k+'의 낱말(쉼표로 나눔). 새 번호를 만들려면 맨 앞에 "번호:"를 붙이세요(예: 4: 겉,안). 크기가 다른 낱말은 지에리(1)처럼',(F[k]||[]).join(','));if(v==null)return;
+  let key=k,txt=v;const m=v.match(/^\s*([^:,]+)\s*:(.*)$/);if(m){key=m[1].trim();txt=m[2]}
+  const W=txt.split(/[,，]/).map(x=>x.trim()).filter(Boolean),bad=W.map(x=>molWord(x).t).find(x=>!eucKr(x)||x.includes('&'));if(bad)return say('"'+bad+'"는 유카에서 쓸 수 없는 글자가 들어 있습니다.',true);
+  F[key]=W;try{const o=JSON.parse(localStorage.getItem('molFiles')||'{}');o[key]=W;localStorage.setItem('molFiles',JSON.stringify(o))}catch(e){}
+  S.mol.file=S.molFile=key;S.mol.i=0;molShow()};
 ACT.full=()=>{fit();draw()};ACT.fr=()=>areaSnapStart('zoom');
 const yukaByCode=new Map();for(const y of YUKA)for(const c of y.c)if(!yukaByCode.has(c))yukaByCode.set(c,y);
 
@@ -2200,6 +3168,7 @@ function runCmd(raw){
   const c=$('cmd');let code=String(raw||'').trim().toLowerCase();c.value='';c.blur();
   if(!code)return;
   if(S.ratioAsk){S.ratioAsk=false;if(/^\d*\.?\d+$/.test(code)){const r=parseFloat(code);if(r>1)return say('비율은 0~1로 넣어 주세요(예: 0.3).',true);$('snapRatio').value=r;return say('비율점: 비율 '+r)}}
+  if(['y','c','n','m'].includes(code)&&chkAnswer(code))return;
   if(code==='g'){
     if(MOVES.includes(S.tool)&&S.mv.phase==='pick'){S.gNext=true;say('[g] 그룹내의 1요소를 누르세요');return}
     return say('g(그룹째 고르기)는 선을 고르는 중에 쓰세요(예: mv 스페이스 → g 스페이스 → 선).',true)}
