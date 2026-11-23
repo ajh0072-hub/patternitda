@@ -263,6 +263,9 @@ canvas.draw{cursor:crosshair}canvas.grab{cursor:grab}canvas.grabbing{cursor:grab
       <button id="mvNext">다음</button><button id="mvAll">다시 고르기</button>
       <span id="mvXY"><label for="mvX">X cm</label><input id="mvX" type="number" inputmode="decimal" step="0.1"><label for="mvY">Y cm</label><input id="mvY" type="number" inputmode="decimal" step="0.1"><button id="mvApply">적용</button></span>
       <span id="mvR"><label for="mvAng">각도 °</label><input id="mvAng" type="number" inputmode="decimal" step="1" value="0"><button id="mvRot">적용</button></span>
+      <span id="mvS"><label for="exScale">배율</label><input id="exScale" type="number" inputmode="decimal" step="0.01" value="1"><label for="exAng">각도 °</label><input id="exAng" type="number" inputmode="decimal" step="1" value="0"><button id="exGo">적용</button></span>
+      <span id="mvE"><label for="exA" id="exLa">비율</label><input id="exA" type="number" inputmode="decimal" step="0.01" value="1"><label for="exB" id="exLb">길이 수정율</label><input id="exB" type="number" inputmode="decimal" step="0.01" value="1"><button id="exGoS">적용</button></span>
+      <span id="mvD"><label for="mvDist">거리 cm</label><input id="mvDist" type="number" inputmode="decimal" step="0.1"><button id="mvDistGo">적용</button></span>
     </div>
     <div id="circlePanel" class="float" hidden>
       <label for="circleR">반지름 cm</label><input id="circleR" type="number" inputmode="decimal" step="0.1" min="0">
@@ -911,6 +914,7 @@ function areaCands(Q,mode){
 const centroid=Q=>({x:Q.reduce((s,p)=>s+p.x,0)/Q.length,y:Q.reduce((s,p)=>s+p.y,0)/Q.length});
 function areaFinish(){
   const A=S.areaSnap,Q=areaPoly(A);S.areaSnap=null;
+  if(A.els&&A.zOut)return areaPickOutline(Q);
   if(A.els)return areaPickEls(Q,A.kind==='cross');
   if(S.tool==='yc'&&S.yc&&A.kind!=='zoom'){const Y=S.yc,st=Y.d.steps[Y.i];if(st&&st.areaPick){const pts=st.areaPick(Q,A.kind==='cross');if(pts.length){for(const q of pts)Y.pts.push({x:q.x,y:q.y});say((A.kind==='cross'?'[영역교차내] ':'[영역내] ')+pts.length+'개를 골랐습니다.');ycStep();return}say('그 영역 안에 고를 것이 없습니다.',true);draw();return}}
   if(A.kind==='zoom'){let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const p of Q){x0=Math.min(x0,p.x);y0=Math.min(y0,p.y);x1=Math.max(x1,p.x);y1=Math.max(y1,p.y)}zoomTo(x0,y0,x1,y1);say('');draw();return}
@@ -1191,6 +1195,7 @@ function plPts(e,d){const line=!ycCurve(e);
 function plEl(e,d){const pts=plPts(e,d);if(!ycCurve(e))return {kind:'line',pts};
   if(e.trim&&e.ctrl&&e.ft)return {kind:'curve',keepPts:true,pts:resample(cutCurve(spline(pts),e.ft[0],e.ft[1],pts),pts.length,true)};
   return {kind:'curve',keepPts:true,pts}}
+function plSide(e,w){const n=ycNear(shape(e),w);return (n.u.x*(w.y-n.p.y)-n.u.y*(w.x-n.p.x))>=0?1:-1}
 function makeOffset(sign){
   const e=S.sel,d=parseFloat($('gap').value);
   if(!e)return;if(!(d>0))return say('간격을 cm로 입력해 주세요.',true);
@@ -1228,7 +1233,7 @@ function showMove(){
   const M=S.mv,n=M.sel.size;
   $('mvInfo').textContent=n+'개 고름';$('mvGroup').parentElement.hidden=byCmd();
   $('mvNext').hidden=M.phase!=='pick';$('mvNext').textContent=S.tool==='sg'?'그룹 만들기':S.tool==='dl'?'지우기':'다음';$('mvAll').hidden=!n;
-  $('mvXY').hidden=M.phase!=='target';$('mvR').hidden=M.phase!=='rot';
+  $('mvXY').hidden=M.phase!=='target';$('mvR').hidden=M.phase!=='rot';$('mvD').hidden=M.phase!=='dist';$('mvS').hidden=M.phase!=='exr';$('mvE').hidden=M.phase!=='exn';if(M.phase==='exn'){const o=M.cmd.opt;$('exLa').textContent=o==='b'?'폭 수정율':o==='x'?'폭 비율':o==='y'?'길이 비율':'비율';$('exB').hidden=$('exLb').hidden=o!=='b'}
 }
 const byCmd=()=>!!S.cmdCode&&S.cmdTool===S.tool;
 function pickToggle(e){
@@ -1239,6 +1244,22 @@ function pickToggle(e){
   for(const x of set)on?S.mv.sel.add(x):S.mv.sel.delete(x);
   say(set.length>1?'그룹 '+e.group+' ('+set.length+'개)':'');
 }
+
+function pickGroup(e){
+  if(!e)return say('선을 눌러 주세요.',true);
+  if(!e.group||e.kind){pickToggle(e);return say('그룹이 없는 선이라 그 선만 골랐습니다.')}
+  const set=allEls().filter(x=>x.group===e.group&&!x.kind&&movable(x));for(const x of set)S.mv.sel.add(x);
+  say('[g] 그룹 '+e.group+' ('+set.length+'개)');
+}
+
+function pickChain(e){if(!e)return say('선을 눌러 주세요.',true);const ends=x=>x.pts.length>=2&&!x.text?[x.pts[0],x.pts[x.pts.length-1]]:[],near=(p,q)=>Math.hypot(p.x-q.x,p.y-q.y)<0.02;
+  const all=allEls().filter(x=>movable(x)&&ends(x).length),got=new Set([e]),todo=[e];
+  while(todo.length){const a=todo.pop();for(const b of all)if(!got.has(b)&&ends(a).some(p=>ends(b).some(q=>near(p,q)))){got.add(b);todo.push(b)}}
+  for(const x of got)S.mv.sel.add(x);say('[cg] 이어진 선 '+got.size+'개');readout()}
+function pickLayer(e){if(!e)return say('요소를 눌러 주세요.',true);const set=allEls().filter(x=>x.layer===e.layer&&movable(x));for(const x of set)S.mv.sel.add(x);say('[slay] 층 '+e.layer+' 요소 '+set.length+'개');readout()}
+function areaPickOutline(Q){let n=0;const inside=allEls().filter(e=>movable(e)&&!e.text&&e.pts.length>=2&&shape(e).every(p=>inPoly(Q,p)));const seen=new Set();
+  for(const e of inside){if(seen.has(e)||e.kind)continue;const L=findLoop(e);if(!L)continue;for(const l of L){seen.add(l.e);if(!S.mv.sel.has(l.e)){S.mv.sel.add(l.e);n++}}}
+  say('[z] 외곽선 '+n+'개를 골랐습니다.'+(n?'':' (닫힌 형태가 없습니다)'),!n);readout();refresh()}
 
 function areaPickEls(Q,cross){let n=0;
   for(const e of allEls()){if(!movable(e))continue;const P=e.text?[e.at]:shape(e);if(!P.length)continue;
@@ -1282,7 +1303,7 @@ function rectSelect(R){
 }
 function moveTap(sp,w){
   const M=S.mv;
-  if(M.phase==='pick'){pickToggle(pick(sp));readout();refresh();return}
+  if(M.phase==='pick'){if(S.gNext){const m=S.gNext;S.gNext=false;m==='cg'?pickChain(pick(sp)):m==='slay'?pickLayer(pick(sp)):pickGroup(pick(sp))}else pickToggle(pick(sp));readout();refresh();return}
   if(M.phase==='group'){
     const t=pick(sp);if(!t)return;
     if(!t.group)return say('그룹이 없는 선입니다. SG로 먼저 그룹을 만들어 주세요.',true);
@@ -1354,6 +1375,7 @@ function drawMove(c){
   if(S.rect){const a=S.rect.a,b=S.rect.b;c.strokeStyle=css('--draw');c.lineWidth=1.2;c.setLineDash(b.x>=a.x?[]:[5,4]);c.strokeRect(a.x,a.y,b.x-a.x,b.y-a.y);c.setLineDash([])}
 }
 $('mvNext').onclick=()=>{if(!S.mv.sel.size)return say('먼저 선을 골라 주세요.',true);
+  if(S.tool==='dl')return delSel();
   if(S.tool==='sg'){const g=newGroupNo(),els=[...S.mv.sel];setGroup(els,g);say('그룹 '+g+'으로 '+els.length+'개를 묶었습니다. 되돌리기로 돌아갈 수 있습니다.');S.mv={phase:'pick',sel:new Set()};readout();refresh();return}
   if(S.tool==='ag'){const M=S.mv;if(M.agGroup){const els=[...M.sel];setGroup(els,M.agGroup);say('그룹 '+M.agGroup+'에 '+els.length+'개를 넣었습니다. 되돌리기로 돌아갈 수 있습니다.');S.mv={phase:'group',sel:new Set(),agFirst:true};readout();refresh();return}
     S.mv.phase='group';say('');readout();refresh();return}
@@ -1372,10 +1394,89 @@ function movedX(e,T,deg,mir){
   if(e.box){const d={x:o.at.x-e.at.x,y:o.at.y-e.at.y};o.box=e.box.map(p=>({x:p.x+d.x,y:p.y+d.y}))}
   return o;
 }
-function xfNext(){setTool('pan')}
-function xfTap(sp,w){setTool('pan')}
-function xfPreview(){return null}
-function xfHint(){return ''}
+const mirrorT=(a,b)=>{const dx=b.x-a.x,dy=b.y-a.y,L=dx*dx+dy*dy||1;return p=>{const t=((p.x-a.x)*dx+(p.y-a.y)*dy)/L,fx=a.x+dx*t,fy=a.y+dy*t;return {x:2*fx-p.x,y:2*fy-p.y}}};
+const degOf=(a,b)=>Math.atan2(b.y-a.y,b.x-a.x)*180/Math.PI;
+function selMid(){let a=1e9,b=1e9,c=-1e9,d=-1e9;for(const e of S.mv.sel)for(const p of(e.text?[e.at]:shape(e))){a=Math.min(a,p.x);b=Math.min(b,p.y);c=Math.max(c,p.x);d=Math.max(d,p.y)}return {x:(a+c)/2,y:(b+d)/2}}
+const XFDIR={u:[0,1],d:[0,-1],l:[-1,0],r:[1,0]};
+function xfNext(){
+  if(!S.mv.cmd){setTool('pan');return}
+  const M=S.mv,k=M.cmd.kind;say('');
+  if(k==='ungroup'){const els=[...M.sel];setGroup(els,0);say(els.length+'개의 그룹을 풀었습니다. 되돌리기로 돌아갈 수 있습니다.');S.mv={phase:'pick',sel:new Set(),cmd:M.cmd};readout();refresh();return}
+  if(k==='ltype'){const els=[...M.sel].filter(e=>e.kind?['line','curve','arc'].includes(e.kind):[TYPE.LINE,TYPE.CURVE,TYPE.ARC].includes(e.type)),rl=[];for(const e of els){rl.push({e,old:e.flag,was:e.kind?null:S.regroup.has(e)});e.flag=M.cmd.opt;if(!e.kind)S.regroup.add(e)}
+    S.hist.push({rl});say(els.length+'개를 '+M.cmd.name.replace('으로 선변경','')+'으로 바꿨습니다.');S.mv={phase:'pick',sel:new Set(),cmd:M.cmd};readout();refresh();return}
+  if(k==='color'){const els=[...M.sel],rc=[];for(const e of els){rc.push({e,old:e.color,was:e.kind?null:S.regroup.has(e)});e.color=M.cmd.opt;if(!e.kind)S.regroup.add(e)}
+    S.hist.push({rc});say(els.length+'개를 '+M.cmd.name.replace(' 색변경','')+'으로 바꿨습니다.');S.mv={phase:'pick',sel:new Set(),cmd:M.cmd};readout();refresh();return}
+
+  if(k==='dir'){M.phase='dist';$('mvDist').value='';readout();refresh();setTimeout(()=>$('mvDist').focus(),0);return}
+  if(k==='rot'&&M.cmd.opt==='mid'){M.base=selMid();M.dx=M.dy=0;M.phase='rot';$('mvAng').value=0;readout();refresh();return}
+  M.phase={rot:'center',rot3:'center',mir2:'m1',mirv:'m1',mirh:'m1',mirl:'mline',fix:'fline',exr:'center',exs:'center',ex2:'e2a1'}[k];readout();refresh();
+}
+function xfTap(sp,w){
+  if(!S.mv.cmd){setTool('pan');return}
+  const M=S.mv,k=M.cmd.kind;
+
+  if(k==='ex2'&&/^e2/.test(M.phase)){
+    if(M.phase==='e2a1'){M.a1=w;M.phase='e2a2'}else if(M.phase==='e2a2'){if(Math.hypot(w.x-M.a1.x,w.y-M.a1.y)<1e-6)return say('첫 점과 다른 점을 눌러 주세요.',true);M.a2=w;M.phase='e2b1'}
+    else if(M.phase==='e2b1'){M.b1=w;M.phase='e2b2'}
+    else{if(Math.hypot(w.x-M.b1.x,w.y-M.b1.y)<1e-6)return say('첫 점과 다른 점을 눌러 주세요.',true);const {a1,a2,b1}=M,b2=w,ua={x:a2.x-a1.x,y:a2.y-a1.y},ub={x:b2.x-b1.x,y:b2.y-b1.y},s=Math.hypot(ub.x,ub.y)/Math.hypot(ua.x,ua.y),
+      d=(Math.atan2(ub.y,ub.x)-Math.atan2(ua.y,ua.x))*180/Math.PI,c=Math.cos(d*Math.PI/180)*s,n=Math.sin(d*Math.PI/180)*s;
+      return applyMove(d,p=>({x:b1.x+(p.x-a1.x)*c-(p.y-a1.y)*n,y:b1.y+(p.x-a1.x)*n+(p.y-a1.y)*c}),undefined,s)}
+    readout();refresh();return}
+  if(M.phase==='center'&&k==='exs'){M.base=w;M.dx=M.dy=0;M.phase='exn';$('exA').value=1;$('exB').value=1;readout();refresh();setTimeout(()=>{$('exA').focus();$('exA').select()},0);return}
+  if(M.phase==='center'&&k==='exr'){M.base=w;M.dx=M.dy=0;M.phase='exh';readout();refresh();return}
+  if(M.phase==='exh'){if(Math.hypot(w.x-M.base.x,w.y-M.base.y)<1e-6)return say('중심과 다른 점을 눌러 주세요.',true);M.a=w;M.typed=false;$('exScale').value=1;$('exAng').value=0;M.phase='exr';readout();refresh();return}
+  if(M.phase==='exr'){const v=M.typed?exVals():exFrom(w);if(v)exApply(v.s,v.d);return}
+  if(M.phase==='center'){M.base=w;M.dx=M.dy=0;if(k==='rot'){M.phase='rot';$('mvAng').value=0}else M.phase='r1';readout();refresh();return}
+  
+      if(M.phase==='r1'){M.a=w;M.phase='r2';readout();refresh();return}
+  if(M.phase==='r2'){const d=degOf(M.base,w)-degOf(M.base,M.a);applyMove(d);return}
+  if(M.phase==='m1'){
+    if(k==='mirv')return applyMove(0,mirrorT(w,{x:w.x,y:w.y+1}),90);
+    if(k==='mirh')return applyMove(0,mirrorT(w,{x:w.x+1,y:w.y}),0);
+    M.a=w;M.phase='m2';readout();refresh();return;
+  }
+  if(M.phase==='m2'){if(Math.hypot(w.x-M.a.x,w.y-M.a.y)<1e-6)return say('두 점이 같습니다.',true);return applyMove(0,mirrorT(M.a,w),degOf(M.a,w))}
+  if(M.phase==='mline'||M.phase==='fline'){
+    const e=pick(sp);if(!e||e.pts.length<2)return;
+    const a=e.pts[0],b=e.pts[e.pts.length-1];if(Math.hypot(b.x-a.x,b.y-a.y)<1e-6)return;
+    if(M.phase==='mline')return applyMove(0,mirrorT(a,b),degOf(a,b));
+    const ang=degOf(a,b),want=M.cmd.opt==='v'?[90,-90]:[0,180,-180];let d=1e9;
+    for(const t of want){const x=((t-ang)%360+540)%360-180;if(Math.abs(x)<Math.abs(d))d=x}
+    M.base=a;M.dx=M.dy=0;return applyMove(d);
+  }
+}
+
+function exFrom(h){const M=S.mv,r0=Math.hypot(M.a.x-M.base.x,M.a.y-M.base.y),r=Math.hypot(h.x-M.base.x,h.y-M.base.y);if(r0<1e-9||r<1e-9)return null;
+  let d=degOf(M.base,h)-degOf(M.base,M.a);d=((d%360)+540)%360-180;return {s:r/r0,d}}
+function exVals(){const s=parseFloat($('exScale').value),d=parseFloat($('exAng').value)||0;return s>0?{s,d}:null}
+const exT=(C,s,d)=>{const r=d*Math.PI/180,c=Math.cos(r)*s,n=Math.sin(r)*s;return p=>{const x=p.x-C.x,y=p.y-C.y;return {x:C.x+x*c-y*n,y:C.y+x*n+y*c}}};
+function exApply(s,d){if(!(s>0))return say('배율은 0보다 커야 합니다.',true);const M=S.mv;applyMove(d,exT(M.base,s,d),undefined,s)}
+function xfPreview(){
+  const M=S.mv,k=M.cmd&&M.cmd.kind,h=S.hover;if(!k)return null;
+  if(M.phase==='exr'){const v=M.typed?exVals():h&&exFrom(h);if(!v)return null;if(!M.typed){$('exScale').value=v.s.toFixed(3);$('exAng').value=v.d.toFixed(1)}return {T:exT(M.base,v.s,v.d),deg:v.d,scl:v.s}}
+  if(M.phase==='exn'){const f=exsVals();return f&&{T:f.T,scl:f.scl}}
+  if(M.phase==='dist'){const v=parseFloat($('mvDist').value);if(!(v>0))return null;const u=XFDIR[M.cmd.opt];return {T:p=>({x:p.x+u[0]*v,y:p.y+u[1]*v})}}
+  if(M.phase==='r2'&&h){const d=degOf(M.base,h)-degOf(M.base,M.a);return {T:xform({...M,dx:0,dy:0},d),deg:d}}
+  if(M.phase==='m1'&&h&&(k==='mirv'||k==='mirh')){const b=k==='mirv'?{x:h.x,y:h.y+1}:{x:h.x+1,y:h.y};return {T:mirrorT(h,b),mir:k==='mirv'?90:0,axis:[{x:h.x-(k==='mirh'?50:0),y:h.y-(k==='mirv'?50:0)},{x:h.x+(k==='mirh'?50:0),y:h.y+(k==='mirv'?50:0)}]}}
+  if(M.phase==='m2'&&h&&Math.hypot(h.x-M.a.x,h.y-M.a.y)>1e-6)return {T:mirrorT(M.a,h),mir:degOf(M.a,h),axis:[M.a,h]};
+  return null;
+}
+function xfHint(){
+  const M=S.mv,c=M.cmd,n=c.name+': ';
+  return n+({dist:(c.opt==='u'?'위':c.opt==='d'?'아래':c.opt==='l'?'왼쪽':'오른쪽')+'으로 옮길 거리를 cm로 입력하세요',center:c.kind==='exs'?'축소확대 중심점을 누르세요':'회전 중심점을 누르세요',exn:c.opt==='b'?'폭 수정율(가로)·길이 수정율(세로)을 입력하세요':'비율을 입력하세요 (1.5 = 1.5배)',rot:'회전 각도를 입력하세요 (반시계 +)',r1:'돌리기 전 방향의 점을 누르세요',exh:'손잡이로 잡을 점을 누르세요(중심에서 떨어진 곳)',exr:'손잡이를 움직여 크기·각도를 맞추고 누르세요(배율·각도 칸에 입력해도 됨)',r2:'돌린 뒤 방향의 점을 누르세요',
+    m1:c.kind==='mir2'?'반전 축의 첫 점을 누르세요':(c.kind==='mirv'?'세로':'가로')+' 반전 축이 지날 점을 누르세요',m2:'반전 축의 두 번째 점을 누르세요',e2a1:'이동 전의 기준점(첫째)을 누르세요',e2a2:'이동 전의 기준점(둘째)을 누르세요',e2b1:'이동 후의 기준점(첫째)을 누르세요',e2b2:'이동 후의 기준점(둘째)을 누르세요',mline:'반전 축이 될 선을 누르세요',fline:(c.opt==='v'?'세로':'가로')+'로 세울 선을 누르세요'}[M.phase]||'');
+}
+$('mvDistGo').onclick=()=>{const M=S.mv,v=parseFloat($('mvDist').value);if(!(v>0))return say('거리를 cm로 입력해 주세요.',true);const u=XFDIR[M.cmd.opt];applyMove(0,p=>({x:p.x+u[0]*v,y:p.y+u[1]*v}))};
+$('mvDist').oninput=()=>draw();
+$('exScale').oninput=$('exAng').oninput=()=>{S.mv.typed=true;draw()};
+
+function exsVals(){const M=S.mv,o=M.cmd.opt,a=parseFloat($('exA').value),b=parseFloat($('exB').value);if(!(a>0)||(o==='b'&&!(b>0)))return null;
+  const sx=o==='y'?1:a,sy=o==='x'?1:o==='b'?b:a,C=M.base;return {sx,sy,T:p=>({x:C.x+(p.x-C.x)*sx,y:C.y+(p.y-C.y)*sy}),scl:Math.abs(sx-sy)<1e-12?sx:undefined}}
+$('exA').oninput=$('exB').oninput=()=>draw();
+$('exGoS').onclick=()=>{const f=exsVals();if(!f)return say('비율은 0보다 커야 합니다.',true);
+  if(f.scl===undefined&&[...S.mv.sel].some(e=>e.arc))return say('원·원호는 가로·세로 비율이 다르면 바꿀 수 없습니다(고르기에서 빼 주세요).',true);
+  applyMove(0,f.T,undefined,f.scl)};
+$('exGo').onclick=()=>{const v=exVals();if(!v)return say('배율은 0보다 커야 합니다.',true);exApply(v.s,v.d)};
 
 const outlineOK=e=>!e.kind&&(e.type===TYPE.LINE||e.type===TYPE.CURVE)&&(e.link===0||e.link===1)&&e.color!==3&&e.pts.length>=2;
 function seamBlock(e){
@@ -1750,6 +1851,16 @@ function seamOutlineDel(e){
     const h=6+24*n+56;s5.patch16=[...(s5.patch16||[]).filter(([o])=>o!==h+68*i+2&&o!==h+68*((i+1)%n)+2),[h+68*i+2,1],[h+68*((i+1)%n)+2,1]];S.edits.add(s5)}
   return mv}
 
+function delSel(){
+  const ds=[],ras=[],mv=[];let skip=0;
+  for(const e of S.mv.sel){
+    if(!e.kind&&(e.link===0x15||!delOK(e))){skip++;continue}
+    if(e.kind){S.adds.splice(S.adds.indexOf(e),1);ras.push(e)}else if(!S.dels.includes(e.rec)){for(const m of seamOutlineDel(e))if(!mv.some(k=>k.e===m.e))mv.push(m);S.dels.push(e.rec);ds.push(e.rec)}
+  }
+  if(ds.length||ras.length)S.hist.push(mv.length?{ds,ras,mv}:{ds,ras});
+  S.mv={phase:'pick',sel:new Set()};say((ds.length+ras.length)+'개를 지웠습니다.'+(skip?' (시접선·시접에 연결된 '+skip+'개는 남김)':''),!!skip);readout();refresh();
+}
+
 function newHist(){const a=[];a.push=function(...x){S.ver=(S.ver||0)+1;if(!S.redoing)S.redo=[];return Array.prototype.push.apply(this,x)};return a}
 const dirty=()=>!!S.doc&&S.ver!==S.savedVer;
 function revert(h){
@@ -1824,19 +1935,20 @@ $('toggleRight').onclick=()=>togglePanel($('toggleRight'),'noRight');
 $('toggleLeft').click();
 if(innerWidth<=900)$('toggleRight').click()
 
-const YUKA="파일|파일|파일열기|call\n파일|파일|새파일|new\n파일|파일|저장|save\n파일|곡선저장|길이조정|mach\n기호|문자|문자입력|t\n기호|문자|영역문자|tb\n기호|문자|임의문자|td\n시접||영역시접|nu\n시접||부분시접|cma\n시접|합복확인|시접삭제|nud\n선의종류||곡선|crv\n선의종류||2점선|l\n선의종류||3점원|a3\n선의종류||사각BOX|box\n선의종류|기타|반지름원|cc\n곡선수정|유사처리|SS수정|ss\n곡선수정|유사처리|SA수정|sa\n이동|이동|2점방향|mv\n이동|이동|이동회전|mvrt\n이동|이동|임의이동|dm\n이동|복사이동|2점방향|cmv\n이동|복사이동|이동회전|cmvrt\n이동|복사이동|임의이동|cdm\n그룹||설정|sg\n그룹||추가|ag\n그룹||2점이동|mg\n그룹||이동회전|mrg\n그룹||임의이동|dmg\n그룹||전undo|bga\n그룹||지시undo|bg\n복사||복사|cop\n표시|GRID|삭제|gof\n표시|GRID|점표시|gds\n표시|GRID|점|gdf\n표시|GRID|선표시|gls\n표시|GRID|선|glf\n표시|GRID|크기|gs\n표시|GRID|원점변경|gog\n표시|화면변경|1화면|1q\n표시|화면변경|2화면|2q\n표시|화면변경|3화면|3q\n표시|화면변경|전체화면|full\n표시|DRAW화면|임의화면|fr".split("\n").map(l=>{const [m,g,n,c]=l.split("|");return {m,g,n,c:c.split(",").map(s=>s.trim()).filter(Boolean)}});
+const YUKA="파일|파일|파일열기|call\n파일|파일|새파일|new\n파일|파일|저장|save\n파일|곡선저장|길이조정|mach\n입력|TRACE|수직보정|hv\n입력|TRACE|수평보정|hh\n기호|문자|문자입력|t\n기호|문자|영역문자|tb\n기호|문자|임의문자|td\n기호|[수정]|지정변경|tr\n기호|[수정]|지시변경|tm\n기호|[수정]|메모편집|meme\n기호|[수정]|영역변경|tmb\n기호|[수정]|배율변경|tms\n기호|[수정]|경사변경|tma\n시접||영역시접|nu\n시접||부분시접|cma\n시접|합복확인|시접삭제|nud\n선의종류||곡선|crv\n선의종류||평행|pl\n선의종류||연속평행|plm\n선의종류||2점선|l\n선의종류||연속선|lc\n선의종류||수평선|lh\n선의종류||수직선|lv\n선의종류||직각선|lq\n선의종류||3점원|a3\n선의종류||사각BOX|box\n선의종류||임의사각|fbox\n선의종류|기타|연장선|lt\n선의종류|기타|각도선|la\n선의종류|기타|반지름원|cc\n선의종류|기타|지름원|cd\n선의종류|기타|반경중심|crc\n선의종류|기타|임의평행|pp\n수정|단점이동|임의이동|e2\n수정|단점이동|상방향|eu\n수정|단점이동|하방향|ed\n수정|단점이동|좌방향|el\n수정|단점이동|우방향|er\n수정|축소확대|축소확대|ex\n수정|축소확대|폭방향|exx\n수정|축소확대|길이방향|exy\n수정|축소확대|양측방향|exa\n수정|축소확대|2점방향|ex2\n수정|축소확대|회전|exr\n수정|축소확대|복사회전|cexr\n곡선수정|유사처리|SS수정|ss\n곡선수정|유사처리|SA수정|sa\n이동|이동|2점방향|mv\n이동|이동|상방향|mvu\n이동|이동|하방향|mvd\n이동|이동|좌방향|mvl\n이동|이동|우방향|mvr\n이동|이동|이동회전|mvrt\n이동|이동|임의이동|dm\n이동|복사이동|2점방향|cmv\n이동|복사이동|상방향|cmvu\n이동|복사이동|하방향|cmvd\n이동|복사이동|좌방향|cmvl\n이동|복사이동|우방향|cmvr\n이동|복사이동|이동회전|cmvrt\n이동|복사이동|임의이동|cdm\n회전|회전|각도지정|rt\n회전|회전|회전량|re\n회전|회전|3점지정|rt3\n회전|회전|임의회전|dr\n회전|복사회전|각도지정|crt\n회전|복사회전|회전량|cre\n회전|복사회전|3점지정|crt3\n회전|복사회전|임의회전|cdr\n회전|보정|수직보정|hv\n회전|보정|수평보정|hh\n반전|반전|2점반전|mir\n반전|반전|수직반전|vm\n반전|반전|수평반전|hm\n반전|반전|선반전|ml\n반전|복사반전|2점반전|cmir\n반전|복사반전|수직반전|cvm, cv\n반전|복사반전|수평반전|chm\n반전|복사반전|선반전|cml\n그룹||설정|sg\n그룹||추가|ag\n그룹||해제|rg\n그룹||2점이동|mg\n그룹||이동회전|mrg\n그룹||임의이동|dmg\n그룹||전undo|bga\n그룹||지시undo|bg\n삭제||지정삭제|d\n삭제||전체삭제|dela\n복사||복사|cop\n표시|GRID|삭제|gof\n표시|GRID|점표시|gds\n표시|GRID|점|gdf\n표시|GRID|선표시|gls\n표시|GRID|선|glf\n표시|GRID|크기|gs\n표시|GRID|원점변경|gog\n표시|화면변경|1화면|1q\n표시|화면변경|2화면|2q\n표시|화면변경|3화면|3q\n표시|화면변경|전체화면|full\n표시|DRAW화면|임의화면|fr\n속성|색지정|파란색|blue\n속성|색지정|빨간색|red\n속성|색지정|보라색|purp\n속성|색지정|초록색|gree\n속성|색지정|하늘색|mizu\n속성|색지정|노란색|yell\n속성|색지정|흰색|whit\n속성|색변경|파란색|cblu\n속성|색변경|빨간색|cred\n속성|색변경|보라색|cpur\n속성|색변경|초록색|cgre\n속성|색변경|하늘색|cmiz\n속성|색변경|노란색|cyel\n속성|색변경|흰색|cwhi\n속성|선지정|실선|soli\n속성|선지정|점선|dash\n속성|선지정|1점파선|ds1\n속성|선지정|2점파선|ds2\n속성|선변경|실선|csol\n속성|선변경|점선|cdas\n속성|선변경|1점파선|cds1\n속성|선변경|2점파선|cds2".split("\n").map(l=>{const [m,g,n,c]=l.split("|");return {m,g,n,c:c.split(",").map(s=>s.trim()).filter(Boolean)}});
 const tool=t=>()=>document.querySelector('[data-tool='+t+']').click();
 const press=id=>()=>$(id).click();
 
 const ACT={
   call:()=>openFile(),new:press('new'),save:press('save'),
-  crv:tool('curve'),l:tool('line'),box:tool('box'),
+  crv:tool('curve'),l:tool('line'),pl:()=>ycStart('pl'),box:tool('box'),
   cc:tool('circle'),a3:tool('arc3'),
   mv:tool('move'),cmv:tool('cmove'),mvrt:tool('mvrt'),
   sg:tool('sg'),ag:()=>{tool('ag')();S.mv.phase='group';S.mv.agFirst=true;readout();refresh()},
   nu:tool('seam'),nud:tool('seamdel'),
   cma:()=>{tool('seam')();readout('시접: 외곽선을 하나 누르세요. 한 바퀴를 못 찾으면 차례로 직접 고릅니다')},
   t:tool('text'),tb:tool('text'),td:tool('text'),
+  d:()=>{setTool('dl');readout();refresh()},
   u:()=>doUndo(),
   ss:()=>{$('curveMode').value='ss';tool('edit')();readout('SS: 곡선을 누르고 점 하나를 옮기세요')},
   sa:()=>{$('curveMode').value='sa';tool('edit')();readout('SA: 곡선을 누르고 점을 끌면 전체가 자연스럽게 따라옵니다')},
@@ -1846,16 +1958,51 @@ const ACT={
   full:()=>{fit();draw()},
 };
 
-const XF={};
+const XF={mvu:['상방향 이동',0,'dir','u'],mvd:['하방향 이동',0,'dir','d'],mvl:['좌방향 이동',0,'dir','l'],mvr:['우방향 이동',0,'dir','r'],
+  cmvu:['상방향 복사이동',1,'dir','u'],cmvd:['하방향 복사이동',1,'dir','d'],cmvl:['좌방향 복사이동',1,'dir','l'],cmvr:['우방향 복사이동',1,'dir','r'],
+  rt:['각도지정 회전',0,'rot','c'],crt:['각도지정 복사회전',1,'rot','c'],re:['회전량 회전',0,'rot','mid'],cre:['회전량 복사회전',1,'rot','mid'],
+  rt3:['3점지정 회전',0,'rot3'],crt3:['3점지정 복사회전',1,'rot3'],dr:['임의회전',0,'rot3'],cdr:['임의 복사회전',1,'rot3'],
+  mir:['2점반전',0,'mir2'],cmir:['2점 복사반전',1,'mir2'],vm:['수직반전',0,'mirv'],cvm:['수직 복사반전',1,'mirv'],cv:['수직 복사반전',1,'mirv'],
+  hm:['수평반전',0,'mirh'],chm:['수평 복사반전',1,'mirh'],ml:['선반전',0,'mirl'],cml:['선 복사반전',1,'mirl'],
+  hv:['수직보정',0,'fix','v'],hh:['수평보정',0,'fix','h'],
+  
+  exr:['축소확대 회전',0,'exr'],cexr:['축소확대 복사회전',1,'exr'],
+  ex2:['2점방향 축소확대',0,'ex2'],ex:['축소확대',0,'exs','a'],exx:['폭방향 축소확대',0,'exs','x'],exy:['길이방향 축소확대',0,'exs','y'],exa:['양측방향 축소확대',0,'exs','b'],
+  };
 for(const [code,[name,copy,kind,opt]] of Object.entries(XF))ACT[code]=()=>{setTool('xf');S.mv.cmd={code,name,copy:!!copy,kind,opt};readout();refresh()};
+
+XF.rg=['그룹 해제',0,'ungroup'];
+const COLORS=[['blue','cblu',1,'파란색'],['red','cred',2,'빨간색'],['purp','cpur',3,'보라색'],['gree','cgre',4,'초록색'],['mizu','cmiz',5,'하늘색'],['yell','cyel',6,'노란색'],['whit','cwhi',7,'흰색']];
+for(const [set,chg,n,name] of COLORS){
+  ACT[set]=()=>{$('lineKind').value=n;say('새로 그리는 선: '+name)};
+  XF[chg]=[name+' 색변경',0,'color',n];
+}
+
+const LTYPES=[['soli','csol',1,'실선'],['dash','cdas',2,'점선'],['ds1','cds1',3,'1점파선'],['ds2','cds2',4,'2점파선']];
+for(const [set,chg,n,name] of LTYPES){ACT[set]=()=>{S.ltype=n;say('새로 그리는 선: '+name)};XF[chg]=[name+'으로 선변경',0,'ltype',n]}
+for(const code of ['rg',...COLORS.map(c=>c[1]),...LTYPES.map(c=>c[1])]){const [name,copy,kind,opt]=XF[code];ACT[code]=()=>{setTool('xf');S.mv.cmd={code,name,copy:!!copy,kind,opt};readout();refresh()}}
+ACT.dela=()=>{
+  const ok=e=>e.kind||(e.link!==0x15&&!S.doc.refs.has((e.rec-REC)/RSZ+1)&&[TYPE.LINE,TYPE.CURVE,TYPE.TEXT,TYPE.ARC].includes(e.type));
+  const vis=allEls().filter(ok),adds=vis.filter(e=>e.kind),ds=vis.filter(e=>!e.kind).map(e=>e.rec);
+  if(!vis.length)return say('지울 요소가 없습니다.',true);
+  if(!confirm('보이는 요소 '+vis.length+'개를 모두 지울까요? (시접·너치에 연결된 것은 남습니다. 되돌리기로 복구할 수 있어요)'))return;
+  S.adds=S.adds.filter(e=>!adds.includes(e));S.dels.push(...ds);S.hist.push({ds,ras:adds});S.sel=null;
+  say(vis.length+'개를 지웠습니다. 되돌리기로 복구할 수 있습니다.');refresh();
+};
 {const m=ACT.mvrt;ACT.mvrt=()=>{m();S.mvCopy=false;S.gMove=false};ACT.cmvrt=()=>{m();S.mvCopy=true;say('복사 이동회전: 옮길 선을 고르세요(원본은 남음)')}}
 ACT.dm=ACT.mv;ACT.cdm=ACT.cmv;ACT.cop=ACT.cmv;ACT.mg=ACT.mv;ACT.mrg=ACT.mvrt;ACT.dmg=ACT.mv;
 
 const YC={};
 const ycD=(a,b)=>Math.hypot(b.x-a.x,b.y-a.y);
+const ycAdd=list=>{const made=[];for(const o of list){commit({...o,flag:o.flag||1});made.push(S.hist.pop().a)}if(made.length)S.hist.push({as:made});return made};
 const ycCurve=e=>e.pts.length>2&&(e.kind==='curve'||e.type===TYPE.CURVE);
 
 function bakeTrim(e){if(!e.trim)return;const P=bakedPts(e);e.pts=P;e.trim=false;e.baked=true;if(!e.kind&&P.length!==e.n)e.grow=true}
+function ycEdit(e,pts){
+  if(locked(e))throw new Error('그레이딩이나 다른 요소에 연결된 선은 유카에서 고쳐 주세요.');
+  if(e.trim){e.pts=resample(e.pts,e.n,true);e.trim=false;e.baked=true}
+  remember(e);e.pts=pts;changed(e);
+}
 
 function ycNear(P,w){let best=null;let run=0;
   for(let i=1;i<P.length;i++){const a=P[i-1],b=P[i],dx=b.x-a.x,dy=b.y-a.y,L=Math.hypot(dx,dy)||1e-9,t=Math.max(0,Math.min(1,((w.x-a.x)*dx+(w.y-a.y)*dy)/(L*L))),p={x:a.x+dx*t,y:a.y+dy*t},d=ycD(p,w);
@@ -1911,9 +2058,87 @@ function drawYc(c){
   c.setLineDash([]);
 }
 
-const ycAlong=(A,s)=>{const c=cutCurve(A,0,Math.max(0,Math.min(lenOf(A),s)));return c[c.length-1]};;;;;;;;
+YC.lh={name:'수평선',steps:[{t:'pt',hint:'시작점을 누르세요'},{t:'pt',hint:'끝 쪽을 누르세요(가로로 그어집니다)'}],run:Y=>{const[a,b]=Y.pts;if(Math.abs(b.x-a.x)<1e-6)throw new Error('길이가 0입니다.');ycAdd([{kind:'line',pts:[a,{x:b.x,y:a.y}]}])},preview:(Y,h)=>Y.pts[0]&&h?[[Y.pts[0],{x:h.x,y:Y.pts[0].y}]]:null};
+YC.lv={name:'수직선',steps:[{t:'pt',hint:'시작점을 누르세요'},{t:'pt',hint:'끝 쪽을 누르세요(세로로 그어집니다)'}],run:Y=>{const[a,b]=Y.pts;if(Math.abs(b.y-a.y)<1e-6)throw new Error('길이가 0입니다.');ycAdd([{kind:'line',pts:[a,{x:a.x,y:b.y}]}])},preview:(Y,h)=>Y.pts[0]&&h?[[Y.pts[0],{x:Y.pts[0].x,y:h.y}]]:null};
+YC.la={name:'각도선',steps:[{t:'pt',hint:'시작점을 누르세요'},{t:'num',label:'각도 °(반시계)',def:0,hint:'각도를 입력하세요'},{t:'num',label:'길이 cm',pos:1,hint:'길이를 입력하세요'}],
+  run:Y=>{const[a]=Y.pts,[g,L]=Y.nums,r=g*Math.PI/180;ycAdd([{kind:'line',pts:[a,{x:a.x+Math.cos(r)*L,y:a.y+Math.sin(r)*L}]}])},
+  preview:(Y,h,v)=>{const a=Y.pts[0];if(!a)return null;const g=Y.i===1?v:Y.nums[0],L=Y.i===2?v:10;if(!isFinite(g))return null;const r=g*Math.PI/180;return [[a,{x:a.x+Math.cos(r)*(L||10),y:a.y+Math.sin(r)*(L||10)}]]}};
+YC.lq={name:'직각선',steps:[{t:'el',hint:'기준선을 누르세요'},{t:'pt',hint:'시작점(기준선 위로 맞춤)을 누르세요'},{t:'pt',hint:'끝 쪽을 누르세요(기준선에 직각)'}],
+  run:Y=>{const n=ycNear(shape(Y.els[0]),Y.pts[0]),f=n.p,nx=-n.u.y,ny=n.u.x,b=Y.pts[1],k=(b.x-f.x)*nx+(b.y-f.y)*ny;if(Math.abs(k)<1e-6)throw new Error('길이가 0입니다.');ycAdd([{kind:'line',pts:[f,{x:f.x+nx*k,y:f.y+ny*k}]}])},
+  preview:(Y,h)=>{if(Y.i!==2||!h)return null;const n=ycNear(shape(Y.els[0]),Y.pts[0]),f=n.p,nx=-n.u.y,ny=n.u.x,k=(h.x-f.x)*nx+(h.y-f.y)*ny;return [[f,{x:f.x+nx*k,y:f.y+ny*k}]]}};
+YC.lc={name:'연속선',steps:[{t:'multi',min:2,hint:Y=>'점을 차례로 누르고 [완료] ('+Y.pts.length+'점)'}],
+  run:Y=>{const P=Y.pts,L=[];for(let i=1;i<P.length;i++)if(ycD(P[i-1],P[i])>1e-6)L.push({kind:'line',pts:[P[i-1],P[i]]});ycAdd(L)},
+  preview:(Y,h)=>Y.pts.length?[[...Y.pts,...(h?[h]:[])]]:null,done:Y=>'직선 '+(Y.pts.length-1)+'개를 넣었습니다.'};
+YC.lt={name:'연장선',steps:[{t:'el',need:'line',edit:1,hint:'늘일 직선을 늘일 끝 가까이 누르세요'},{t:'num',label:'늘일 길이 cm (줄이려면 −)',hint:'늘일 길이를 입력하세요'}],
+  run:Y=>{const e=Y.els[0],[a,b]=e.pts,t=Y.taps[0],end=ycD(t,b)<ycD(t,a),L=ycD(a,b),v=Y.nums[0];if(L+v<=0.01)throw new Error('선보다 더 많이 줄일 수 없습니다.');
+    const u={x:(b.x-a.x)/L,y:(b.y-a.y)/L};if(e.kind){remember(e);e.pts=end?[a,{x:b.x+u.x*v,y:b.y+u.y*v}]:[{x:a.x-u.x*v,y:a.y-u.y*v},b];return}
+    ycEdit(e,end?[a,{x:b.x+u.x*v,y:b.y+u.y*v}]:[{x:a.x-u.x*v,y:a.y-u.y*v},b])},done:Y=>'직선 길이를 '+Y.nums[0]+' cm 바꿨습니다.'};
+YC.cd={name:'지름원',steps:[{t:'pt',hint:'지름의 한쪽 끝을 누르세요'},{t:'pt',hint:'지름의 다른 쪽 끝을 누르세요'}],
+  run:Y=>{const[a,b]=Y.pts;makeArc({c:{x:(a.x+b.x)/2,y:(a.y+b.y)/2},r:ycD(a,b)/2,from:0,to:0})},
+  preview:(Y,h)=>{const a=Y.pts[0];if(!a||!h)return null;return [arcPts({x:(a.x+h.x)/2,y:(a.y+h.y)/2},ycD(a,h)/2,0,0)]}};
+YC.pp={name:'임의평행',steps:[{t:'el',hint:'기준선을 누르세요'},{t:'pt',hint:'평행선이 지날 점을 누르세요'}],
+  run:Y=>{const e=Y.els[0],n=ycNear(shape(e),Y.pts[0]),d=(Y.pts[0].x-n.p.x)*(-n.u.y)+(Y.pts[0].y-n.p.y)*n.u.x;if(Math.abs(d)<1e-6)throw new Error('기준선 위의 점입니다.');ycAdd([{kind:e.pts.length>2?'curve':'line',pts:offsetPts(e.pts,d)}])},
+  preview:(Y,h)=>{if(Y.i!==1||!h)return null;const e=Y.els[0],n=ycNear(shape(e),h),d=(h.x-n.p.x)*(-n.u.y)+(h.y-n.p.y)*n.u.x,P=offsetPts(e.pts,d);return [P.length>2?spline(P):P]}};
+YC.plm={name:'연속평행',steps:[{t:'el',hint:'기준선을 누르세요'},{t:'pt',hint:'평행선을 그을 쪽을 누르세요'},{t:'num',label:'간격 cm',pos:1,def:1,hint:'간격을 입력하세요'},{t:'num',label:'개수',pos:1,def:3,hint:'개수를 입력하세요'}],
+  run:Y=>{const e=Y.els[0],n=ycNear(shape(e),Y.pts[0]),side=Math.sign((Y.pts[0].x-n.p.x)*(-n.u.y)+(Y.pts[0].y-n.p.y)*n.u.x)||1,[g,k]=Y.nums,L=[];
+    for(let i=1;i<=Math.min(50,Math.round(k));i++)L.push({kind:e.pts.length>2?'curve':'line',pts:offsetPts(e.pts,side*g*i)});ycAdd(L)},done:Y=>'평행선 '+Math.round(Y.nums[1])+'개를 넣었습니다.'};
+YC.fbox={name:'임의사각',steps:[{t:'pt',hint:'한 변의 시작점을 누르세요'},{t:'pt',hint:'그 변의 끝점을 누르세요'},{t:'pt',hint:'높이 쪽을 누르세요'}],
+  run:Y=>{const[a,b,c]=Y.pts,L=ycD(a,b);if(L<1e-6)throw new Error('변 길이가 0입니다.');const nx=-(b.y-a.y)/L,ny=(b.x-a.x)/L,h=(c.x-a.x)*nx+(c.y-a.y)*ny;if(Math.abs(h)<1e-6)throw new Error('높이가 0입니다.');
+    const d={x:a.x+nx*h,y:a.y+ny*h},e2={x:b.x+nx*h,y:b.y+ny*h};ycAdd([{kind:'line',pts:[a,b]},{kind:'line',pts:[b,e2]},{kind:'line',pts:[e2,d]},{kind:'line',pts:[d,a]}])},
+  preview:(Y,h)=>{const[a,b]=Y.pts;if(!a||!h)return null;if(!b)return [[a,h]];const L=ycD(a,b),nx=-(b.y-a.y)/L,ny=(b.x-a.x)/L,k=(h.x-a.x)*nx+(h.y-a.y)*ny;return [[a,b,{x:b.x+nx*k,y:b.y+ny*k},{x:a.x+nx*k,y:a.y+ny*k},a]]}};
+
+const ycAlong=(A,s)=>{const c=cutCurve(A,0,Math.max(0,Math.min(lenOf(A),s)));return c[c.length-1]};;
+
+function eMove(Y,dx,dy){
+  const [a,b]=Y.pts,x0=Math.min(a.x,b.x)-1e-6,x1=Math.max(a.x,b.x)+1e-6,y0=Math.min(a.y,b.y)-1e-6,y1=Math.max(a.y,b.y)+1e-6,inR=p=>p.x>=x0&&p.x<=x1&&p.y>=y0&&p.y<=y1;
+  let n=0,skip=0;
+  for(const e of allEls()){if(isNotch(e)||e.text||e.arc||e.pts.length<2)continue;const P=e.pts,hit=[0,P.length-1].filter(i=>inR(P[i]));if(!hit.length)continue;
+    if(!e.kind&&locked(e)){skip++;continue}
+    const pts=P.map((p,i)=>hit.includes(i)?{x:p.x+dx,y:p.y+dy}:{...p});if(e.kind){remember(e);e.pts=pts}else ycEdit(e,pts);n+=hit.length}
+  if(!n)throw new Error('그 영역 안에 선 끝점이 없습니다.'+(skip?' (그레이딩·시접에 연결된 선 '+skip+'개는 건너뜀)':''));
+  Y.moved=n;
+}
+const eArea=[{t:'pt',hint:'이동할 영역의 첫 모서리를 누르세요'},{t:'pt',hint:'영역의 대각 모서리를 누르세요(그 안의 끝점이 모두 움직임)'}];
+for(const [code,name,ux,uy] of [['eu','상방향',0,1],['ed','하방향',0,-1],['el','좌방향',-1,0],['er','우방향',1,0]])
+  YC[code]={name:'단점이동 '+name,steps:[...eArea,{t:'num',label:'이동량 cm',pos:1,hint:'옮길 거리를 입력하세요'}],run:Y=>eMove(Y,ux*Y.nums[0],uy*Y.nums[0]),done:Y=>'끝점 '+Y.moved+'개를 '+Y.nums[0]+' cm 옮겼습니다.'};
+YC.e2={name:'단점이동 임의이동',steps:[...eArea,{t:'pt',hint:'이동할 2점: 처음 점을 누르세요'},{t:'pt',hint:'옮길 자리를 누르세요'}],
+  run:Y=>eMove(Y,Y.pts[3].x-Y.pts[2].x,Y.pts[3].y-Y.pts[2].y),done:Y=>'끝점 '+Y.moved+'개를 옮겼습니다.'};;;;;;
 const bakedPts=e=>resample(e.pts,e.n,true);
+YC.crc={name:'반경중심',steps:[{t:'num',label:'반지름 cm',pos:1,hint:'원의 반지름을 입력하세요'},{t:'pt',hint:'원의 중심을 누르세요'}],
+  run:Y=>makeArc({c:Y.pts[0],r:Y.nums[0],from:0,to:0}),preview:(Y,h)=>Y.i===1&&h?[arcPts(h,Y.nums[0],0,0)]:null};
+
+function textSet(e,o){
+  const src=S.doc.bytes,keep=e.kind?null:{tail:src.slice(e.addr+62+(new DataView(src.buffer,src.byteOffset).getUint16(e.addr+60,true)),e.addr+e.len),head:src.slice(e.addr,e.addr+62)};
+  const was={text:e.text,at:e.at,size:e.size,cw:e.cw,pitch:e.pitch,lh:e.lh,rot:e.rot,box:e.box,reData:e.reData};Object.assign(e,o);
+  e.box=textBox(e.at,e.text,e.size,e.h||2,e.v||2,e.rot,e.cw,e.pitch,e.lh);
+  if(!e.kind){const t=eucKr(e.text);if(!t)throw new Error('유카에서 쓸 수 없는 글자가 있습니다: '+e.text);
+    e.reData=()=>{const b=new Uint8Array(62+t.length+keep.tail.length),w=new DataView(b.buffer),f=(k,x)=>w.setFloat32(k,x,true);b.set(keep.head);
+      f(0,e.box[0].x);f(4,e.box[0].y);f(8,e.box[1].x);f(12,e.box[1].y);f(16,e.at.x);f(20,e.at.y);f(24,e.size);f(28,e.cw??e.size);f(32,e.pitch??e.size);f(36,e.lh??e.size*1.2);f(44,e.rot||0);
+      w.setUint16(60,t.length,true);b.set(t,62);b.set(keep.tail,62+t.length);return b};S.edits.add(e)}
+  return was}
+function textUndo(e,f){const ed=!e.kind&&S.edits.has(e),snap=f();S.hist.push({mv:[{e,was:ed,snap}]})}
+const isText=e=>e&&(e.kind==='text'||e.type===TYPE.TEXT);
+const textStep={t:'el',need:'any',hint:'변경할 문자를 누르세요'};
+YC.tm={name:'지시변경',steps:[textStep],run:Y=>{const e=Y.els[0];if(!isText(e))throw new Error('글자를 눌러 주세요.');const t=prompt('문자를 입력하세요',e.text);if(t===null||t===''||t===e.text)return;textUndo(e,()=>textSet(e,{text:t}))},done:()=>'글자를 바꿨습니다.'};
+YC.tms={name:'배율변경',steps:[textStep,{t:'num',label:'배율',def:'1',hint:'배율 수치입력'}],run:Y=>{const e=Y.els[0],k=Y.nums[0];if(!isText(e))throw new Error('글자를 눌러 주세요.');if(!(k>0))throw new Error('배율은 0보다 커야 합니다.');
+  textUndo(e,()=>textSet(e,{size:e.size*k,cw:(e.cw??e.size)*k,pitch:(e.pitch??e.size)*k,lh:(e.lh??e.size*1.2)*k}))},done:()=>'글자 크기를 바꿨습니다.'};
+
+YC.tmb={name:'영역변경',steps:[textStep,{t:'pt',hint:'대각의 2점을 누르세요(1)'},{t:'pt',hint:'대각의 2점을 누르세요(2)'}],run:Y=>{const e=Y.els[0],[a,b]=Y.pts;if(!isText(e))throw new Error('글자를 눌러 주세요.');
+  const W=Math.abs(b.x-a.x),H=Math.abs(b.y-a.y),units=textWidth(e.text,1,1,1),z=Math.min(W/units,H);if(!(z>0))throw new Error('상자가 너무 작습니다.');
+  textUndo(e,()=>textSet(e,{at:{x:(a.x+b.x)/2,y:(a.y+b.y)/2},size:z,cw:z,pitch:z,lh:H}))},done:()=>'글자를 상자에 맞췄습니다.'};
+YC.tma={name:'경사변경',steps:[textStep,{t:'num',label:'각도 °',def:'0',hint:'회전 각도(반시계 +). 유카는 커서로 돌림'}],run:Y=>{const e=Y.els[0];if(!isText(e))throw new Error('글자를 눌러 주세요.');textUndo(e,()=>textSet(e,{rot:Y.nums[0]}))},done:()=>'글자를 돌렸습니다.'};
+ACT.tr=()=>{const a=prompt('이전 문자열 입력');if(!a)return;const b=prompt('새로운 문자를 입력');if(b===null)return;const mv=[];
+  for(const e of [...S.doc.els.filter(x=>x.type===TYPE.TEXT&&!S.dels.includes(x.rec)),...S.adds.filter(x=>x.kind==='text')])if(e.text&&e.text.includes(a)){const ed=!e.kind&&S.edits.has(e),was=textSet(e,{text:e.text.split(a).join(b)});mv.push({e,was:ed,snap:was})}
+  if(mv.length)S.hist.push({mv});say(mv.length+'개 글자를 바꿨습니다.');refresh()};
 for(const code of Object.keys(YC))ACT[code]=()=>ycStart(code);
+
+YC.ds={name:'2점 재기',steps:[{t:'pt',hint:'2점을 누르세요(첫 점)'},{t:'pt',hint:'2점을 누르세요(둘째 점)'}],
+  run:Y=>{const [a,b]=Y.pts;S.dsLast={h:Math.abs(b.y-a.y),w:Math.abs(b.x-a.x),d:Math.hypot(b.x-a.x,b.y-a.y)}},
+  done:()=>{const r=S.dsLast,f=v=>(+v.toFixed(3)).toString();return '높이 '+f(r.h)+'  폭 '+f(r.w)+'  간격 '+f(r.d)}};ACT.ds=()=>ycStart('ds');
+YC.pl={name:'평행',steps:[{t:'el',need:'any',hint:'평행의 기준선을 누르세요'},{t:'pt',hint:'방향을 누르세요(평행선을 그을 쪽)'},{t:'num',label:'간격 cm',pos:1,def:()=>S.plGap||'1',hint:'간격을 입력하세요'}],
+  run:Y=>{const e=Y.els[0];if(e.arc)throw new Error('원·원호의 평행은 아직 안 됩니다.');const d=Y.nums[0];S.plGap=d;ycAdd([{...plEl(e,d*plSide(e,Y.pts[0])),layer:e.layer,color:e.color}])},
+  preview:(Y,h,v)=>{const e=Y.els[0];if(!e||e.arc)return null;const w=Y.pts[0]||h;if(!w)return null;const d=(Y.pts[0]?(v>0?v:S.plGap||1):S.plGap||1)*plSide(e,w),o=plEl(e,d);return [o.kind==='line'?o.pts:spline(o.pts)]},
+  done:Y=>'간격 '+Y.nums[0]+' cm로 평행선을 그었습니다.'};
 
 const RECENT_DB='pi-recent';
 function recentDb(){return new Promise((ok,no)=>{const r=indexedDB.open(RECENT_DB,1);r.onupgradeneeded=()=>r.result.createObjectStore('f');r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)})}
@@ -1928,6 +2153,16 @@ ACT.bf=async()=>{const L=await recentGet();if(!L.length)return say('아직 최�
     b.onclick=async()=>{d.close();try{if((await x.h.queryPermission({mode:'readwrite'}))!=='granted'&&(await x.h.requestPermission({mode:'readwrite'}))!=='granted')return say('파일을 열 권한이 없습니다.',true);
       const f=await x.h.getFile();load(new Uint8Array(await f.arrayBuffer()),f.name.replace(/\.(pax|pan)(\.\d+)?$|\.\d+$/,''));S.file=f.name;S.fh=x.h;recentAdd(x.h);say('')}catch(err){say('열 수 없습니다: '+err.message,true)}};box.appendChild(b)});
   d.querySelector('button[value=x]').onclick=()=>d.close();d.showModal()};
+
+YC.meme={...YC.tm,name:'메모편집',run:Y=>{const e=Y.els[0];if(!isText(e))throw new Error('글자를 눌러 주세요.');memoDialog(e)},done:()=>'메모편집 창에서 고치고 [종료]를 누르세요.'};ACT.meme=()=>ycStart('meme');
+
+function memoDialog(e){const old=document.getElementById('memoDlg');if(old)old.remove();
+  const d=document.createElement('div');d.id='memoDlg';d.className='float';d.style.cssText='position:fixed;left:50%;top:30%;transform:translate(-50%,-30%);z-index:50;display:flex;flex-direction:column;gap:6px;padding:10px;min-width:260px';
+  const ta=document.createElement('textarea');ta.rows=5;ta.value=e.text.replace(/\r\n/g,'\n');ta.style.cssText='font:inherit;min-height:6em';
+  const row=document.createElement('div');row.style.cssText='display:flex;gap:8px;justify-content:flex-end';const ok=document.createElement('button');ok.textContent='종료';const no=document.createElement('button');no.textContent='중지';
+  row.append(ok,no);d.append(document.createTextNode('메모편집'),ta,row);document.body.append(d);setTimeout(()=>ta.focus(),0);
+  no.onclick=()=>{d.remove();say('메모편집을 그만뒀습니다.')};
+  ok.onclick=()=>{const t=ta.value.replace(/\r?\n/g,'\r\n').replace(/(\r\n)+$/,'');d.remove();if(!t||t===e.text)return say('바뀐 글자가 없습니다.');try{textUndo(e,()=>textSet(e,{text:t}));say('메모를 고쳤습니다.')}catch(err){say(err.message,true)}refresh()}}
 ACT.gof=()=>{$('gridOn').checked=false;draw()};
 ACT.gls=ACT.glf=()=>{$('gridOn').checked=true;S.gridMode='line';draw()};ACT.gds=ACT.gdf=()=>{$('gridOn').checked=true;S.gridMode='dot';draw()};
 ACT.gs=()=>{const v=prompt('GRID 크기(cm). 비우면 화면 배율에 맞춰 자동',S.gridSize||'');if(v===null)return;const n=parseFloat(v);S.gridSize=n>0?n:null;$('gridOn').checked=true;say(n>0?'GRID '+n+'cm':'GRID 자동');draw()};
@@ -1965,6 +2200,11 @@ function runCmd(raw){
   const c=$('cmd');let code=String(raw||'').trim().toLowerCase();c.value='';c.blur();
   if(!code)return;
   if(S.ratioAsk){S.ratioAsk=false;if(/^\d*\.?\d+$/.test(code)){const r=parseFloat(code);if(r>1)return say('비율은 0~1로 넣어 주세요(예: 0.3).',true);$('snapRatio').value=r;return say('비율점: 비율 '+r)}}
+  if(code==='g'){
+    if(MOVES.includes(S.tool)&&S.mv.phase==='pick'){S.gNext=true;say('[g] 그룹내의 1요소를 누르세요');return}
+    return say('g(그룹째 고르기)는 선을 고르는 중에 쓰세요(예: mv 스페이스 → g 스페이스 → 선).',true)}
+  if(['cg','slay'].includes(code)&&MOVES.includes(S.tool)&&S.mv.phase==='pick'){S.gNext=code;say(code==='cg'?'[cg] 연속선의 시작선을 누르세요':'[slay] 같은 층(LAY)의 요소를 하나 누르세요');return}
+  if(code==='z'&&MOVES.includes(S.tool)&&S.mv.phase==='pick'){areaSnapStart('in');S.areaSnap.zOut=true;say('[z] 형태를 둘러싸는 대각 2점을 누르세요');return}
 
   if(/^[*/+]/.test(code)&&S.calcLast!=null)code=calcFmt(S.calcLast)+code;
   const nv=numVals(code);
